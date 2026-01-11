@@ -16,6 +16,9 @@ interface HeaderProps {
       branches: string
       contact: string
     }
+    booking?: {
+      order_now: string
+    }
   }
   locale: Locale
   onLocaleChange: (locale: Locale) => void
@@ -102,6 +105,22 @@ export default function Header({ translations, locale, onLocaleChange }: HeaderP
           {/* Desktop Navigation */}
           {!isMobile && (
             <nav className="flex items-center gap-0" style={{ height: '75px', marginRight: '0' }}>
+              {/* Order Now Button - First item */}
+              <Link
+                href="/reservation"
+                className="glow-button inline-flex items-center gap-2 px-5 py-2 text-xs font-bold text-dark hover:scale-105 transition-transform duration-300"
+                style={{ 
+                  fontFamily: 'Orbitron, sans-serif',
+                  marginRight: '16px',
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  height: 'auto'
+                }}
+              >
+                {translations.booking?.order_now || 'Order now'}
+              </Link>
+
               {menuItems.map((item) => (
                 <a
                   key={item.href}
@@ -113,13 +132,13 @@ export default function Header({ translations, locale, onLocaleChange }: HeaderP
                   className="uppercase transition-all relative"
                   style={{
                     fontFamily: 'Roboto, sans-serif',
-                    fontSize: 'clamp(14px, 2vw, 24px)',
+                    fontSize: 'clamp(12px, 1.6vw, 18px)',
                     fontWeight: 700,
                     lineHeight: '10px',
                     letterSpacing: '0.8px',
                     color: '#05f6f7',
-                    paddingLeft: 'clamp(8px, 1.5vw, 18px)',
-                    paddingRight: 'clamp(8px, 1.5vw, 18px)',
+                    paddingLeft: 'clamp(6px, 1.2vw, 14px)',
+                    paddingRight: 'clamp(6px, 1.2vw, 14px)',
                     paddingTop: '11px',
                     paddingBottom: '11px',
                     backgroundImage: 'linear-gradient(to right, #00F0FF, #F000F0)',
@@ -182,15 +201,15 @@ export default function Header({ translations, locale, onLocaleChange }: HeaderP
               >
                 <button
                   onClick={() => setIsLangOpen(!isLangOpen)}
-                  style={{
-                    backgroundColor: 'transparent',
-                    color: '#05f6f7',
-                    border: 'none',
-                    fontSize: 'clamp(14px, 2vw, 24px)',
-                    fontFamily: 'Roboto, sans-serif',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    padding: '11px clamp(8px, 1.5vw, 18px)',
+                    style={{
+                      backgroundColor: 'transparent',
+                      color: '#05f6f7',
+                      border: 'none',
+                      fontSize: 'clamp(12px, 1.6vw, 18px)',
+                      fontFamily: 'Roboto, sans-serif',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      padding: '11px clamp(6px, 1.2vw, 14px)',
                     outline: 'none',
                     display: 'flex',
                     alignItems: 'center',
@@ -255,7 +274,7 @@ export default function Header({ translations, locale, onLocaleChange }: HeaderP
                           backgroundColor: 'transparent',
                           color: locale === loc ? '#C7D0FF' : '#05f6f7',
                           border: 'none',
-                          fontSize: 'clamp(14px, 2vw, 24px)',
+                          fontSize: 'clamp(12px, 1.6vw, 18px)',
                           fontFamily: 'Roboto, sans-serif',
                           fontWeight: locale === loc ? 700 : 400,
                           cursor: 'pointer',
@@ -373,7 +392,7 @@ export default function Header({ translations, locale, onLocaleChange }: HeaderP
                   }}
                   style={{
                     fontFamily: 'Roboto, sans-serif',
-                    fontSize: '20px',
+                          fontSize: '16px',
                     fontWeight: 700,
                     letterSpacing: '0.8px',
                     color: '#05f6f7',
