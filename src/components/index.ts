@@ -7,6 +7,7 @@ export { default as BranchesSection } from './BranchesSection'
 export { default as ContactSection } from './ContactSection'
 export { default as Footer } from './Footer'
 export { default as WhatsAppButton } from './WhatsAppButton'
+export { ErrorBoundary } from './ErrorBoundary'
 
 // Anciens composants du franchiseur (gardés mais non utilisés)
 // export { default as WhyChooseUsSection } from './WhyChooseUsSection'

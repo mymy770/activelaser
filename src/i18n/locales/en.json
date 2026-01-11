@@ -201,7 +201,9 @@
     },
     "step5": {
       "title": "Contact Information",
-      "subtitle": "Please fill in your details"
+      "subtitle": "Please fill in your details",
+      "title_event": "Event Information & Contact",
+      "subtitle_event": "Please fill in your contact details and event order information"
     },
     "contact": {
       "first_name": "First Name",
@@ -214,11 +216,92 @@
       "phone_placeholder": "Enter phone number",
       "email_placeholder": "Enter email (optional)",
       "special_request_placeholder": "If you have any special requests, please mention them here (optional)",
+      "event_type": "Event Type",
+      "event_type_placeholder": "Select event type",
+      "event_type_birthday": "Birthday",
+      "event_type_bar_mitzvah": "Bar/Bat Mitzvah",
+      "event_type_corporate": "Corporate",
+      "event_type_party": "Party",
+      "event_type_other": "Other",
+      "event_age": "Age",
+      "event_age_placeholder": "Age (optional)",
       "terms": {
         "label": "I have read and agree to the terms and rules",
         "read_terms": "Read terms and rules",
         "title": "Terms and Rules",
-        "close": "Close"
+        "close": "Close",
+        "booking_info": {
+          "title": "Booking Information",
+          "items": [
+            "Please arrive at least 10 minutes before your scheduled time",
+            "Reservations are confirmed upon payment",
+            "Changes or cancellations must be made at least 24 hours in advance",
+            "Late arrivals may result in reduced play time"
+          ]
+        },
+        "rules": {
+          "title": "Rules and Regulations",
+          "items": [
+            "Follow all safety instructions provided by staff",
+            "Respect other players and maintain a friendly environment",
+            "No food or drinks inside the game rooms",
+            "Smoking is strictly prohibited",
+            "Children under 12 must be accompanied by an adult",
+            "Any damage to equipment will result in additional charges"
+          ]
+        },
+        "payment": {
+          "title": "Payment Details",
+          "items": [
+            "Payment is required at the time of booking",
+            "Accepted payment methods: Cash, Credit Card, Bank Transfer",
+            "Refunds are available only for cancellations made 24+ hours in advance",
+            "Smart bracelet fee: 10₪ (one-time, reusable)",
+            "Event packages include smart bracelet in the price"
+          ]
+        },
+        "contact": {
+          "title": "Contact Information",
+          "description": "For questions or special requests, please contact us:",
+          "items": [
+            "Phone: 03-551-2277",
+            "Email: contact@activegames.co.il",
+            "WhatsApp: Available on our website"
+          ]
+        },
+        "acknowledgment": "By checking the box, you acknowledge that you have read, understood, and agree to all terms and conditions stated above."
+      },
+      "event": {
+        "booking_info": {
+          "title": "Event Booking Information",
+          "items": [
+            "Event reservations require a minimum of 15 participants",
+            "Please arrive at least 15 minutes before your scheduled time for setup",
+            "Reservations are confirmed upon payment",
+            "Changes or cancellations must be made at least 48 hours in advance"
+          ]
+        },
+        "rules": {
+          "title": "Event Rules and Regulations",
+          "items": [
+            "Follow all safety instructions provided by staff",
+            "Respect other participants and maintain a friendly environment",
+            "No food or drinks inside the game rooms without authorization",
+            "Smoking is strictly prohibited",
+            "Children under 12 must be accompanied by an adult",
+            "Any damage to equipment will result in additional charges"
+          ]
+        },
+        "payment": {
+          "title": "Event Payment Details",
+          "items": [
+            "Payment is required at the time of booking",
+            "Accepted payment methods: Cash, Credit Card, Bank Transfer",
+            "Refunds are available only for cancellations made 48+ hours in advance",
+            "Event packages include smart bracelet in the price"
+          ]
+        },
+        "acknowledgment": "By checking the box, you acknowledge that you have read, understood, and agree to all event terms and conditions stated above."
       }
     },
     "type": {
@@ -228,11 +311,13 @@
       },
       "event": {
         "title": "Event",
-        "description": "Event package with private room"
+        "description": "Event package with private room",
+        "min_players_note": "Minimum 15 players required for events"
       },
       "players": {
         "label": "Number of players",
-        "placeholder": "Select or enter a number"
+        "placeholder": "Select or enter a number",
+        "info_event": "Minimum 15 players required"
       }
     },
     "next": "Next",
@@ -244,7 +329,9 @@
       "subtitle": "Thank you for your reservation",
       "reservation_number": "Reservation Number",
       "back_to_site": "Back to Site",
-      "finished": "Finished"
+      "finished": "Finished",
+      "download_reservation": "Download Reservation",
+      "download_order": "Download Order"
     },
     "arrival_note": "Please arrive at least 10 minutes before your scheduled time",
     "summary": {
@@ -252,7 +339,9 @@
       "branch": "Branch:",
       "type": "Type:",
       "date": "Date:",
-      "time": "Time:"
+      "time": "Time:",
+      "event_type": "Event Type:",
+      "event_age": "Age:"
     }
   }
 }

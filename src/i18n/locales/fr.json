@@ -169,7 +169,9 @@
     },
     "step5": {
       "title": "Informations de contact",
-      "subtitle": "Veuillez remplir vos coordonnées"
+      "subtitle": "Veuillez remplir vos coordonnées",
+      "title_event": "Informations événement & contact",
+      "subtitle_event": "Veuillez remplir vos coordonnées et les détails de votre commande d'événement"
     },
     "contact": {
       "first_name": "Prénom",
@@ -182,11 +184,92 @@
       "phone_placeholder": "Entrez le numéro de téléphone",
       "email_placeholder": "Entrez l'email (optionnel)",
       "special_request_placeholder": "Si vous avez des demandes particulières, veuillez les mentionner ici (optionnel)",
+      "event_type": "Type d'événement",
+      "event_type_placeholder": "Sélectionnez le type d'événement",
+      "event_type_birthday": "Anniversaire",
+      "event_type_bar_mitzvah": "Bar/Bat Mitzvah",
+      "event_type_corporate": "Entreprise",
+      "event_type_party": "Fête",
+      "event_type_other": "Autre",
+      "event_age": "Âge",
+      "event_age_placeholder": "Âge (optionnel)",
       "terms": {
         "label": "J'ai lu et j'accepte les conditions et règles",
         "read_terms": "Lire les conditions et règles",
         "title": "Conditions et Règles",
-        "close": "Fermer"
+        "close": "Fermer",
+        "booking_info": {
+          "title": "Informations de réservation",
+          "items": [
+            "Veuillez arriver au moins 10 minutes avant l'heure prévue",
+            "Les réservations sont confirmées lors du paiement",
+            "Les modifications ou annulations doivent être effectuées au moins 24 heures à l'avance",
+            "Les retards peuvent entraîner une réduction du temps de jeu"
+          ]
+        },
+        "rules": {
+          "title": "Règles et Règlements",
+          "items": [
+            "Suivez toutes les instructions de sécurité fournies par le personnel",
+            "Respectez les autres joueurs et maintenez un environnement amical",
+            "Pas de nourriture ni de boissons dans les salles de jeu",
+            "Le tabagisme est strictement interdit",
+            "Les enfants de moins de 12 ans doivent être accompagnés d'un adulte",
+            "Tout dommage à l'équipement entraînera des frais supplémentaires"
+          ]
+        },
+        "payment": {
+          "title": "Détails de paiement",
+          "items": [
+            "Le paiement est requis au moment de la réservation",
+            "Modes de paiement acceptés : Espèces, Carte de crédit, Virement bancaire",
+            "Les remboursements sont disponibles uniquement pour les annulations effectuées 24 heures ou plus à l'avance",
+            "Frais de bracelet intelligent : 10₪ (unique, réutilisable)",
+            "Les forfaits événement incluent le bracelet intelligent dans le prix"
+          ]
+        },
+        "contact": {
+          "title": "Informations de contact",
+          "description": "Pour toute question ou demande spéciale, veuillez nous contacter :",
+          "items": [
+            "Téléphone : 03-551-2277",
+            "Email : contact@activegames.co.il",
+            "WhatsApp : Disponible sur notre site web"
+          ]
+        },
+        "acknowledgment": "En cochant la case, vous reconnaissez avoir lu, compris et accepté toutes les conditions générales énoncées ci-dessus."
+      },
+      "event": {
+        "booking_info": {
+          "title": "Informations de réservation d'événement",
+          "items": [
+            "Les réservations d'événement nécessitent un minimum de 15 participants",
+            "Veuillez arriver au moins 15 minutes avant l'heure prévue pour la configuration",
+            "Les réservations sont confirmées lors du paiement",
+            "Les modifications ou annulations doivent être effectuées au moins 48 heures à l'avance"
+          ]
+        },
+        "rules": {
+          "title": "Règles et Règlements pour Événements",
+          "items": [
+            "Suivez toutes les instructions de sécurité fournies par le personnel",
+            "Respectez les autres participants et maintenez un environnement amical",
+            "Pas de nourriture ni de boissons dans les salles de jeu sans autorisation",
+            "Le tabagisme est strictement interdit",
+            "Les enfants de moins de 12 ans doivent être accompagnés d'un adulte",
+            "Tout dommage à l'équipement entraînera des frais supplémentaires"
+          ]
+        },
+        "payment": {
+          "title": "Détails de paiement pour Événements",
+          "items": [
+            "Le paiement est requis au moment de la réservation",
+            "Modes de paiement acceptés : Espèces, Carte de crédit, Virement bancaire",
+            "Les remboursements sont disponibles uniquement pour les annulations effectuées 48 heures ou plus à l'avance",
+            "Les forfaits événement incluent le bracelet intelligent dans le prix"
+          ]
+        },
+        "acknowledgment": "En cochant la case, vous reconnaissez avoir lu, compris et accepté toutes les conditions générales pour les événements énoncées ci-dessus."
       }
     },
     "type": {
@@ -196,11 +279,13 @@
       },
       "event": {
         "title": "Événement",
-        "description": "Forfait événement avec salle privée"
+        "description": "Forfait événement avec salle privée",
+        "min_players_note": "Minimum 15 joueurs requis pour les événements"
       },
       "players": {
         "label": "Nombre de joueurs",
-        "placeholder": "Sélectionnez ou entrez un nombre"
+        "placeholder": "Sélectionnez ou entrez un nombre",
+        "info_event": "Minimum 15 joueurs requis"
       }
     },
     "next": "Suivant",
@@ -212,7 +297,9 @@
       "subtitle": "Merci pour votre réservation",
       "reservation_number": "Numéro de réservation",
       "back_to_site": "Retour au site",
-      "finished": "Terminé"
+      "finished": "Terminé",
+      "download_reservation": "Télécharger la réservation",
+      "download_order": "Télécharger la commande"
     },
     "arrival_note": "Veuillez arriver au moins 10 minutes avant l'heure prévue",
     "summary": {
@@ -220,7 +307,9 @@
       "branch": "Succursale:",
       "type": "Type:",
       "date": "Date:",
-      "time": "Heure:"
+      "time": "Heure:",
+      "event_type": "Type d'événement:",
+      "event_age": "Âge:"
     }
   }
 }

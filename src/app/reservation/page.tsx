@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MapPin, Calendar, Clock, ChevronRight, ChevronLeft, Check, Users, Gamepad2, User, Phone, Mail, MessageSquare, FileText, ExternalLink, X, Home } from 'lucide-react'
+import { MapPin, Calendar, Clock, ChevronRight, ChevronLeft, Check, Users, Gamepad2, User, Phone, Mail, MessageSquare, FileText, ExternalLink, X, Home, Cake, Download } from 'lucide-react'
 import { getTranslations, getDirection, Locale, defaultLocale } from '@/i18n'
 import { Header, Footer } from '@/components'
 
@@ -22,6 +22,9 @@ interface BookingData {
   email: string | null
   specialRequest: string | null
   termsAccepted: boolean
+  // Event specific fields
+  eventType: string | null // e.g., "birthday", "bar_mitzvah", "corporate", "party", "other"
+  eventAge: number | null // Age for birthday or bar/bat mitzvah (optional)
 }
 
 export default function ReservationPage() {
@@ -41,6 +44,8 @@ export default function ReservationPage() {
     email: null,
     specialRequest: null,
     termsAccepted: false,
+    eventType: null,
+    eventAge: null,
   })
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth())
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
@@ -143,7 +148,13 @@ export default function ReservationPage() {
   }
 
   const handleTypeSelect = (type: 'game' | 'event') => {
-    setBookingData({ ...bookingData, type, players: type === 'game' ? null : bookingData.players })
+    setBookingData({ 
+      ...bookingData, 
+      type, 
+      players: null, // Reset players when changing type
+      eventType: type === 'event' ? null : null,
+      eventAge: null,
+    })
   }
 
   const handlePlayersChange = (players: number | null) => {
@@ -151,7 +162,8 @@ export default function ReservationPage() {
   }
 
   const handleContinueToDate = () => {
-    if (bookingData.type === 'game' && bookingData.players && bookingData.players > 0) {
+    const minPlayers = bookingData.type === 'event' ? 15 : 1
+    if (bookingData.type && bookingData.players && bookingData.players >= minPlayers) {
       setTimeout(() => setStep(3), 300)
     }
   }
@@ -177,8 +189,12 @@ export default function ReservationPage() {
     }
   }
 
-  const handleContactInfoChange = (field: 'firstName' | 'lastName' | 'phone' | 'email' | 'specialRequest', value: string) => {
+  const handleContactInfoChange = (field: 'firstName' | 'lastName' | 'phone' | 'email' | 'specialRequest' | 'eventType', value: string | number) => {
     setBookingData({ ...bookingData, [field]: value })
+  }
+  
+  const handleEventAgeChange = (age: number | null) => {
+    setBookingData({ ...bookingData, eventAge: age })
   }
 
   const handleConfirm = () => {
@@ -351,18 +367,26 @@ export default function ReservationPage() {
                   </div>
                 </motion.button>
 
-                {/* Event - Disabled */}
+                {/* Event */}
                 <motion.button
-                  disabled
-                  className="bg-dark-200/30 border-2 border-gray-600/30 rounded-xl p-6 text-left opacity-50 cursor-not-allowed"
+                  onClick={() => handleTypeSelect('event')}
+                  className={`border-2 rounded-xl p-6 text-left transition-all duration-300 ${
+                    bookingData.type === 'event'
+                      ? 'bg-dark-200 border-primary/70 shadow-[0_0_20px_rgba(0,240,255,0.3)]'
+                      : 'bg-dark-200/50 border-primary/30 hover:border-primary/70 hover:shadow-[0_0_20px_rgba(0,240,255,0.3)]'
+                  }`}
+                  whileHover={{ scale: bookingData.type === 'event' ? 1 : 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
                   <div className="flex items-start gap-4">
-                    <Users className="w-8 h-8 text-gray-600 flex-shrink-0 mt-1" />
+                    <Users className={`w-8 h-8 flex-shrink-0 mt-1 ${
+                      bookingData.type === 'event' ? 'text-primary' : 'text-primary/70'
+                    }`} />
                     <div>
-                      <h3 className="text-xl font-bold mb-2 text-gray-500" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                      <h3 className="text-xl font-bold mb-2" style={{ fontFamily: 'Poppins, sans-serif' }}>
                         {translations.booking?.type?.event?.title || 'Event'}
                       </h3>
-                      <p className="text-gray-500 text-sm" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                      <p className="text-gray-400 text-sm" style={{ fontFamily: 'Poppins, sans-serif' }}>
                         {translations.booking?.type?.event?.description || 'Event package with private room'}
                       </p>
                     </div>
@@ -370,8 +394,8 @@ export default function ReservationPage() {
                 </motion.button>
               </div>
 
-              {/* Number of Players - Appears when Game is selected */}
-              {bookingData.type === 'game' && (
+              {/* Number of Players - Appears when Game or Event is selected */}
+              {(bookingData.type === 'game' || bookingData.type === 'event') && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -384,10 +408,14 @@ export default function ReservationPage() {
                     <div className="relative">
                       <input
                         type="number"
-                        min="1"
+                        min={bookingData.type === 'event' ? 15 : 1}
                         max="100"
                         value={bookingData.players || ''}
-                        onChange={(e) => handlePlayersChange(e.target.value ? parseInt(e.target.value) : null)}
+                        onChange={(e) => {
+                          // Allow empty input or any number, validation happens on continue
+                          const value = e.target.value === '' ? null : (e.target.value ? parseInt(e.target.value) : null)
+                          handlePlayersChange(value)
+                        }}
                         placeholder={translations.booking?.type?.players?.placeholder || 'Enter number of players'}
                         className="w-full border border-primary/30 rounded-lg px-4 py-3 pr-12 font-medium hover:border-primary/70 transition-all backdrop-blur-sm"
                         style={{ 
@@ -401,7 +429,8 @@ export default function ReservationPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            const current = bookingData.players || 1
+                            const minValue = bookingData.type === 'event' ? 15 : 1
+                            const current = bookingData.players || minValue
                             if (current < 100) handlePlayersChange(current + 1)
                           }}
                           className="p-1 hover:bg-primary/20 rounded transition-colors"
@@ -414,8 +443,12 @@ export default function ReservationPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            const current = bookingData.players || 1
-                            if (current > 1) handlePlayersChange(current - 1)
+                            const minValue = bookingData.type === 'event' ? 15 : 1
+                            const current = bookingData.players || minValue
+                            if (current > minValue) {
+                              const newValue = current - 1
+                              handlePlayersChange(newValue >= minValue ? newValue : null)
+                            }
                           }}
                           className="p-1 hover:bg-primary/20 rounded transition-colors"
                           style={{ color: '#00f0ff' }}
@@ -425,12 +458,18 @@ export default function ReservationPage() {
                           </svg>
                         </button>
                       </div>
+                      {/* Info text below input */}
+                      {bookingData.type === 'event' && (
+                        <p className="mt-2 text-xs text-gray-400" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                          {translations.booking?.type?.players?.info_event || 'Minimum 15 players required'}
+                        </p>
+                      )}
                     </div>
                     <div></div>
                   </div>
                   
                   {/* Continue button */}
-                  {bookingData.players && bookingData.players > 0 && (
+                  {bookingData.players && bookingData.players >= (bookingData.type === 'event' ? 15 : 1) && (
                     <div className="mt-6 text-center">
                       <button
                         onClick={handleContinueToDate}
@@ -440,6 +479,11 @@ export default function ReservationPage() {
                         <ChevronRight className="w-5 h-5" />
                       </button>
                     </div>
+                  )}
+                  {bookingData.type === 'event' && bookingData.players && bookingData.players < 15 && (
+                    <p className="mt-2 text-sm text-primary text-center" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                      {translations.booking?.type?.event?.min_players_note || 'Minimum 15 players required for events'}
+                    </p>
                   )}
                 </motion.div>
               )}
@@ -692,9 +736,15 @@ export default function ReservationPage() {
               <div className="text-center mb-8">
                 <User className="w-16 h-16 text-primary mx-auto mb-4" />
                 <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                  {translations.booking?.step5?.title || 'Contact Information'}
+                  {bookingData.type === 'event' 
+                    ? (translations.booking?.step5?.title_event || 'Event Information & Contact')
+                    : (translations.booking?.step5?.title || 'Contact Information')}
                 </h2>
-                <p className="text-gray-400">{translations.booking?.step5?.subtitle || 'Please fill in your details'}</p>
+                <p className="text-gray-400">
+                  {bookingData.type === 'event'
+                    ? (translations.booking?.step5?.subtitle_event || 'Please fill in your contact details and event order information')
+                    : (translations.booking?.step5?.subtitle || 'Please fill in your details')}
+                </p>
               </div>
 
               <div className="space-y-6">
@@ -793,6 +843,93 @@ export default function ReservationPage() {
                   </div>
                 </div>
 
+                {/* Event Specific Fields - Only for Event type */}
+                {bookingData.type === 'event' && (
+                  <>
+                    {/* Event Type and Age (on same line) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-white mb-2 text-sm font-medium" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                          {translations.booking?.contact?.event_type || 'Event Type'}
+                          <span className="text-primary ml-1">*</span>
+                        </label>
+                        <div className="relative">
+                          <Cake className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-primary pointer-events-none" style={{ zIndex: 1 }} />
+                          <select
+                            value={bookingData.eventType || ''}
+                            onChange={(e) => {
+                              const value = e.target.value
+                              setBookingData({ ...bookingData, eventType: value })
+                            }}
+                            className="w-full border border-primary/30 rounded-lg pl-12 pr-10 py-3 font-medium hover:border-primary/70 transition-all backdrop-blur-sm cursor-pointer"
+                            style={{ 
+                              fontFamily: 'Poppins, sans-serif',
+                              backgroundColor: 'rgba(50, 50, 70, 0.7)',
+                              color: '#00f0ff',
+                              outline: 'none',
+                              appearance: 'none',
+                              WebkitAppearance: 'none',
+                              MozAppearance: 'none',
+                              position: 'relative',
+                              zIndex: 20
+                            }}
+                            required
+                          >
+                            <option value="" style={{ backgroundColor: 'rgba(26, 26, 46, 0.98)', color: '#00f0ff' }}>
+                              {translations.booking?.contact?.event_type_placeholder || 'Select event type'}
+                            </option>
+                            <option value="birthday" style={{ backgroundColor: 'rgba(26, 26, 46, 0.98)', color: '#00f0ff' }}>
+                              {translations.booking?.contact?.event_type_birthday || 'Birthday'}
+                            </option>
+                            <option value="bar_mitzvah" style={{ backgroundColor: 'rgba(26, 26, 46, 0.98)', color: '#00f0ff' }}>
+                              {translations.booking?.contact?.event_type_bar_mitzvah || 'Bar/Bat Mitzvah'}
+                            </option>
+                            <option value="corporate" style={{ backgroundColor: 'rgba(26, 26, 46, 0.98)', color: '#00f0ff' }}>
+                              {translations.booking?.contact?.event_type_corporate || 'Corporate'}
+                            </option>
+                            <option value="party" style={{ backgroundColor: 'rgba(26, 26, 46, 0.98)', color: '#00f0ff' }}>
+                              {translations.booking?.contact?.event_type_party || 'Party'}
+                            </option>
+                            <option value="other" style={{ backgroundColor: 'rgba(26, 26, 46, 0.98)', color: '#00f0ff' }}>
+                              {translations.booking?.contact?.event_type_other || 'Other'}
+                            </option>
+                          </select>
+                          <div 
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none"
+                            style={{ color: '#00f0ff', zIndex: 1 }}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M6 9L1 4h10z" fill="currentColor" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Age field - For all event types */}
+                      <div>
+                        <label className="block text-white mb-2 text-sm font-medium" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                          {translations.booking?.contact?.event_age || 'Age'}
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="120"
+                          value={bookingData.eventAge || ''}
+                          onChange={(e) => handleEventAgeChange(e.target.value ? parseInt(e.target.value) : null)}
+                          placeholder={translations.booking?.contact?.event_age_placeholder || 'Age (optional)'}
+                          className="w-full border border-primary/30 rounded-lg px-4 py-3 font-medium hover:border-primary/70 transition-all backdrop-blur-sm"
+                          style={{ 
+                            fontFamily: 'Poppins, sans-serif',
+                            backgroundColor: 'rgba(50, 50, 70, 0.7)',
+                            color: '#00f0ff',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 {/* Special Request - Optional */}
                 <div>
                   <label className="block text-white mb-2 text-sm font-medium" style={{ fontFamily: 'Poppins, sans-serif' }}>
@@ -885,6 +1022,24 @@ export default function ReservationPage() {
                     <span className="text-gray-400">{translations.booking?.summary?.time || 'Time:'}</span>
                     <span className="font-bold">{bookingData.time}</span>
                   </div>
+                  {bookingData.type === 'event' && bookingData.eventType && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">{translations.booking?.summary?.event_type || 'Event Type:'}</span>
+                      <span className="font-bold">
+                        {bookingData.eventType === 'birthday' && (translations.booking?.contact?.event_type_birthday || 'Birthday')}
+                        {bookingData.eventType === 'bar_mitzvah' && (translations.booking?.contact?.event_type_bar_mitzvah || 'Bar/Bat Mitzvah')}
+                        {bookingData.eventType === 'corporate' && (translations.booking?.contact?.event_type_corporate || 'Corporate')}
+                        {bookingData.eventType === 'party' && (translations.booking?.contact?.event_type_party || 'Party')}
+                        {bookingData.eventType === 'other' && (translations.booking?.contact?.event_type_other || 'Other')}
+                      </span>
+                    </div>
+                  )}
+                  {bookingData.type === 'event' && bookingData.eventAge && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">{translations.booking?.summary?.event_age || 'Age:'}</span>
+                      <span className="font-bold">{bookingData.eventAge}</span>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             </motion.div>
@@ -973,7 +1128,39 @@ export default function ReservationPage() {
                         <span className="font-bold text-white">{bookingData.email}</span>
                       </div>
                     )}
+                    {bookingData.type === 'event' && bookingData.eventType && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">{translations.booking?.summary?.event_type || 'Event Type:'}</span>
+                        <span className="font-bold text-white">
+                          {bookingData.eventType === 'birthday' && (translations.booking?.contact?.event_type_birthday || 'Birthday')}
+                          {bookingData.eventType === 'bar_mitzvah' && (translations.booking?.contact?.event_type_bar_mitzvah || 'Bar/Bat Mitzvah')}
+                          {bookingData.eventType === 'corporate' && (translations.booking?.contact?.event_type_corporate || 'Corporate')}
+                          {bookingData.eventType === 'party' && (translations.booking?.contact?.event_type_party || 'Party')}
+                          {bookingData.eventType === 'other' && (translations.booking?.contact?.event_type_other || 'Other')}
+                        </span>
+                      </div>
+                    )}
+                    {bookingData.type === 'event' && bookingData.eventAge && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">{translations.booking?.summary?.event_age || 'Age:'}</span>
+                        <span className="font-bold text-white">{bookingData.eventAge}</span>
+                      </div>
+                    )}
                   </div>
+                </div>
+
+                {/* Download Button */}
+                <div className="flex justify-center items-center mb-6">
+                  <button
+                    onClick={() => {
+                      // TODO: Generate and download reservation/order PDF
+                      console.log('Download reservation/order:', bookingData)
+                    }}
+                    className="glow-button inline-flex items-center gap-2"
+                  >
+                    <Download className="w-5 h-5" />
+                    {translations.booking?.confirmation?.download_reservation || 'Download Reservation'}
+                  </button>
                 </div>
 
                 {/* Back to Site Button */}
@@ -1008,14 +1195,30 @@ export default function ReservationPage() {
           {step === 5 && (
             <button
               onClick={handleConfirm}
-              disabled={!bookingData.firstName || !bookingData.lastName || !bookingData.phone || !bookingData.termsAccepted}
+              disabled={
+                !bookingData.firstName || 
+                !bookingData.lastName || 
+                !bookingData.phone || 
+                !bookingData.termsAccepted ||
+                (bookingData.type === 'event' && !bookingData.eventType)
+              }
               className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-300 ${
-                bookingData.firstName && bookingData.lastName && bookingData.phone && bookingData.termsAccepted
+                bookingData.firstName && 
+                bookingData.lastName && 
+                bookingData.phone && 
+                bookingData.termsAccepted &&
+                (bookingData.type !== 'event' || bookingData.eventType)
                   ? 'glow-button'
                   : 'bg-dark-200 border-2 border-primary/30 text-gray-300 cursor-not-allowed hover:border-primary/40'
               }`}
               style={{
-                opacity: bookingData.firstName && bookingData.lastName && bookingData.phone && bookingData.termsAccepted ? 1 : 0.75
+                opacity: (
+                  bookingData.firstName && 
+                  bookingData.lastName && 
+                  bookingData.phone && 
+                  bookingData.termsAccepted &&
+                  (bookingData.type !== 'event' || bookingData.eventType)
+                ) ? 1 : 0.75
               }}
             >
               {translations.booking?.confirm || 'Confirm booking'}
@@ -1059,54 +1262,106 @@ export default function ReservationPage() {
             {/* Modal Content */}
             <div className="flex-1 overflow-y-auto p-6" style={{ fontFamily: 'Poppins, sans-serif' }}>
               <div className="space-y-4 text-gray-300">
-                <div>
-                  <h3 className="text-xl font-bold text-primary mb-2">Booking Information</h3>
-                  <ul className="list-disc list-inside space-y-2 ml-4">
-                    <li>Please arrive at least 10 minutes before your scheduled time</li>
-                    <li>Reservations are confirmed upon payment</li>
-                    <li>Changes or cancellations must be made at least 24 hours in advance</li>
-                    <li>Late arrivals may result in reduced play time</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-bold text-primary mb-2">Rules and Regulations</h3>
-                  <ul className="list-disc list-inside space-y-2 ml-4">
-                    <li>Follow all safety instructions provided by staff</li>
-                    <li>Respect other players and maintain a friendly environment</li>
-                    <li>No food or drinks inside the game rooms</li>
-                    <li>Smoking is strictly prohibited</li>
-                    <li>Children under 12 must be accompanied by an adult</li>
-                    <li>Any damage to equipment will result in additional charges</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-bold text-primary mb-2">Payment Details</h3>
-                  <ul className="list-disc list-inside space-y-2 ml-4">
-                    <li>Payment is required at the time of booking</li>
-                    <li>Accepted payment methods: Cash, Credit Card, Bank Transfer</li>
-                    <li>Refunds are available only for cancellations made 24+ hours in advance</li>
-                    <li>Smart bracelet fee: 10₪ (one-time, reusable)</li>
-                    <li>Event packages include smart bracelet in the price</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-bold text-primary mb-2">Contact Information</h3>
-                  <p>For questions or special requests, please contact us:</p>
-                  <ul className="list-disc list-inside space-y-2 ml-4 mt-2">
-                    <li>Phone: 03-551-2277</li>
-                    <li>Email: contact@activegames.co.il</li>
-                    <li>WhatsApp: Available on our website</li>
-                  </ul>
-                </div>
-
-                <div className="pt-4 border-t border-primary/30">
-                  <p className="text-sm text-gray-400">
-                    By checking the box, you acknowledge that you have read, understood, and agree to all terms and conditions stated above.
-                  </p>
-                </div>
+                {/* Show different terms for Event vs Game */}
+                {bookingData.type === 'event' ? (
+                  /* Event Terms - Simplified to avoid errors */
+                  <div>
+                    <div>
+                      <h3 className="text-xl font-bold text-primary mb-2">Event Booking Information</h3>
+                      <ul className="list-disc list-inside space-y-2 ml-4">
+                        <li>Event reservations require a minimum of 15 participants</li>
+                        <li>Please arrive at least 15 minutes before your scheduled time for setup</li>
+                        <li>Reservations are confirmed upon payment</li>
+                        <li>Changes or cancellations must be made at least 48 hours in advance</li>
+                      </ul>
+                    </div>
+                    <div className="mt-4">
+                      <h3 className="text-xl font-bold text-primary mb-2">Event Rules and Regulations</h3>
+                      <ul className="list-disc list-inside space-y-2 ml-4">
+                        <li>Follow all safety instructions provided by staff</li>
+                        <li>Respect other participants and maintain a friendly environment</li>
+                        <li>No food or drinks inside the game rooms without authorization</li>
+                        <li>Smoking is strictly prohibited</li>
+                        <li>Children under 12 must be accompanied by an adult</li>
+                        <li>Any damage to equipment will result in additional charges</li>
+                      </ul>
+                    </div>
+                    <div className="mt-4">
+                      <h3 className="text-xl font-bold text-primary mb-2">Event Payment Details</h3>
+                      <ul className="list-disc list-inside space-y-2 ml-4">
+                        <li>Payment is required at the time of booking</li>
+                        <li>Accepted payment methods: Cash, Credit Card, Bank Transfer</li>
+                        <li>Refunds are available only for cancellations made 48+ hours in advance</li>
+                        <li>Event packages include smart bracelet in the price</li>
+                      </ul>
+                    </div>
+                    <div className="pt-4 border-t border-primary/30 mt-4">
+                      <p className="text-sm text-gray-400">
+                        By checking the box, you acknowledge that you have read, understood, and agree to all event terms and conditions stated above.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  /* Game Terms - Original */
+                  <>
+                    {translations.booking?.contact?.terms?.booking_info && (
+                      <div>
+                        <h3 className="text-xl font-bold text-primary mb-2">
+                          {translations.booking.contact.terms.booking_info.title || 'Booking Information'}
+                        </h3>
+                        <ul className="list-disc list-inside space-y-2 ml-4">
+                          {(translations.booking.contact.terms.booking_info.items || []).map((item: string, index: number) => (
+                            <li key={index}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {translations.booking?.contact?.terms?.rules && (
+                      <div>
+                        <h3 className="text-xl font-bold text-primary mb-2">
+                          {translations.booking.contact.terms.rules.title || 'Rules and Regulations'}
+                        </h3>
+                        <ul className="list-disc list-inside space-y-2 ml-4">
+                          {(translations.booking.contact.terms.rules.items || []).map((item: string, index: number) => (
+                            <li key={index}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {translations.booking?.contact?.terms?.payment && (
+                      <div>
+                        <h3 className="text-xl font-bold text-primary mb-2">
+                          {translations.booking.contact.terms.payment.title || 'Payment Details'}
+                        </h3>
+                        <ul className="list-disc list-inside space-y-2 ml-4">
+                          {(translations.booking.contact.terms.payment.items || []).map((item: string, index: number) => (
+                            <li key={index}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {translations.booking?.contact?.terms?.contact && (
+                      <div>
+                        <h3 className="text-xl font-bold text-primary mb-2">
+                          {translations.booking.contact.terms.contact.title || 'Contact Information'}
+                        </h3>
+                        <p>{translations.booking.contact.terms.contact.description || 'For questions or special requests, please contact us:'}</p>
+                        <ul className="list-disc list-inside space-y-2 ml-4 mt-2">
+                          {(translations.booking.contact.terms.contact.items || []).map((item: string, index: number) => (
+                            <li key={index}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {translations.booking?.contact?.terms?.acknowledgment && (
+                      <div className="pt-4 border-t border-primary/30">
+                        <p className="text-sm text-gray-400">
+                          {translations.booking.contact.terms.acknowledgment}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
 
