@@ -480,7 +480,7 @@ export default function ReservationPage() {
               {/* Note about arriving 10 minutes early */}
               <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 mb-6">
                 <p className="text-sm text-primary text-center" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  {(translations.booking as any)?.arrival_note || 'Please arrive at least 10 minutes before your scheduled time'}
+                  {translations.booking?.arrival_note || 'Please arrive at least 10 minutes before your scheduled time'}
                 </p>
               </div>
 
@@ -492,19 +492,19 @@ export default function ReservationPage() {
                   className="bg-dark-200/50 rounded-xl p-6 mb-6 border border-primary/30"
                 >
                   <h3 className="text-xl font-bold mb-4" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                    Booking Summary
+                    {translations.booking?.summary?.title || 'Booking Summary'}
                   </h3>
                   <div className="space-y-2" style={{ fontFamily: 'Poppins, sans-serif' }}>
                     <div className="flex justify-between">
-                      <span className="text-gray-400">Branch:</span>
+                      <span className="text-gray-400">{translations.booking?.summary?.branch || 'Branch:'}</span>
                       <span className="font-bold">{bookingData.branch}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-400">Date:</span>
+                      <span className="text-gray-400">{translations.booking?.summary?.date || 'Date:'}</span>
                       <span className="font-bold">{bookingData.date && formatDate(bookingData.date)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-400">Time:</span>
+                      <span className="text-gray-400">{translations.booking?.summary?.time || 'Time:'}</span>
                       <span className="font-bold">{bookingData.time}</span>
                     </div>
                   </div>

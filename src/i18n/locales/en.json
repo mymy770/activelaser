@@ -198,6 +198,13 @@
     "next": "Next",
     "previous": "Previous",
     "confirm": "Confirm booking",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "arrival_note": "Please arrive at least 10 minutes before your scheduled time",
+    "summary": {
+      "title": "Booking Summary",
+      "branch": "Branch:",
+      "date": "Date:",
+      "time": "Time:"
+    }
   }
 }

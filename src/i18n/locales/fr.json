@@ -166,6 +166,13 @@
     "next": "Suivant",
     "previous": "Précédent",
     "confirm": "Confirmer la réservation",
-    "loading": "Chargement..."
+    "loading": "Chargement...",
+    "arrival_note": "Veuillez arriver au moins 10 minutes avant l'heure prévue",
+    "summary": {
+      "title": "Résumé de la réservation",
+      "branch": "Succursale:",
+      "date": "Date:",
+      "time": "Heure:"
+    }
   }
 }

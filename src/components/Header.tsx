@@ -85,41 +85,44 @@ export default function Header({ translations, locale, onLocaleChange }: HeaderP
     >
       <div className="container mx-auto px-4" style={{ height: '75px' }}>
         <div className="flex items-center justify-between" style={{ height: '75px' }}>
-          {/* Logo */}
-          <Link href="/" className="relative z-10 flex items-center" style={{ height: '75px', flexShrink: 0 }}>
-            <Image
-              src="/images/logo.png"
-              alt="Active Games"
-              width={220}
-              height={60}
-              className="h-auto"
+          {/* Logo + Order Now Button (always visible) */}
+          <div className="flex items-center gap-36 md:gap-44" style={{ flexShrink: 0 }}>
+            <Link href="/" className="relative z-10 flex items-center" style={{ height: '75px', flexShrink: 0 }}>
+              <Image
+                src="/images/logo.png"
+                alt="Active Games"
+                width={220}
+                height={60}
+                className="h-auto"
+                style={{ 
+                  height: 'clamp(45px, 6vw, 60px)',
+                  width: 'auto',
+                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5)) drop-shadow(0 0 8px rgba(0, 240, 255, 0.4)) brightness(1.15)',
+                }}
+                priority
+              />
+            </Link>
+            
+            {/* Order Now Button - Always visible, like logo */}
+            <Link
+              href="/reservation"
+              className="glow-button inline-flex items-center gap-1 md:gap-2 px-2 md:px-5 py-1.5 md:py-2 text-[10px] md:text-xs font-bold text-dark hover:scale-105 transition-transform duration-300"
               style={{ 
-                height: 'clamp(45px, 6vw, 60px)',
-                width: 'auto',
-                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5)) drop-shadow(0 0 8px rgba(0, 240, 255, 0.4)) brightness(1.15)',
+                fontFamily: 'Orbitron, sans-serif',
+                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                height: 'auto',
+                flexShrink: 0
               }}
-              priority
-            />
-          </Link>
+            >
+              {translations.booking?.order_now || 'Order now'}
+            </Link>
+          </div>
 
           {/* Desktop Navigation */}
           {!isMobile && (
             <nav className="flex items-center gap-0" style={{ height: '75px', marginRight: '0' }}>
-              {/* Order Now Button - First item */}
-              <Link
-                href="/reservation"
-                className="glow-button inline-flex items-center gap-2 px-5 py-2 text-xs font-bold text-dark hover:scale-105 transition-transform duration-300"
-                style={{ 
-                  fontFamily: 'Orbitron, sans-serif',
-                  marginRight: '16px',
-                  whiteSpace: 'nowrap',
-                  display: 'flex',
-                  alignItems: 'center',
-                  height: 'auto'
-                }}
-              >
-                {translations.booking?.order_now || 'Order now'}
-              </Link>
 
               {menuItems.map((item) => (
                 <a
@@ -247,7 +250,7 @@ export default function Header({ translations, locale, onLocaleChange }: HeaderP
                     style={{
                       position: 'absolute',
                       top: '100%',
-                      right: '0',
+                      ...(locale === 'he' ? { left: '0' } : { right: '0' }),
                       paddingTop: '8px',
                       backgroundColor: 'transparent',
                     }}
@@ -279,13 +282,14 @@ export default function Header({ translations, locale, onLocaleChange }: HeaderP
                           fontWeight: locale === loc ? 700 : 400,
                           cursor: 'pointer',
                           padding: '10px 16px',
-                          textAlign: 'left',
+                          textAlign: locale === 'he' ? 'right' : 'left',
                           outline: 'none',
                           display: 'flex',
                           alignItems: 'center',
                           gap: '8px',
                           transition: 'background-color 0.3s ease, color 0.3s ease',
-                          whiteSpace: 'nowrap'
+                          whiteSpace: 'nowrap',
+                          flexDirection: locale === 'he' ? 'row-reverse' : 'row'
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = 'rgba(8, 247, 254, 0.1)'
