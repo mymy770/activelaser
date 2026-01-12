@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Calendar, Clock, Users, MapPin, Phone, Mail, Search, Filter, X, Ban, CheckCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Grid, CalendarDays, Sun, Moon, Settings, Trash2 } from 'lucide-react'
 import { Reservation } from '@/lib/reservations'
 // Scheduler imports
-import { placeGameBooking, placeEventBooking, validateNoOverlap } from '@/lib/scheduler/engine'
+import { placeGameBooking, placeEventBooking, validateNoOverlap, calculateSlotsNeeded } from '@/lib/scheduler/engine'
 import { toRoomConfigs, toBooking, fromBooking } from '@/lib/scheduler/adapters'
 import type { Booking } from '@/lib/scheduler/types'
 import { requiresConfirmation, getConflictDetails } from '@/lib/scheduler/exceptions'
@@ -1570,7 +1570,10 @@ export default function AdminPage() {
       .map(toBooking)
 
     // Préparer les paramètres pour le scheduler
-    const eventDurationMinutes = (appointmentEventType && appointmentEventType !== 'game') 
+    // RÈGLE CRITIQUE : Seuls les EVENT (anniversaire avec eventType !== 'game') bloquent une room
+    // GAME (eventType === 'game' ou vide/null/undefined) = uniquement game-slots
+    const isEvent = appointmentEventType && appointmentEventType !== 'game' && appointmentEventType.trim() !== ''
+    const eventDurationMinutes = isEvent 
       ? (appointmentDuration ?? 120)
       : (appointmentGameDuration ?? 60)
     
@@ -1579,9 +1582,9 @@ export default function AdminPage() {
       hour: appointmentHour,
       minute: appointmentMinute,
       participants: appointmentParticipants ?? 0,
-      type: (appointmentEventType === 'game' ? 'game' : 'event') as 'game' | 'event',
+      type: (isEvent ? 'event' : 'game') as 'game' | 'event',
       durationMinutes: eventDurationMinutes,
-      gameDurationMinutes: (appointmentEventType && appointmentEventType !== 'game') 
+      gameDurationMinutes: isEvent 
         ? 60 // Pour EVENT, jeu toujours 60 min centré
         : (appointmentGameDuration ?? 60),
       excludeBookingId: editingAppointment?.id
@@ -1653,9 +1656,14 @@ export default function AdminPage() {
       setAppointmentColor('#3b82f6')
     } else if (result.conflict) {
       // Gérer les conflits
-      if (result.conflict.type === 'NEED_SURBOOK_CONFIRM' || result.conflict.type === 'NEED_ROOM_OVERCAP_CONFIRM') {
+      // RÈGLE : FULL peut aussi proposer surbook si availableSlots > 0 ou si on force
+      const canSurbook = result.conflict.type === 'NEED_SURBOOK_CONFIRM' || 
+                        (result.conflict.type === 'FULL' && result.conflict.details && 
+                         (result.conflict.details.availableSlots === 0 || result.conflict.details.availableSlots! < (result.conflict.details.neededSlots || 0)))
+      
+      if (canSurbook || result.conflict.type === 'NEED_ROOM_OVERCAP_CONFIRM') {
         // Afficher popup de confirmation
-        if (result.conflict.type === 'NEED_SURBOOK_CONFIRM') {
+        if (canSurbook) {
           setOverlapInfo({
             slotsNeeded: result.conflict.details?.neededSlots || 0,
             availableSlots: result.conflict.details?.availableSlots || 0,
@@ -1666,6 +1674,12 @@ export default function AdminPage() {
             const surbookResult = placeGameBooking(existingBookings, params, true, true)
             if (surbookResult.success && surbookResult.allocation) {
               // Créer booking avec surbook
+              // Calculer le nombre de participants en trop
+              const assignedSlotsCount = surbookResult.allocation.slotAllocation?.slots?.length || 0
+              const neededSlots = calculateSlotsNeeded(params.participants)
+              const excessSlots = Math.max(0, neededSlots - assignedSlotsCount)
+              const excessParticipants = excessSlots * 6
+              
               const surbookBooking: Booking = {
                 id: editingAppointment?.id || `app-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                 type: params.type,
@@ -1676,8 +1690,9 @@ export default function AdminPage() {
                 durationMinutes: params.durationMinutes,
                 gameDurationMinutes: params.gameDurationMinutes,
                 assignedSlots: surbookResult.allocation.slotAllocation?.slots,
-                surbooked: true,
-                surbookedParticipants: result.conflict.details?.excessParticipants,
+                assignedRoom: surbookResult.allocation.roomAllocation?.roomId, // Pour EVENT
+                surbooked: excessParticipants > 0,
+                surbookedParticipants: excessParticipants > 0 ? excessParticipants : undefined,
                 customerFirstName: appointmentCustomerFirstName || undefined,
                 customerLastName: appointmentCustomerLastName || undefined,
                 color: appointmentColor || '#3b82f6'

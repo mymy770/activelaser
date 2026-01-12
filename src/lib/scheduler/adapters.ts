@@ -35,19 +35,25 @@ export type SimpleAppointment = {
 
 /**
  * Convertit SimpleAppointment en Booking
+ * RÈGLE CRITIQUE : Seuls les EVENT (anniversaire avec eventType !== 'game') bloquent une room
+ * GAME (eventType === 'game' ou vide/null/undefined) = uniquement game-slots
  */
 export function toBooking(appointment: SimpleAppointment): Booking {
+  // DÉCISION : Si eventType est vide/null/undefined ou explicitement 'game' → 'game'
+  // Seul eventType explicitement défini ET différent de 'game' → 'event'
+  const isEvent = appointment.eventType && appointment.eventType !== 'game' && appointment.eventType.trim() !== ''
+  
   return {
     id: appointment.id,
-    type: (appointment.eventType === 'game' ? 'game' : 'event') as 'game' | 'event',
+    type: (isEvent ? 'event' : 'game') as 'game' | 'event',
     date: appointment.date,
     hour: appointment.hour,
     minute: appointment.minute || 0,
     participants: appointment.participants || 0,
-    durationMinutes: appointment.durationMinutes || (appointment.eventType === 'game' ? 60 : 120),
+    durationMinutes: appointment.durationMinutes || (isEvent ? 120 : 60),
     gameDurationMinutes: appointment.gameDurationMinutes,
     assignedSlots: appointment.assignedSlots,
-    assignedRoom: appointment.assignedRoom,
+    assignedRoom: isEvent ? appointment.assignedRoom : undefined, // GAME ne peut pas avoir de room
     surbooked: appointment.surbooked,
     surbookedParticipants: appointment.surbookedParticipants,
     roomOvercap: appointment.roomOvercap,

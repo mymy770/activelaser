@@ -151,9 +151,56 @@ export function shiftBookingRight(
   // Vérifier que les nouveaux slots sont libres
   if (!areSlotsFree(tempState, newSlots, timeKeys, bookingToShift.id)) {
     // Les nouveaux slots créent un conflit, essayer de déplacer récursivement les bloqueurs
-    // Pour l'instant, on retourne null (pas de déplacement récursif profond)
-    // TODO: Implémenter déplacement récursif si nécessaire
-    return null
+    // Trouver les bookings qui bloquent ces nouveaux slots
+    const newBlockers: Booking[] = []
+    for (const other of updatedBookings) {
+      if (other.id === bookingToShift.id) continue
+      if (other.date !== bookingToShift.date) continue
+      if (!other.assignedSlots || other.assignedSlots.length === 0) continue
+      
+      // Vérifier chevauchement temporel
+      const otherGameTime = calculateCenteredGameTime(
+        other.hour,
+        other.minute,
+        other.gameDurationMinutes || other.durationMinutes || 60
+      )
+      const otherTimeKeys = rangeToKeys(
+        otherGameTime.gameStartHour,
+        otherGameTime.gameStartMinute,
+        otherGameTime.gameStartHour + Math.floor((otherGameTime.gameStartMinute + otherGameTime.gameDurationMinutes) / 60),
+        (otherGameTime.gameStartMinute + otherGameTime.gameDurationMinutes) % 60
+      )
+      
+      const timeOverlap = timeKeys.some(tk => otherTimeKeys.includes(tk))
+      if (!timeOverlap) continue
+      
+      // Vérifier chevauchement de slots
+      const slotOverlap = newSlots.some(ns => other.assignedSlots!.includes(ns))
+      if (slotOverlap) {
+        newBlockers.push(other)
+      }
+    }
+    
+    // Essayer de déplacer récursivement les nouveaux bloqueurs
+    for (const blocker of newBlockers) {
+      const blockerShifted = shiftBookingRight(updatedBookings, blocker, newSlots, date)
+      if (!blockerShifted) {
+        // Impossible de déplacer récursivement
+        return null
+      }
+      // Mettre à jour dans la liste
+      const index = updatedBookings.findIndex(b => b.id === blocker.id)
+      if (index >= 0) {
+        updatedBookings[index] = blockerShifted
+      }
+    }
+    
+    // Reconstruire l'état après déplacement récursif
+    const finalState = buildOccupancyState(updatedBookings, date)
+    if (!areSlotsFree(finalState, newSlots, timeKeys, bookingToShift.id)) {
+      // Toujours pas libre après déplacement récursif
+      return null
+    }
   }
   
   // Déplacement réussi
@@ -392,6 +439,22 @@ export function placeGameBooking(
   
   if (availableCount === 0) {
     // FULL : tous les slots occupés
+    // Même si FULL, proposer surbook si allowSurbook (on peut quand même créer avec surbook)
+    if (allowSurbook) {
+      return {
+        success: false,
+        conflict: {
+          type: 'NEED_SURBOOK_CONFIRM',
+          message: `Tous les slots sont occupés (besoin de ${slotsNeeded} slot(s)). Autoriser surbooking ?`,
+          details: {
+            availableSlots: 0,
+            neededSlots: slotsNeeded,
+            excessParticipants: slotsNeeded * SLOTS_PER_PERSON
+          }
+        }
+      }
+    }
+    
     return {
       success: false,
       conflict: {
