@@ -2488,53 +2488,46 @@ export default function AdminPage() {
                         </button>
                       </div>
                     </div>
+
+                    {/* Modal de confirmation de suppression - centré sur la pop-up du rendez-vous */}
+                    {showDeleteConfirm && (
+                      <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-2xl"
+                        onClick={cancelDelete}
+                      >
+                        <div
+                          data-delete-confirm-modal
+                          className={`${bgCard} border ${borderColor} rounded-2xl shadow-xl w-full max-w-md p-6 flex flex-col pointer-events-auto mx-4`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <h3 className={`text-xl font-bold mb-4 ${textPrimary}`}>
+                            Confirmer la suppression
+                          </h3>
+                          
+                          <p className={`${textSecondary} mb-6`}>
+                            Êtes-vous sûr de vouloir supprimer ce rendez-vous ? Cette action est irréversible.
+                          </p>
+
+                          <div className="flex gap-3 justify-end">
+                            <button
+                              onClick={cancelDelete}
+                              className={`px-4 py-2 rounded-lg border ${borderColor} text-sm ${textSecondary} hover:${bgCardHover} transition-all min-w-[120px]`}
+                            >
+                              Annuler
+                            </button>
+                            <button
+                              onClick={deleteAppointment}
+                              className="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-all min-w-[120px]"
+                            >
+                              Supprimer
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </>
-            )}
-
-            {/* Modal de confirmation de suppression - centré sur la pop-up du rendez-vous */}
-            {showDeleteConfirm && showAppointmentModal && (
-              <div
-                className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center"
-                onClick={cancelDelete}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                }}
-              >
-                <div
-                  data-delete-confirm-modal
-                  className={`${bgCard} border ${borderColor} rounded-2xl shadow-xl w-full max-w-md p-6 flex flex-col pointer-events-auto`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <h3 className={`text-xl font-bold mb-4 ${textPrimary}`}>
-                    Confirmer la suppression
-                  </h3>
-                  
-                  <p className={`${textSecondary} mb-6`}>
-                    Êtes-vous sûr de vouloir supprimer ce rendez-vous ? Cette action est irréversible.
-                  </p>
-
-                  <div className="flex gap-3 justify-end">
-                    <button
-                      onClick={cancelDelete}
-                      className={`px-4 py-2 rounded-lg border ${borderColor} text-sm ${textSecondary} hover:${bgCardHover} transition-all min-w-[120px]`}
-                    >
-                      Annuler
-                    </button>
-                    <button
-                      onClick={deleteAppointment}
-                      className="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-all min-w-[120px]"
-                    >
-                      Supprimer
-                    </button>
-                  </div>
-                </div>
-              </div>
             )}
           </div>
         )}
