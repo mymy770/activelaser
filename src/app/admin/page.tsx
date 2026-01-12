@@ -1263,7 +1263,7 @@ export default function AdminPage() {
         durationMinutes: isEventType
           ? (appointmentDuration ?? undefined) 
           : undefined,
-        color: appointmentColor || (isEventType ? '#22c55e' : '#3b82f6') // Vert pour EVENT, bleu pour GAME
+        color: appointmentColor || (isEventType ? '#22c55e' : '#3b82f6'), // Vert pour EVENT, bleu pour GAME
         eventNotes: appointmentEventNotes || undefined,
         customerFirstName: appointmentCustomerFirstName || undefined,
         customerLastName: appointmentCustomerLastName || undefined,
