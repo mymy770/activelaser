@@ -949,14 +949,14 @@ export default function AdminPage() {
         const blockers: number[] = [] // indices dans compactedAppointments
         for (let i = 0; i < compactedAppointments.length; i++) {
           const existing = compactedAppointments[i]
-          const existingStart = existing.hour * 60 + (existing.minute || 0)
-          const existingDuration = existing.gameDurationMinutes || existing.durationMinutes || 60
-          const existingEnd = existingStart + existingDuration
+          // Calculer le temps de jeu centré pour l'événement existant
+          const { gameStartMinutes: existingGameStart, gameDurationMinutes: existingGameDuration } = calculateCenteredGameTime(existing)
+          const existingEnd = existingGameStart + existingGameDuration
           const existingSlots = existing.assignedSlots || []
           
           if (existingSlots.length === 0) continue
           
-          const timeOverlap = existingStart < endMinutes && existingEnd > startMinutes
+          const timeOverlap = existingGameStart < endMinutes && existingEnd > gameStartMinutes
           if (timeOverlap && candidateSlots.some(s => existingSlots.includes(s))) {
             blockers.push(i)
           }
@@ -1004,7 +1004,7 @@ export default function AdminPage() {
           }
           
           // Si tous les bloqueurs ont été déplacés, vérifier que les slots sont maintenant libres
-          if (canShift && areSlotsFree(candidateSlots, startMinutes, endMinutes, appointment.id)) {
+          if (canShift && areSlotsFree(candidateSlots, gameStartMinutes, endMinutes, appointment.id)) {
             assignedSlots = candidateSlots
             break
           }
@@ -1016,7 +1016,7 @@ export default function AdminPage() {
         const available: number[] = []
         for (let slot = 1; slot <= TOTAL_SLOTS; slot++) {
           if (available.length >= slotsNeeded) break
-          if (areSlotsFree([slot], startMinutes, endMinutes, appointment.id)) {
+          if (areSlotsFree([slot], gameStartMinutes, endMinutes, appointment.id)) {
             available.push(slot)
           }
         }
