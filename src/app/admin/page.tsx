@@ -30,6 +30,7 @@ type SimpleAppointment = {
   participants?: number
   assignedSlots?: number[] // Indices des slots assignés (1-14)
   assignedRoom?: number // Salle d'anniversaire assignée (1-4), undefined si pas de salle
+  hasInsufficientSlots?: boolean // true si l'événement n'a pas assez de slots (surplus, couleur différente)
 }
 
 export default function AdminPage() {
@@ -105,6 +106,29 @@ export default function AdminPage() {
   const [showOverlapConfirm, setShowOverlapConfirm] = useState(false) // Afficher la pop-up de confirmation de chevauchement
   const [overlapInfo, setOverlapInfo] = useState<{ slotsNeeded: number; availableSlots: number; maxParticipants: number } | null>(null)
   const [pendingSave, setPendingSave] = useState<(() => void) | null>(null) // Fonction de sauvegarde en attente
+  
+  // Confirmation de dépassement de capacité de salle
+  const [showRoomCapacityConfirm, setShowRoomCapacityConfirm] = useState(false)
+  const [roomCapacityInfo, setRoomCapacityInfo] = useState<{ roomNumber: number; roomName: string; maxCapacity: number; participants: number } | null>(null)
+  const [pendingRoomSave, setPendingRoomSave] = useState<(() => void) | null>(null)
+
+  // Gestion des capacités des salles
+  type RoomCapacity = {
+    maxCapacity: number // Capacité maximale en personnes
+    name?: string // Nom optionnel de la salle
+  }
+  const [roomCapacities, setRoomCapacities] = useState<Map<number, RoomCapacity>>(() => {
+    // Valeurs par défaut : 20 personnes par salle
+    const defaultCapacities = new Map<number, RoomCapacity>()
+    for (let i = 1; i <= TOTAL_ROOMS; i++) {
+      defaultCapacities.set(i, { maxCapacity: 20, name: `Salle ${i}` })
+    }
+    return defaultCapacities
+  })
+  const [showRoomSettingsModal, setShowRoomSettingsModal] = useState(false)
+  const [editingRoomNumber, setEditingRoomNumber] = useState<number | null>(null)
+  const [roomSettingsCapacity, setRoomSettingsCapacity] = useState<number>(20)
+  const [roomSettingsName, setRoomSettingsName] = useState<string>('')
 
   const presetColors = ['#3b82f6', '#22c55e', '#f97316', '#ef4444', '#a855f7', '#eab308']
 
@@ -137,10 +161,30 @@ export default function AdminPage() {
             ...a,
             color: a.color || '#3b82f6',
             durationMinutes: a.durationMinutes ?? 60,
+            hasInsufficientSlots: a.hasInsufficientSlots ?? false, // Valeur par défaut pour les anciens rendez-vous
           })),
         )
       } catch {
         setAppointments([])
+      }
+    }
+
+    // Charger les capacités des salles depuis localStorage
+    const storedRoomCapacities = localStorage.getItem('admin_room_capacities')
+    if (storedRoomCapacities) {
+      try {
+        const parsed = JSON.parse(storedRoomCapacities)
+        const capacitiesMap = new Map<number, RoomCapacity>()
+        for (let i = 1; i <= TOTAL_ROOMS; i++) {
+          if (parsed[i]) {
+            capacitiesMap.set(i, parsed[i])
+          } else {
+            capacitiesMap.set(i, { maxCapacity: 20, name: `Salle ${i}` })
+          }
+        }
+        setRoomCapacities(capacitiesMap)
+      } catch {
+        // Garder les valeurs par défaut
       }
     }
 
@@ -1015,6 +1059,7 @@ export default function AdminPage() {
         }
         
         // Si conflit détecté, déplacer les rendez-vous en conflit AVANT de placer le nouveau
+        // IMPORTANT : On interdit complètement les chevauchements physiques
         if (conflictingAppointments.length > 0) {
           // Libérer les slots des rendez-vous en conflit
           for (const conflict of conflictingAppointments) {
@@ -1038,7 +1083,7 @@ export default function AdminPage() {
             for (let startSlot = 1; startSlot <= TOTAL_SLOTS - existingSlotsNeeded + 1; startSlot++) {
               const candidateSlots = Array.from({ length: existingSlotsNeeded }, (_, i) => startSlot + i)
               // Vérifier que ces slots ne sont pas dans les slots qu'on va assigner
-              if (!candidateSlots.some(slot => bestSlots!.includes(slot)) && areSlotsAvailable(candidateSlots, existingStart, existingEnd, conflict.appointment.id)) {
+              if (bestSlots && !candidateSlots.some(slot => bestSlots.includes(slot)) && areSlotsAvailable(candidateSlots, existingStart, existingEnd, conflict.appointment.id)) {
                 newSlots = candidateSlots
                 break
               }
@@ -1050,7 +1095,7 @@ export default function AdminPage() {
               for (let slot = 1; slot <= TOTAL_SLOTS; slot++) {
                 if (availableSlots.length >= existingSlotsNeeded) break
                 // Ne pas prendre les slots qui sont dans les slots qu'on va assigner
-                if (bestSlots.includes(slot)) continue
+                if (bestSlots && bestSlots.includes(slot)) continue
                 
                 const occupiedMinutes = slotUsage.get(slot)
                 if (occupiedMinutes) {
@@ -1098,22 +1143,92 @@ export default function AdminPage() {
                 assignedSlots: newSlots.sort((a, b) => a - b)
               }
             } else {
-              // Si pas de nouveaux slots, garder les originaux mais il y aura un conflit
-              reserveSlots(conflict.appointment.assignedSlots || [], existingStart, existingEnd)
+              // Si pas de nouveaux slots disponibles, on ne peut pas déplacer ce rendez-vous
+              // Dans ce cas, on ne peut pas assigner bestSlots car il y aurait un chevauchement physique
+              // On annule bestSlots pour qu'il soit recalculé sans chevauchement
+              bestSlots = null
             }
+          }
+          
+          // Si on a annulé bestSlots à cause de conflits non résolus, ne pas assigner
+          // (bestSlots sera recalculé dans le else suivant si nécessaire)
+        }
+      }
+      
+      // Maintenant assigner les slots au rendez-vous actuel (seulement si bestSlots est toujours valide)
+      if (bestSlots) {
+        // Vérifier si les slots sont consécutifs et si on a le bon nombre
+        const sortedSlots = bestSlots.sort((a, b) => a - b)
+        const slotsAreConsecutive = sortedSlots.length > 0 && 
+          sortedSlots.every((slot, index) => index === 0 || slot === sortedSlots[index - 1] + 1)
+        const hasEnoughSlots = sortedSlots.length >= slotsNeeded
+        
+        reserveSlots(sortedSlots, startMinutes, endMinutes)
+        compactedAppointments.push({
+          ...appointment,
+          assignedSlots: sortedSlots,
+          hasInsufficientSlots: !slotsAreConsecutive || !hasEnoughSlots
+        })
+      } else {
+        // Si pas assez de slots disponibles, prendre les slots disponibles même non consécutifs
+        // IMPORTANT : Interdire les chevauchements physiques - prendre seulement les slots libres
+        const availableSlots: number[] = []
+        for (let slot = 1; slot <= TOTAL_SLOTS; slot++) {
+          if (availableSlots.length >= slotsNeeded) break
+          
+          // Vérifier si ce slot est disponible (pas de chevauchement physique)
+          const occupiedMinutes = slotUsage.get(slot)
+          if (!occupiedMinutes) {
+            // Si le slot n'existe pas dans slotUsage, il est disponible
+            availableSlots.push(slot)
+            continue
+          }
+          
+          let isAvailable = true
+          for (let min = startMinutes; min < endMinutes; min += 15) {
+            if (occupiedMinutes.has(min)) {
+              isAvailable = false
+              break
+            }
+          }
+          
+          // Vérifier aussi les conflits avec les rendez-vous déjà placés (pas de chevauchement)
+          if (isAvailable) {
+            for (const existing of compactedAppointments) {
+              const existingStart = existing.hour * 60 + (existing.minute || 0)
+              const existingDuration = existing.gameDurationMinutes || existing.durationMinutes || 60
+              const existingEnd = existingStart + existingDuration
+              const existingSlots = existing.assignedSlots || []
+              
+              const timeOverlap = existingStart < endMinutes && existingEnd > startMinutes
+              if (timeOverlap && existingSlots.includes(slot)) {
+                isAvailable = false
+                break
+              }
+            }
+          }
+          
+          if (isAvailable) {
+            availableSlots.push(slot)
           }
         }
         
-        // Maintenant assigner les slots au rendez-vous actuel
-        reserveSlots(bestSlots, startMinutes, endMinutes)
+        // Prendre les slots disponibles (même si non consécutifs ou insuffisants)
+        // Mais JAMAIS de chevauchement physique
+        const finalSlots = availableSlots.length > 0 ? availableSlots : (appointment.assignedSlots || [])
+        const sortedFinalSlots = finalSlots.sort((a, b) => a - b)
+        
+        // Vérifier si les slots sont consécutifs et si on a le bon nombre
+        const finalSlotsAreConsecutive = sortedFinalSlots.length > 0 && 
+          sortedFinalSlots.every((slot, index) => index === 0 || slot === sortedFinalSlots[index - 1] + 1)
+        const finalHasEnoughSlots = sortedFinalSlots.length >= slotsNeeded
+        
+        reserveSlots(sortedFinalSlots, startMinutes, endMinutes)
         compactedAppointments.push({
           ...appointment,
-          assignedSlots: bestSlots.sort((a, b) => a - b)
+          assignedSlots: sortedFinalSlots,
+          hasInsufficientSlots: !finalSlotsAreConsecutive || !finalHasEnoughSlots
         })
-      } else {
-        // Si pas de slots disponibles, garder les slots originaux (mais il y aura peut-être un conflit)
-        reserveSlots(appointment.assignedSlots || [], startMinutes, endMinutes)
-        compactedAppointments.push(appointment)
       }
     }
 
@@ -1240,6 +1355,7 @@ export default function AdminPage() {
   }
 
   // Trouver une salle d'anniversaire disponible pour un créneau donné
+  // Ne vérifie QUE les chevauchements temporels (pas la capacité)
   const findAvailableRoom = (
     date: string,
     startMinutes: number,
@@ -1253,6 +1369,7 @@ export default function AdminPage() {
       let isAvailable = true
       
       // Vérifier si cette salle est occupée par un autre rendez-vous sur ce créneau
+      // IMPORTANT : On vérifie SEULEMENT les chevauchements temporels (interdits)
       for (const appointment of appointments) {
         // Exclure le rendez-vous en cours de modification
         if (appointment.id === excludeAppointmentId) continue
@@ -1264,7 +1381,7 @@ export default function AdminPage() {
         const appDuration = appointment.durationMinutes || 60
         const appEndMinutes = appStartMinutes + appDuration
         
-        // Vérifier le chevauchement
+        // Vérifier le chevauchement temporel (INTERDIT)
         if (appStartMinutes < endMinutes && appEndMinutes > startMinutes) {
           isAvailable = false
           break
@@ -1276,6 +1393,68 @@ export default function AdminPage() {
       }
     }
     
+    return null
+  }
+
+  // Trouver une salle disponible qui peut accueillir le nombre de participants
+  // Essaie chaque salle de gauche à droite jusqu'à trouver une qui convient
+  const findAvailableRoomWithCapacity = (
+    date: string,
+    startMinutes: number,
+    durationMinutes: number,
+    requiredParticipants: number,
+    excludeAppointmentId?: string
+  ): { room: number; needsAuthorization: boolean } | null => {
+    const endMinutes = startMinutes + durationMinutes
+    
+    let firstAvailableRoomWithoutCapacity: number | null = null
+    
+    // Vérifier chaque salle de gauche à droite (1, 2, 3, 4...)
+    for (let room = 1; room <= TOTAL_ROOMS; room++) {
+      let isTimeAvailable = true
+      
+      // Vérifier d'abord les chevauchements temporels (INTERDITS)
+      for (const appointment of appointments) {
+        if (appointment.id === excludeAppointmentId) continue
+        if (appointment.date !== date) continue
+        if (appointment.eventType === 'game') continue
+        if (appointment.assignedRoom !== room) continue
+        
+        const appStartMinutes = appointment.hour * 60 + (appointment.minute || 0)
+        const appDuration = appointment.durationMinutes || 60
+        const appEndMinutes = appStartMinutes + appDuration
+        
+        if (appStartMinutes < endMinutes && appEndMinutes > startMinutes) {
+          isTimeAvailable = false
+          break
+        }
+      }
+      
+      // Si la salle n'est pas disponible temporellement, passer à la suivante
+      if (!isTimeAvailable) continue
+      
+      // Si la salle est disponible temporellement, vérifier la capacité
+      const roomCapacity = roomCapacities.get(room)
+      if (roomCapacity) {
+        // Si la capacité est suffisante, retourner cette salle immédiatement
+        if (requiredParticipants <= roomCapacity.maxCapacity) {
+          return { room, needsAuthorization: false }
+        }
+        // Si la capacité n'est pas suffisante, noter cette salle comme option de secours
+        // (on continuera à chercher une salle avec assez de capacité)
+        if (firstAvailableRoomWithoutCapacity === null) {
+          firstAvailableRoomWithoutCapacity = room
+        }
+      }
+    }
+    
+    // Si on arrive ici, aucune salle n'a assez de capacité
+    // Retourner la première salle disponible temporellement avec needsAuthorization = true
+    if (firstAvailableRoomWithoutCapacity !== null) {
+      return { room: firstAvailableRoomWithoutCapacity, needsAuthorization: true }
+    }
+    
+    // Aucune salle disponible temporellement
     return null
   }
 
@@ -1407,6 +1586,91 @@ export default function AdminPage() {
     }
   }, [appointmentEventType, showAppointmentModal, editingAppointment, userChangedColor])
 
+  // Fonction helper pour sauvegarder avec une salle assignée (utilisée après confirmation de capacité)
+  // Cette fonction est appelée APRÈS autorisation, donc on skip les vérifications de capacité
+  const saveAppointmentWithRoom = (slotsToUse: number[], roomToAssign: number) => {
+    if (!appointmentTitle.trim() || appointmentHour === null || !appointmentDate) {
+      return
+    }
+    const dateStr = appointmentDate
+    const startMinutes = appointmentHour * 60 + appointmentMinute
+    const gameDurationMinutes = appointmentGameDuration ?? 60
+    const eventDurationMinutes = (appointmentEventType && appointmentEventType !== 'game') 
+      ? (appointmentDuration ?? 120)
+      : gameDurationMinutes
+
+    if (editingAppointment) {
+      setAppointments(prev => {
+        const updatedAppointment: SimpleAppointment = {
+          ...editingAppointment,
+          title: appointmentTitle.trim(),
+          hour: appointmentHour,
+          minute: appointmentMinute,
+          date: dateStr,
+          branch: appointmentBranch || undefined,
+          eventType: appointmentEventType || undefined,
+          durationMinutes: (appointmentEventType && appointmentEventType !== 'game') 
+            ? (appointmentDuration ?? undefined) 
+            : undefined,
+          color: appointmentColor || '#3b82f6',
+          eventNotes: appointmentEventNotes || undefined,
+          customerFirstName: appointmentCustomerFirstName || undefined,
+          customerLastName: appointmentCustomerLastName || undefined,
+          customerPhone: appointmentCustomerPhone || undefined,
+          customerEmail: appointmentCustomerEmail || undefined,
+          customerNotes: appointmentCustomerNotes || undefined,
+          gameDurationMinutes: appointmentGameDuration ?? undefined,
+          participants: appointmentParticipants ?? undefined,
+          assignedSlots: slotsToUse.length > 0 ? slotsToUse : undefined,
+          assignedRoom: roomToAssign,
+        }
+        
+        const updated = prev.map(a =>
+          a.id === editingAppointment.id ? updatedAppointment : a
+        )
+        
+        const compacted = compactSlots(dateStr, updated)
+        const otherDates = updated.filter(a => a.date !== dateStr)
+        return [...otherDates, ...compacted]
+      })
+    } else {
+      const newAppointment: SimpleAppointment = {
+        id: `app-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        title: appointmentTitle.trim(),
+        hour: appointmentHour,
+        minute: appointmentMinute,
+        date: dateStr,
+        branch: appointmentBranch || undefined,
+        eventType: appointmentEventType || undefined,
+        durationMinutes: (appointmentEventType && appointmentEventType !== 'game') 
+          ? (appointmentDuration ?? undefined) 
+          : undefined,
+        color: appointmentColor || '#3b82f6',
+        eventNotes: appointmentEventNotes || undefined,
+        customerFirstName: appointmentCustomerFirstName || undefined,
+        customerLastName: appointmentCustomerLastName || undefined,
+        customerPhone: appointmentCustomerPhone || undefined,
+        customerEmail: appointmentCustomerEmail || undefined,
+        customerNotes: appointmentCustomerNotes || undefined,
+        gameDurationMinutes: appointmentGameDuration ?? undefined,
+        participants: appointmentParticipants ?? undefined,
+        assignedSlots: slotsToUse.length > 0 ? slotsToUse : undefined,
+        assignedRoom: roomToAssign,
+      }
+      
+      setAppointments(prev => {
+        const updated = [...prev, newAppointment]
+        const compacted = compactSlots(dateStr, updated)
+        const otherDates = updated.filter(a => a.date !== dateStr)
+        return [...otherDates, ...compacted]
+      })
+    }
+    
+    setShowAppointmentModal(false)
+    setEditingAppointment(null)
+    resetAppointmentForm()
+  }
+
   // Fonction interne pour sauvegarder avec des slots spécifiques
   // DOIT être définie AVANT saveAppointment car elle est utilisée dans pendingSave
   const saveAppointmentWithSlots = (slotsToUse: number[]) => {
@@ -1427,7 +1691,7 @@ export default function AdminPage() {
     // Si ce n'est pas un "game", vérifier la disponibilité d'une salle d'anniversaire
     let assignedRoom: number | undefined = undefined
     if (appointmentEventType && appointmentEventType !== 'game') {
-      // Si une salle est déjà sélectionnée, vérifier qu'elle est disponible
+      // Si une salle est déjà sélectionnée, vérifier qu'elle est disponible (chevauchement temporel)
       if (appointmentRoom !== null) {
         const roomAvailable = findAvailableRoom(
           dateStr,
@@ -1435,25 +1699,87 @@ export default function AdminPage() {
           eventDurationMinutes,
           editingAppointment?.id
         )
-        if (roomAvailable === appointmentRoom) {
-          assignedRoom = appointmentRoom
-        } else {
-          alert(`La salle ${appointmentRoom} n'est pas disponible sur ce créneau.`)
+        
+        // Vérifier d'abord les chevauchements temporels (INTERDITS)
+        if (roomAvailable !== appointmentRoom) {
+          const roomCapacity = roomCapacities.get(appointmentRoom)
+          const roomName = roomCapacity?.name || `Salle ${appointmentRoom}`
+          alert(`${roomName} n'est pas disponible sur ce créneau (chevauchement avec un autre événement).`)
           return
         }
+        
+        // Si pas de chevauchement temporel, vérifier la capacité (demander autorisation si dépassée)
+        if (appointmentParticipants !== null && appointmentParticipants !== undefined && appointmentParticipants > 0) {
+          const roomCapacity = roomCapacities.get(appointmentRoom)
+          if (roomCapacity && appointmentParticipants > roomCapacity.maxCapacity) {
+            // Demander l'autorisation pour dépasser la capacité
+            setRoomCapacityInfo({
+              roomNumber: appointmentRoom,
+              roomName: roomCapacity.name || `Salle ${appointmentRoom}`,
+              maxCapacity: roomCapacity.maxCapacity,
+              participants: appointmentParticipants
+            })
+            setPendingRoomSave(() => () => {
+              saveAppointmentWithRoom(slotsToUse, appointmentRoom)
+            })
+            setShowRoomCapacityConfirm(true)
+            return // Attendre la confirmation
+          }
+        }
+        
+        // Pas de dépassement de capacité, continuer normalement
+        assignedRoom = appointmentRoom
       } else {
-        // Trouver automatiquement une salle disponible
-        const availableRoom = findAvailableRoom(
-          dateStr,
-          startMinutes,
-          eventDurationMinutes,
-          editingAppointment?.id
-        )
-        if (!availableRoom) {
-          alert(`Aucune salle d'anniversaire disponible sur ce créneau.`)
-          return
+        // Trouver automatiquement une salle disponible en vérifiant la capacité intelligemment
+        if (appointmentParticipants !== null && appointmentParticipants !== undefined && appointmentParticipants > 0) {
+          // Utiliser la fonction intelligente qui vérifie la capacité
+          const roomResult = findAvailableRoomWithCapacity(
+            dateStr,
+            startMinutes,
+            eventDurationMinutes,
+            appointmentParticipants,
+            editingAppointment?.id
+          )
+          
+          if (!roomResult) {
+            alert(`Aucune salle d'anniversaire disponible sur ce créneau (toutes les salles sont occupées).`)
+            return
+          }
+          
+          if (roomResult.needsAuthorization) {
+            // Aucune salle n'a assez de capacité, demander l'autorisation
+            const roomCapacity = roomCapacities.get(roomResult.room)
+            if (roomCapacity) {
+              setRoomCapacityInfo({
+                roomNumber: roomResult.room,
+                roomName: roomCapacity.name || `Salle ${roomResult.room}`,
+                maxCapacity: roomCapacity.maxCapacity,
+                participants: appointmentParticipants
+              })
+              setPendingRoomSave(() => () => {
+                saveAppointmentWithRoom(slotsToUse, roomResult.room)
+              })
+              setShowRoomCapacityConfirm(true)
+              return // Attendre la confirmation
+            }
+          } else {
+            // Une salle avec assez de capacité a été trouvée
+            assignedRoom = roomResult.room
+          }
+        } else {
+          // Pas de participants spécifiés, trouver n'importe quelle salle disponible
+          const availableRoom = findAvailableRoom(
+            dateStr,
+            startMinutes,
+            eventDurationMinutes,
+            editingAppointment?.id
+          )
+          if (!availableRoom) {
+            alert(`Aucune salle d'anniversaire disponible sur ce créneau (toutes les salles sont occupées).`)
+            return
+          }
+          assignedRoom = availableRoom
         }
-        assignedRoom = availableRoom
       }
     }
 
@@ -1666,13 +1992,8 @@ export default function AdminPage() {
       editingAppointment?.id
     )
 
-    // Si aucun slot disponible du tout, refuser immédiatement
-    if (overlapCheck.availableSlots === 0) {
-      alert(`Impossible de créer ce rendez-vous. Aucun slot disponible sur ce créneau.`)
-      return
-    }
-
-    // Si chevauchement détecté OU pas assez de slots disponibles, demander confirmation
+    // Si chevauchement détecté OU pas assez de slots disponibles, TOUJOURS demander confirmation
+    // Même si availableSlots === 0, on demande l'autorisation (pas de blocage)
     if (overlapCheck.hasOverlap || overlapCheck.availableSlots < slotsNeeded) {
       const maxParticipants = overlapCheck.availableSlots * 6
       
@@ -2452,8 +2773,13 @@ export default function AdminPage() {
                   return (
                     <div
                       key={`${hour}-${minute}`}
-                      className={`w-full px-2 border-b ${borderColor} text-center flex items-center justify-center`}
+                      className={`w-full px-2 border-b ${borderColor} text-center flex items-center justify-center cursor-pointer hover:bg-primary/10 transition-colors`}
                       style={{ height: `${rowHeight / 2}px`, minHeight: `${rowHeight / 2}px` }}
+                      onClick={() => {
+                        // Ouvrir le modal pour créer un événement à cette heure (toutes les 15 min)
+                        openNewAppointmentModal(hour, minute)
+                      }}
+                      title={`Cliquer pour créer un événement à ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`}
                     >
                       {is30MinLabel && (
                         <div className={`text-sm font-bold ${textPrimary}`}>
@@ -2492,12 +2818,23 @@ export default function AdminPage() {
                   {/* Colonnes salles d'anniversaire */}
                   {Array.from({ length: TOTAL_ROOMS }, (_, roomIndex) => {
                     const roomNumber = roomIndex + 1
+                    const roomCapacity = roomCapacities.get(roomNumber)
+                    const roomName = roomCapacity?.name || `Salle ${roomNumber}`
+                    const roomMaxCapacity = roomCapacity?.maxCapacity || 20
                     return (
                       <div
                         key={`header-room-${roomNumber}`}
-                        className={`${bgHeader} border-r ${borderColor} border-b ${borderColor} text-center flex items-center justify-center`}
+                        className={`${bgHeader} border-r ${borderColor} border-b ${borderColor} text-center flex flex-col items-center justify-center cursor-pointer hover:bg-primary/10 transition-colors`}
+                        onClick={() => {
+                          setEditingRoomNumber(roomNumber)
+                          setRoomSettingsCapacity(roomMaxCapacity)
+                          setRoomSettingsName(roomName)
+                          setShowRoomSettingsModal(true)
+                        }}
+                        title={`Cliquer pour modifier les paramètres de ${roomName} (Capacité: ${roomMaxCapacity} personnes)`}
                       >
-                        <div className={`text-xs font-bold ${textPrimary}`}>Room {roomNumber}</div>
+                        <div className={`text-xs font-bold ${textPrimary}`}>{roomName}</div>
+                        <div className={`text-xs ${textSecondary} mt-0.5`}>{roomMaxCapacity} pers.</div>
                       </div>
                     )
                   })}
@@ -2623,6 +2960,10 @@ export default function AdminPage() {
                         // Calculer la position et largeur : le bloc commence au premier slot et s'étend sur tous les slots assignés
                         const startCol = minSlot - 1 // 0-indexed (slot 1 = colonne 0)
                         
+                        // Utiliser toujours la couleur normale de l'événement
+                        const displayColor = getFullColor(appointment.color)
+                        const displayBorderColor = getDarkerColor(appointment.color)
+                        
                         return (
                           <div
                             key={appointment.id}
@@ -2637,8 +2978,8 @@ export default function AdminPage() {
                               width: `${(widthCols / TOTAL_COLUMNS) * 100}%`,
                               top: 0,
                               height: `${durationIn15MinSlots * (rowHeight / 2)}px`,
-                              backgroundColor: getFullColor(appointment.color),
-                              border: `1px solid ${getDarkerColor(appointment.color)}`,
+                              backgroundColor: displayColor,
+                              border: `1px solid ${displayBorderColor}`,
                               color: '#fff',
                               zIndex: 10,
                               boxSizing: 'border-box',
@@ -2755,6 +3096,20 @@ export default function AdminPage() {
                           }),
                     }}
                     onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      // Si on appuie sur Entrée et que le formulaire est valide, sauvegarder
+                      if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                        // Ne pas déclencher si on est dans un textarea
+                        const target = e.target as HTMLElement
+                        if (target.tagName === 'TEXTAREA') return
+                        
+                        // Vérifier que les champs requis sont remplis
+                        if (appointmentTitle.trim() && appointmentHour !== null && appointmentDate) {
+                          e.preventDefault()
+                          saveAppointment()
+                        }
+                      }
+                    }}
                   >
                     {/* Header draggable */}
                     <div
@@ -2884,6 +3239,15 @@ export default function AdminPage() {
                               type="text"
                               value={appointmentTitle}
                               onChange={(e) => setAppointmentTitle(e.target.value)}
+                              onKeyDown={(e) => {
+                                // Si on appuie sur Entrée, sauvegarder (sauf si Shift+Entrée pour textarea)
+                                if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                                  if (appointmentTitle.trim() && appointmentHour !== null && appointmentDate) {
+                                    e.preventDefault()
+                                    saveAppointment()
+                                  }
+                                }
+                              }}
                               className={`w-full px-3 py-2 rounded border ${borderColor} ${inputBg} ${textMain} text-sm focus:outline-none focus:border-primary`}
                               placeholder="Anniversaire Emma, Équipe marketing, etc."
                             />
@@ -3064,19 +3428,41 @@ export default function AdminPage() {
                           onClick={(e) => e.stopPropagation()}
                         >
                           <h3 className={`text-xl font-bold mb-4 ${textPrimary}`}>
-                            Pas assez de slots disponibles
+                            {overlapInfo.availableSlots === 0 
+                              ? 'Aucun slot disponible - Chevauchement détecté'
+                              : 'Pas assez de slots disponibles'}
                           </h3>
                           
                           <p className={`${textSecondary} mb-4`}>
-                            Ce rendez-vous nécessite <strong>{overlapInfo.slotsNeeded} slot(s)</strong>, mais seulement <strong>{overlapInfo.availableSlots} slot(s)</strong> sont disponibles.
+                            {overlapInfo.availableSlots === 0 ? (
+                              <>
+                                Ce rendez-vous nécessite <strong>{overlapInfo.slotsNeeded} slot(s)</strong>, mais <strong>aucun slot n'est disponible</strong> sur ce créneau.
+                                <br />
+                                <strong>Tous les slots sont occupés.</strong>
+                              </>
+                            ) : (
+                              <>
+                                Ce rendez-vous nécessite <strong>{overlapInfo.slotsNeeded} slot(s)</strong>, mais seulement <strong>{overlapInfo.availableSlots} slot(s)</strong> sont disponibles.
+                              </>
+                            )}
                           </p>
                           
-                          <p className={`${textSecondary} mb-6`}>
-                            Maximum possible : <strong>{overlapInfo.maxParticipants} participants</strong> ({overlapInfo.availableSlots} slot(s) × 6 personnes).
-                          </p>
+                          {overlapInfo.availableSlots > 0 && (
+                            <p className={`${textSecondary} mb-6`}>
+                              Maximum possible : <strong>{overlapInfo.maxParticipants} participants</strong> ({overlapInfo.availableSlots} slot(s) × 6 personnes).
+                            </p>
+                          )}
                           
                           <p className={`${textSecondary} mb-6 text-sm`}>
-                            Si vous acceptez, le système déplacera automatiquement les autres rendez-vous pour libérer les slots nécessaires.
+                            {overlapInfo.availableSlots === 0 ? (
+                              <>
+                                Si vous acceptez, le système créera l'événement avec un chevauchement complet. Vous pouvez autoriser ce chevauchement si nécessaire.
+                              </>
+                            ) : (
+                              <>
+                                Si vous acceptez, le système utilisera les slots disponibles ({overlapInfo.availableSlots} slot(s)) et créera un chevauchement partiel si nécessaire. Le système tentera également de déplacer automatiquement les autres rendez-vous pour libérer plus de slots.
+                              </>
+                            )}
                           </p>
 
                           <div className="flex gap-3 justify-end">
@@ -3144,9 +3530,158 @@ export default function AdminPage() {
                         </div>
                       </div>
                     )}
+
+                    {/* Modal de confirmation de dépassement de capacité de salle */}
+                    {showRoomCapacityConfirm && roomCapacityInfo && (
+                      <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-2xl"
+                        onClick={() => {
+                          setShowRoomCapacityConfirm(false)
+                          setRoomCapacityInfo(null)
+                          setPendingRoomSave(null)
+                        }}
+                      >
+                        <div
+                          data-room-capacity-confirm-modal
+                          className={`${bgCard} border ${borderColor} rounded-2xl shadow-xl w-full max-w-md p-6 flex flex-col pointer-events-auto mx-4`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <h3 className={`text-xl font-bold mb-4 ${textPrimary}`}>
+                            Capacité de salle dépassée
+                          </h3>
+                          
+                          <p className={`${textSecondary} mb-4`}>
+                            La salle <strong>{roomCapacityInfo.roomName}</strong> a une capacité maximale de <strong>{roomCapacityInfo.maxCapacity} personnes</strong>.
+                            <br />
+                            Vous souhaitez créer un événement avec <strong>{roomCapacityInfo.participants} participants</strong>.
+                          </p>
+                          
+                          <p className={`${textSecondary} mb-6 text-sm`}>
+                            Voulez-vous autoriser ce dépassement de capacité ? L'événement sera créé dans cette salle malgré le dépassement.
+                          </p>
+
+                          <div className="flex gap-3 justify-end">
+                            <button
+                              onClick={() => {
+                                setShowRoomCapacityConfirm(false)
+                                setRoomCapacityInfo(null)
+                                setPendingRoomSave(null)
+                              }}
+                              className={`px-4 py-2 rounded-lg border ${borderColor} text-sm ${textSecondary} hover:${bgCardHover} transition-all min-w-[120px]`}
+                            >
+                              Refuser
+                            </button>
+                            <button
+                              onClick={() => {
+                                // Fermer le modal AVANT d'appeler la sauvegarde pour éviter les boucles
+                                setShowRoomCapacityConfirm(false)
+                                const saveFunction = pendingRoomSave
+                                setRoomCapacityInfo(null)
+                                setPendingRoomSave(null)
+                                
+                                // Appeler la sauvegarde après avoir fermé le modal
+                                if (saveFunction) {
+                                  // Utiliser setTimeout pour s'assurer que le state est mis à jour
+                                  setTimeout(() => {
+                                    saveFunction()
+                                  }, 0)
+                                }
+                              }}
+                              className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-all min-w-[120px]"
+                            >
+                              Autoriser
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </>
+            )}
+
+            {/* Modal de paramètres de salle */}
+            {showRoomSettingsModal && editingRoomNumber !== null && (
+              <div
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center"
+                onClick={() => {
+                  setShowRoomSettingsModal(false)
+                  setEditingRoomNumber(null)
+                }}
+              >
+                <div
+                  className={`${bgCard} border ${borderColor} rounded-2xl shadow-xl w-full max-w-md p-6 flex flex-col pointer-events-auto mx-4`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h3 className={`text-xl font-bold mb-4 ${textPrimary}`}>
+                    Paramètres de la salle {editingRoomNumber}
+                  </h3>
+                  
+                  <div className="mb-4">
+                    <label className={`block text-sm mb-1 ${textSecondary}`}>
+                      Nom de la salle
+                    </label>
+                    <input
+                      type="text"
+                      value={roomSettingsName}
+                      onChange={(e) => setRoomSettingsName(e.target.value)}
+                      className={`w-full px-3 py-2 rounded border ${borderColor} ${inputBg} ${textMain} text-sm focus:outline-none focus:border-primary`}
+                      placeholder={`Salle ${editingRoomNumber}`}
+                    />
+                  </div>
+
+                  <div className="mb-6">
+                    <label className={`block text-sm mb-1 ${textSecondary}`}>
+                      Capacité maximale (nombre de personnes)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={200}
+                      value={roomSettingsCapacity}
+                      onChange={(e) => setRoomSettingsCapacity(Number(e.target.value))}
+                      className={`w-full px-3 py-2 rounded border ${borderColor} ${inputBg} ${textMain} text-sm focus:outline-none focus:border-primary`}
+                    />
+                  </div>
+
+                  <div className="flex gap-3 justify-end">
+                    <button
+                      onClick={() => {
+                        setShowRoomSettingsModal(false)
+                        setEditingRoomNumber(null)
+                      }}
+                      className={`px-4 py-2 rounded-lg border ${borderColor} text-sm ${textSecondary} hover:${bgCardHover} transition-all min-w-[120px]`}
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={() => {
+                        const newCapacities = new Map(roomCapacities)
+                        newCapacities.set(editingRoomNumber, {
+                          maxCapacity: roomSettingsCapacity,
+                          name: roomSettingsName.trim() || `Salle ${editingRoomNumber}`
+                        })
+                        setRoomCapacities(newCapacities)
+                        
+                        // Sauvegarder dans localStorage
+                        if (typeof window !== 'undefined') {
+                          const capacitiesObj: Record<number, RoomCapacity> = {}
+                          newCapacities.forEach((capacity, roomNum) => {
+                            capacitiesObj[roomNum] = capacity
+                          })
+                          localStorage.setItem('admin_room_capacities', JSON.stringify(capacitiesObj))
+                        }
+                        
+                        setShowRoomSettingsModal(false)
+                        setEditingRoomNumber(null)
+                      }}
+                      className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-all min-w-[120px]"
+                    >
+                      Enregistrer
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}
