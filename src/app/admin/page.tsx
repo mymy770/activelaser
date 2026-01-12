@@ -1063,41 +1063,43 @@ export default function AdminPage() {
     if (editingAppointment) {
       setAppointments(prev => {
         // Mettre à jour le rendez-vous modifié
+        const updatedAppointment: SimpleAppointment = {
+          ...editingAppointment,
+          title: appointmentTitle.trim(),
+          hour: appointmentHour,
+          minute: appointmentMinute,
+          date: dateStr,
+          branch: appointmentBranch || undefined,
+          eventType: appointmentEventType || undefined,
+          // Pour les jeux standards, pas de durationMinutes (seulement gameDurationMinutes)
+          durationMinutes: (appointmentEventType && appointmentEventType !== 'game') 
+            ? (appointmentDuration ?? undefined) 
+            : undefined,
+          color: appointmentColor || '#3b82f6',
+          eventNotes: appointmentEventNotes || undefined,
+          customerFirstName: appointmentCustomerFirstName || undefined,
+          customerLastName: appointmentCustomerLastName || undefined,
+          customerPhone: appointmentCustomerPhone || undefined,
+          customerEmail: appointmentCustomerEmail || undefined,
+          customerNotes: appointmentCustomerNotes || undefined,
+          gameDurationMinutes: appointmentGameDuration ?? undefined,
+          participants: appointmentParticipants ?? undefined,
+          assignedSlots: availableSlots,
+          assignedRoom: assignedRoom,
+        }
+        
+        // Mettre à jour tous les rendez-vous
         const updated = prev.map(a =>
-          a.id === editingAppointment.id
-            ? {
-                ...a,
-                title: appointmentTitle.trim(),
-                hour: appointmentHour,
-                minute: appointmentMinute,
-                date: dateStr,
-                branch: appointmentBranch || undefined,
-                eventType: appointmentEventType || undefined,
-                // Pour les jeux standards, pas de durationMinutes (seulement gameDurationMinutes)
-                durationMinutes: (appointmentEventType && appointmentEventType !== 'game') 
-                  ? (appointmentDuration ?? undefined) 
-                  : undefined,
-                color: appointmentColor || '#3b82f6',
-                eventNotes: appointmentEventNotes || undefined,
-                customerFirstName: appointmentCustomerFirstName || undefined,
-                customerLastName: appointmentCustomerLastName || undefined,
-                customerPhone: appointmentCustomerPhone || undefined,
-                customerEmail: appointmentCustomerEmail || undefined,
-                customerNotes: appointmentCustomerNotes || undefined,
-                gameDurationMinutes: appointmentGameDuration ?? undefined,
-                participants: appointmentParticipants ?? undefined,
-                assignedSlots: availableSlots,
-                assignedRoom: assignedRoom,
-              }
-            : a,
+          a.id === editingAppointment.id ? updatedAppointment : a
         )
         
-        // Compacter les slots pour cette date
+        // Compacter les slots pour cette date (exclut le rendez-vous modifié)
         const compacted = compactSlots(dateStr, updated, editingAppointment.id)
         const otherDates = updated.filter(a => a.date !== dateStr)
         
-        // Fusionner les rendez-vous compactés avec les autres dates
-        return [...otherDates, ...compacted]
+        // IMPORTANT : Réintégrer le rendez-vous modifié après la compaction
+        // La compaction peut avoir déplacé d'autres rendez-vous, mais le rendez-vous modifié doit être inclus
+        return [...otherDates, ...compacted, updatedAppointment]
       })
     } else {
       const newAppointment: SimpleAppointment = {
