@@ -542,6 +542,44 @@ export default function AdminPage() {
     return Math.ceil(participants / 6)
   }
 
+  // Détecter les chevauchements entre rendez-vous
+  const detectOverlaps = (appointments: SimpleAppointment[]): Array<{ a: SimpleAppointment; b: SimpleAppointment }> => {
+    const overlaps: Array<{ a: SimpleAppointment; b: SimpleAppointment }> = []
+    
+    for (let i = 0; i < appointments.length; i++) {
+      const a = appointments[i]
+      const aStart = a.hour * 60 + (a.minute || 0)
+      const aDuration = a.gameDurationMinutes || a.durationMinutes || 60
+      const aEnd = aStart + aDuration
+      const aSlots = a.assignedSlots || []
+      
+      if (aSlots.length === 0) continue
+      
+      for (let j = i + 1; j < appointments.length; j++) {
+        const b = appointments[j]
+        const bStart = b.hour * 60 + (b.minute || 0)
+        const bDuration = b.gameDurationMinutes || b.durationMinutes || 60
+        const bEnd = bStart + bDuration
+        const bSlots = b.assignedSlots || []
+        
+        if (bSlots.length === 0) continue
+        
+        // Vérifier si les créneaux se chevauchent
+        const timeOverlap = aStart < bEnd && aEnd > bStart
+        
+        if (timeOverlap) {
+          // Vérifier si les slots se chevauchent
+          const slotOverlap = aSlots.some(slot => bSlots.includes(slot))
+          if (slotOverlap) {
+            overlaps.push({ a, b })
+          }
+        }
+      }
+    }
+    
+    return overlaps
+  }
+
   // Compacter les slots : déplacer les rendez-vous pour remplir les trous à gauche
   // RÈGLE TETRIS : Aucun bloc ne peut entrer dans un autre bloc
   // Si conflit détecté, déplacer automatiquement les rendez-vous existants
@@ -1257,7 +1295,15 @@ export default function AdminPage() {
         
         // IMPORTANT : Réintégrer le rendez-vous modifié après la compaction
         // La compaction peut avoir déplacé d'autres rendez-vous, mais le rendez-vous modifié doit être inclus
-        return [...otherDates, ...compacted, updatedAppointment]
+        const finalAppointments = [...otherDates, ...compacted, updatedAppointment]
+        
+        // Vérifier les chevauchements finaux et afficher une alerte si nécessaire
+        const conflicts = detectOverlaps(finalAppointments.filter(a => a.date === dateStr))
+        if (conflicts.length > 0) {
+          alert(`Attention : ${conflicts.length} chevauchement(s) détecté(s) sur cette date. Veuillez vérifier l'agenda.`)
+        }
+        
+        return finalAppointments
       })
     } else {
       const newAppointment: SimpleAppointment = {
@@ -1294,7 +1340,15 @@ export default function AdminPage() {
         const otherDates = withNew.filter(a => a.date !== dateStr)
         
         // Fusionner les rendez-vous compactés avec les autres dates
-        return [...otherDates, ...compacted]
+        const finalAppointments = [...otherDates, ...compacted]
+        
+        // Vérifier les chevauchements finaux et afficher une alerte si nécessaire
+        const conflicts = detectOverlaps(finalAppointments.filter(a => a.date === dateStr))
+        if (conflicts.length > 0) {
+          alert(`Attention : ${conflicts.length} chevauchement(s) détecté(s) sur cette date. Veuillez vérifier l'agenda.`)
+        }
+        
+        return finalAppointments
       })
     }
 
