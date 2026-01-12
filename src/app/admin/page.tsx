@@ -785,18 +785,17 @@ export default function AdminPage() {
         ? appointment.assignedSlots.length 
         : calculateSlotsNeeded(appointment.participants)
       
-      // Fonction pour essayer de déplacer un rendez-vous vers la droite pour libérer des slots
-      const tryShiftRightToFreeSlots = (targetSlots: number[]): boolean => {
-        // Identifier quels slots sont déjà disponibles et lesquels sont occupés
-        const occupiedSlots: number[] = []
-        const appointmentsBlocking: Map<string, { appointment: SimpleAppointment; index: number; blockingSlots: number[] }> = new Map()
+      // Fonction RÉCURSIVE pour déplacer un rendez-vous vers la droite et gérer les déplacements en cascade
+      // visitedIds : pour éviter les boucles infinies
+      const tryShiftRightRecursive = (targetSlots: number[], visitedIds: Set<string> = new Set()): boolean => {
+        // Identifier les rendez-vous qui bloquent les slots cibles
+        const appointmentsBlocking: { appointment: SimpleAppointment; index: number }[] = []
         
-        // Parcourir tous les rendez-vous déjà placés pour trouver ceux qui bloquent les slots cibles
         for (let i = 0; i < compactedAppointments.length; i++) {
           const existing = compactedAppointments[i]
           
-          // Exclure le rendez-vous actuel
-          if (existing.id === appointment.id) continue
+          // Exclure le rendez-vous actuel et ceux déjà visités (pour éviter les boucles)
+          if (existing.id === appointment.id || visitedIds.has(existing.id)) continue
           
           const existingStart = existing.hour * 60 + (existing.minute || 0)
           const existingDuration = existing.gameDurationMinutes || existing.durationMinutes || 60
@@ -810,36 +809,24 @@ export default function AdminPage() {
           
           if (timeOverlap) {
             // Vérifier si ce rendez-vous occupe un des slots cibles
-            for (const targetSlot of targetSlots) {
-              if (existingSlots.includes(targetSlot)) {
-                // Ce rendez-vous bloque ce slot cible
-                if (!occupiedSlots.includes(targetSlot)) {
-                  occupiedSlots.push(targetSlot)
-                }
-                
-                // Enregistrer ce rendez-vous comme bloquant
-                if (!appointmentsBlocking.has(existing.id)) {
-                  appointmentsBlocking.set(existing.id, {
-                    appointment: existing,
-                    index: i,
-                    blockingSlots: []
-                  })
-                }
-                if (!appointmentsBlocking.get(existing.id)!.blockingSlots.includes(targetSlot)) {
-                  appointmentsBlocking.get(existing.id)!.blockingSlots.push(targetSlot)
-                }
-              }
+            const hasOverlap = existingSlots.some(slot => targetSlots.includes(slot))
+            if (hasOverlap) {
+              appointmentsBlocking.push({
+                appointment: existing,
+                index: i
+              })
             }
           }
         }
         
-        // Si aucun slot n'est occupé, pas besoin de déplacer
-        if (occupiedSlots.length === 0) return false
+        // Si aucun bloc ne bloque, les slots sont libres
+        if (appointmentsBlocking.length === 0) {
+          return areSlotsAvailable(targetSlots, startMinutes, endMinutes, appointment.id)
+        }
         
-        // Pour chaque rendez-vous bloquant, essayer de le déplacer vers la droite
-        const shiftsToApply: { appointment: SimpleAppointment; index: number; currentSlots: number[]; newSlots: number[] }[] = []
-        
-        for (const [appointmentId, blockInfo] of appointmentsBlocking) {
+        // Pour chaque bloc bloquant, essayer de le déplacer vers la droite
+        // IMPORTANT : On doit tous les déplacer, sinon on ne peut pas libérer les slots
+        for (const blockInfo of appointmentsBlocking) {
           const existing = blockInfo.appointment
           const existingStart = existing.hour * 60 + (existing.minute || 0)
           const existingDuration = existing.gameDurationMinutes || existing.durationMinutes || 60
@@ -849,105 +836,54 @@ export default function AdminPage() {
           // Calculer le décalage nécessaire : déplacer pour que le slot minimum soit après le slot maximum de targetSlots
           const maxTargetSlot = Math.max(...targetSlots)
           const minExistingSlot = Math.min(...existingSlots)
-          const maxExistingSlot = Math.max(...existingSlots)
           
-          // Si le rendez-vous chevauche avec les slots cibles, le déplacer pour que son slot minimum soit après le slot maximum cible
-          // Exemple : targetSlots = [6,7,8], existingSlots = [8,9,10,11,12]
-          // On veut déplacer pour que le slot minimum (8) soit après 8, donc au moins 9
-          // shiftAmount = 9 - 8 = 1, donc newSlots = [9,10,11,12,13]
+          // Si le rendez-vous est déjà complètement après les slots cibles, pas besoin de déplacer
+          if (minExistingSlot > maxTargetSlot) continue
+          
+          // Calculer les nouveaux slots (vers la droite)
           const shiftAmount = maxTargetSlot - minExistingSlot + 1
+          if (shiftAmount <= 0) continue
           
-          if (shiftAmount <= 0) {
-            // Si le rendez-vous est déjà après les slots cibles, pas besoin de déplacer
-            // Mais vérifier quand même s'il bloque un slot cible
-            if (minExistingSlot > maxTargetSlot) continue
-            // Sinon, il y a un chevauchement et on doit déplacer
-          }
-          
-          const newSlots = existingSlots.map(s => s + shiftAmount)
+          const newSlots = existingSlots.map(s => s + shiftAmount).sort((a, b) => a - b)
           const maxNewSlot = Math.max(...newSlots)
           
           // Vérifier que les nouveaux slots sont dans les limites
-          if (maxNewSlot > TOTAL_SLOTS) continue
-          
-          // Vérifier si les nouveaux slots sont disponibles
-          // Les nouveaux slots ne doivent pas être occupés par d'autres rendez-vous
-          // (pas par le rendez-vous qu'on déplace, car on va libérer ses anciens slots)
-          // Utiliser areSlotsAvailable en excluant le rendez-vous qu'on déplace
-          const tempSlotsAvailable = (slots: number[], startMin: number, endMin: number, excludeId: string): boolean => {
-            // Vérifier dans slotUsage
-            for (const slot of slots) {
-              const occupiedMinutes = slotUsage.get(slot)
-              if (!occupiedMinutes) return false
-              
-              for (let min = startMin; min < endMin; min += 15) {
-                if (occupiedMinutes.has(min)) {
-                  // Si ce slot est dans les anciens slots du rendez-vous qu'on déplace, on peut l'ignorer
-                  // Sinon, c'est occupé par un autre rendez-vous
-                  if (!existingSlots.includes(slot)) {
-                    return false
-                  }
-                }
-              }
-            }
-            
-            // Vérifier dans compactedAppointments (en excluant le rendez-vous qu'on déplace)
-            for (const other of compactedAppointments) {
-              if (other.id === excludeId) continue
-              const otherStart = other.hour * 60 + (other.minute || 0)
-              const otherDuration = other.gameDurationMinutes || other.durationMinutes || 60
-              const otherEnd = otherStart + otherDuration
-              const otherSlots = other.assignedSlots || []
-              
-              if (otherSlots.length === 0) continue
-              
-              const timeOverlap = otherStart < endMin && otherEnd > startMin
-              if (timeOverlap && slots.some(s => otherSlots.includes(s))) {
-                return false
-              }
-            }
-            
-            return true
+          if (maxNewSlot > TOTAL_SLOTS) {
+            // Impossible de déplacer vers la droite, on ne peut pas libérer les slots
+            return false
           }
           
-          const canShift = tempSlotsAvailable(newSlots, existingStart, existingEnd, existing.id)
+          // RÉCURSION : Vérifier si les nouveaux slots sont libres, sinon déplacer récursivement les blocs qui les bloquent
+          const newVisitedIds = new Set(visitedIds)
+          newVisitedIds.add(existing.id)
           
-          if (canShift) {
-            shiftsToApply.push({
-              appointment: existing,
-              index: blockInfo.index,
-              currentSlots: existingSlots,
-              newSlots: newSlots.sort((a, b) => a - b)
-            })
+          // Si les nouveaux slots sont occupés, déplacer récursivement les blocs qui les bloquent
+          if (!tryShiftRightRecursive(newSlots, newVisitedIds)) {
+            // Impossible de libérer les nouveaux slots, on ne peut pas déplacer ce bloc
+            return false
+          }
+          
+          // Maintenant que les nouveaux slots sont libres, on peut déplacer ce bloc
+          // Libérer les anciens slots
+          releaseSlots(existingSlots, existingStart, existingEnd)
+          
+          // Réserver les nouveaux slots
+          reserveSlots(newSlots, existingStart, existingEnd)
+          
+          // Mettre à jour le rendez-vous dans compactedAppointments
+          compactedAppointments[blockInfo.index] = {
+            ...existing,
+            assignedSlots: newSlots
           }
         }
         
-        // Appliquer tous les déplacements
-        if (shiftsToApply.length > 0) {
-          for (const shift of shiftsToApply) {
-            const existingStart = shift.appointment.hour * 60 + (shift.appointment.minute || 0)
-            const existingDuration = shift.appointment.gameDurationMinutes || shift.appointment.durationMinutes || 60
-            const existingEnd = existingStart + existingDuration
-            
-            // Libérer les anciens slots
-            releaseSlots(shift.currentSlots, existingStart, existingEnd)
-            
-            // Réserver les nouveaux slots
-            reserveSlots(shift.newSlots, existingStart, existingEnd)
-            
-            // Mettre à jour le rendez-vous
-            compactedAppointments[shift.index] = {
-              ...shift.appointment,
-              assignedSlots: shift.newSlots
-            }
-          }
-          
-          // Vérifier que tous les slots cibles sont maintenant libres
-          // Utiliser areSlotsAvailable qui fait déjà cette vérification correctement
-          return areSlotsAvailable(targetSlots, startMinutes, endMinutes, appointment.id)
-        }
-        
-        return false
+        // Après avoir déplacé tous les blocs bloquants, vérifier que les slots cibles sont maintenant libres
+        return areSlotsAvailable(targetSlots, startMinutes, endMinutes, appointment.id)
+      }
+      
+      // Fonction wrapper pour essayer de déplacer les rendez-vous vers la droite pour libérer des slots
+      const tryShiftRightToFreeSlots = (targetSlots: number[]): boolean => {
+        return tryShiftRightRecursive(targetSlots, new Set())
       }
       
       // Chercher les meilleurs slots pour le rendez-vous actuel (de gauche à droite)
@@ -1027,15 +963,25 @@ export default function AdminPage() {
           
           // Si certains slots sont occupés, essayer de déplacer les rendez-vous qui les occupent
           // On essaie même si tous les slots sont occupés, car on peut déplacer plusieurs rendez-vous
+          // RÈGLE TETRIS : On déplace TOUJOURS les autres rendez-vous pour faire de la place
           if (occupiedSlotsInRange.length > 0) {
             // Essayer de déplacer les rendez-vous qui occupent ces slots
-            if (tryShiftRightToFreeSlots(candidateSlots)) {
+            // Cette fonction modifie directement compactedAppointments et slotUsage
+            const shiftSuccess = tryShiftRightToFreeSlots(candidateSlots)
+            if (shiftSuccess) {
               // Après le déplacement, vérifier à nouveau si tous les slots sont maintenant disponibles
               // Utiliser areSlotsAvailable qui vérifie à la fois slotUsage et compactedAppointments
               if (areSlotsAvailable(candidateSlots, startMinutes, endMinutes, appointment.id)) {
                 bestSlots = candidateSlots
                 break
               }
+            }
+            // Si le déplacement a échoué, continuer à chercher d'autres slots
+          } else {
+            // Si tous les slots sont libres, on peut les utiliser directement
+            if (areSlotsAvailable(candidateSlots, startMinutes, endMinutes, appointment.id)) {
+              bestSlots = candidateSlots
+              break
             }
           }
         }
@@ -2063,38 +2009,11 @@ export default function AdminPage() {
       ? (appointmentDuration ?? 120) // Durée de l'événement pour la salle (événements)
       : gameDurationMinutes // Pour les jeux, utiliser la durée du jeu
 
-    // VÉRIFICATION ROBUSTE DES CHEVAUCHEMENTS
-    const overlapCheck = checkForOverlap(
-      dateStr,
-      startMinutes,
-      gameDurationMinutes,
-      slotsNeeded,
-      editingAppointment?.id
-    )
-
-    // Si chevauchement détecté OU pas assez de slots disponibles, TOUJOURS demander confirmation
-    // Même si availableSlots === 0, on demande l'autorisation (pas de blocage)
-    if (overlapCheck.hasOverlap || overlapCheck.availableSlots < slotsNeeded) {
-      const maxParticipants = overlapCheck.availableSlots * 6
-      
-      // Afficher la pop-up de confirmation
-      setOverlapInfo({
-        slotsNeeded,
-        availableSlots: overlapCheck.availableSlots,
-        maxParticipants
-      })
-      
-      // Stocker la fonction de sauvegarde pour l'appeler après confirmation
-      setPendingSave(() => () => {
-        // Ne pas assigner de slots maintenant - laisser compactSlots les assigner automatiquement
-        saveAppointmentWithSlots([])
-      })
-      
-      setShowOverlapConfirm(true)
-      return
-    }
+    // RÈGLE TETRIS : Laisser compactSlots essayer de déplacer les blocs automatiquement
+    // On essaie d'abord de sauvegarder avec des slots vides, compactSlots va essayer de trouver une place
+    // en déplaçant les autres blocs si nécessaire
     
-    // Si pas de chevauchement, trouver les slots disponibles et sauvegarder
+    // Vérifier d'abord s'il y a des slots directement disponibles
     const availableSlots = findAvailableSlots(
       dateStr,
       startMinutes,
@@ -2103,12 +2022,31 @@ export default function AdminPage() {
       editingAppointment?.id
     )
     
-    // Si findAvailableSlots ne trouve pas assez de slots, demander quand même confirmation
-    if (!availableSlots || availableSlots.length < slotsNeeded) {
-      const maxParticipants = overlapCheck.availableSlots * 6
+    // Si on a trouvé des slots directement disponibles, les utiliser
+    if (availableSlots && availableSlots.length >= slotsNeeded) {
+      saveAppointmentWithSlots(availableSlots)
+      return
+    }
+    
+    // Sinon, on laisse compactSlots essayer de déplacer les blocs
+    // Mais d'abord, on vérifie si c'est vraiment impossible (tous les slots occupés)
+    const overlapCheck = checkForOverlap(
+      dateStr,
+      startMinutes,
+      gameDurationMinutes,
+      slotsNeeded,
+      editingAppointment?.id
+    )
+    
+    // Si aucun slot n'est disponible ET qu'on ne peut pas déplacer (tous les slots sont occupés jusqu'à la fin),
+    // demander autorisation immédiatement
+    // Sinon, laisser compactSlots essayer de déplacer les blocs
+    if (overlapCheck.availableSlots === 0) {
+      // Tous les slots sont occupés, on ne peut pas déplacer, demander autorisation
+      const maxParticipants = 0
       setOverlapInfo({
         slotsNeeded,
-        availableSlots: overlapCheck.availableSlots,
+        availableSlots: 0,
         maxParticipants
       })
       setPendingSave(() => () => {
@@ -2118,8 +2056,9 @@ export default function AdminPage() {
       return
     }
     
-    // Si on arrive ici, on a exactement slotsNeeded slots disponibles sans chevauchement
-    saveAppointmentWithSlots(availableSlots)
+    // Sinon, laisser compactSlots essayer de déplacer les blocs
+    // Il va essayer de trouver une place en déplaçant les autres blocs
+    saveAppointmentWithSlots([])
   }
 
   // Afficher la pop-up de confirmation de suppression
