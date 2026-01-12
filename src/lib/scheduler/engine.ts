@@ -531,16 +531,25 @@ export function findSmallestFitRoom(
   participants: number,
   timeKeys: TimeKey[],
   roomConfigs: Map<number, RoomConfig>,
-  excludeBookingId?: string
+  excludeBookingId?: string,
+  allowOvercap: boolean = false
 ): { roomId: number; config: RoomConfig } | null {
   // Trier les salles par capacité croissante
   const sortedRooms = Array.from(roomConfigs.entries())
     .sort((a, b) => a[1].maxCapacity - b[1].maxCapacity)
   
+  // 1. D'abord, chercher une salle qui correspond à la capacité ET disponible
   for (const [roomId, config] of sortedRooms) {
-    // Vérifier capacité
     if (config.maxCapacity >= participants) {
-      // Vérifier disponibilité temporelle
+      if (isRoomFreeForTimeRange(state, roomId, timeKeys, excludeBookingId)) {
+        return { roomId, config }
+      }
+    }
+  }
+  
+  // 2. Si pas trouvé et allowOvercap, chercher une salle disponible (même si capacité insuffisante)
+  if (allowOvercap) {
+    for (const [roomId, config] of sortedRooms) {
       if (isRoomFreeForTimeRange(state, roomId, timeKeys, excludeBookingId)) {
         return { roomId, config }
       }
@@ -557,7 +566,8 @@ export function placeEventBooking(
   bookings: Booking[],
   params: AllocationParams,
   roomConfigs: Map<number, RoomConfig>,
-  allowRoomOvercap: boolean = false
+  allowRoomOvercap: boolean = false,
+  allowSurbook: boolean = false
 ): AllocationResult {
   const state = buildOccupancyState(bookings, params.date)
   
@@ -570,13 +580,16 @@ export function placeEventBooking(
     (params.minute + eventDuration) % 60
   )
   
-  // 1. Trouver une salle (smallest-fit)
+  // 1. Trouver une salle disponible (même si capacité insuffisante)
+  // On cherche d'abord une salle avec capacité suffisante, sinon une salle disponible
+  // La vérification de capacité se fera après
   const roomResult = findSmallestFitRoom(
     state,
     params.participants,
     timeKeys,
     roomConfigs,
-    params.excludeBookingId
+    params.excludeBookingId,
+    true // TOUJOURS chercher une salle disponible, même si capacité insuffisante
   )
   
   if (!roomResult) {
@@ -596,6 +609,9 @@ export function placeEventBooking(
   // 2. Vérifier capacité
   if (roomResult.config.maxCapacity < params.participants) {
     if (allowRoomOvercap) {
+      // Autorisation déjà donnée, continuer avec roomOvercap
+    } else {
+      // Demander confirmation AVANT de continuer
       return {
         success: false,
         conflict: {
@@ -610,33 +626,22 @@ export function placeEventBooking(
         }
       }
     }
-    
-    return {
-      success: false,
-      conflict: {
-        type: 'ROOM_OVERCAP',
-        message: `La salle ${roomResult.config.name} ne peut pas accueillir ${params.participants} personnes (capacité: ${roomResult.config.maxCapacity})`,
-        details: {
-          roomId: roomResult.roomId,
-          roomCapacity: roomResult.config.maxCapacity,
-          participants: params.participants
-        }
-      }
-    }
   }
   
   // 3. Allouer les slots pour la zone de jeu (centrée)
+  // IMPORTANT : Passer allowSurbook pour permettre le déplacement et le surbooking
   const gameParams: AllocationParams = {
     ...params,
-    gameDurationMinutes: 60 // Toujours 60 min centré
+    gameDurationMinutes: 60, // Toujours 60 min centré
+    type: 'game' // Traiter comme GAME pour l'allocation de slots
   }
-  const gameResult = placeGameBooking(bookings, gameParams, false, false)
+  const gameResult = placeGameBooking(bookings, gameParams, false, allowSurbook)
   
   if (!gameResult.success) {
-    // Si pas de slots pour le jeu, l'événement est impossible
+    // Si pas de slots pour le jeu, retourner le conflit (peut être NEED_SURBOOK_CONFIRM)
     return {
       success: false,
-      conflict: {
+      conflict: gameResult.conflict || {
         type: 'FULL',
         message: 'Aucun slot disponible pour la zone de jeu',
         details: gameResult.conflict?.details
@@ -656,7 +661,13 @@ export function placeEventBooking(
           (params.minute + eventDuration) % 60
         )
       },
-      slotAllocation: gameResult.allocation?.slotAllocation
+      slotAllocation: gameResult.allocation?.slotAllocation,
+      surbooked: gameResult.allocation?.surbooked || false,
+      surbookedParticipants: gameResult.allocation?.surbookedParticipants || 0,
+      roomOvercap: roomResult.config.maxCapacity < params.participants,
+      roomOvercapParticipants: roomResult.config.maxCapacity < params.participants 
+        ? params.participants - roomResult.config.maxCapacity 
+        : 0
     }
   }
 }
@@ -715,7 +726,7 @@ export function reorganizeAllBookingsForDate(
     let result: AllocationResult | null = null
 
     if (booking.type === 'event') {
-      result = placeEventBooking(currentBookings, params, roomConfigs, allowRoomOvercap)
+      result = placeEventBooking(currentBookings, params, roomConfigs, allowRoomOvercap, allowSurbook)
     } else {
       // Pour les GAME, utiliser directement allocateLeftToRight pour récupérer les déplacements
       const state = buildOccupancyState(currentBookings, params.date)
