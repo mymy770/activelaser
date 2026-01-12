@@ -100,6 +100,8 @@ export default function AdminPage() {
   const [appointmentParticipants, setAppointmentParticipants] = useState<number | null>(null)
   const [appointmentRoom, setAppointmentRoom] = useState<number | null>(null) // 1-4 pour les salles d'anniversaire
   const [userChangedColor, setUserChangedColor] = useState(false) // Suivre si l'utilisateur a modifié la couleur manuellement
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false) // Afficher la pop-up de confirmation de suppression
+  const [appointmentToDelete, setAppointmentToDelete] = useState<string | null>(null) // ID du rendez-vous à supprimer
 
   const presetColors = ['#3b82f6', '#22c55e', '#f97316', '#ef4444', '#a855f7', '#eab308']
 
@@ -1160,10 +1162,27 @@ export default function AdminPage() {
     setAppointmentParticipants(null)
   }
 
-  const deleteAppointment = (id: string) => {
-    setAppointments(prev => prev.filter(a => a.id !== id))
+  // Afficher la pop-up de confirmation de suppression
+  const confirmDeleteAppointment = (id: string) => {
+    setAppointmentToDelete(id)
+    setShowDeleteConfirm(true)
+  }
+
+  // Supprimer définitivement le rendez-vous après confirmation
+  const deleteAppointment = () => {
+    if (!appointmentToDelete) return
+    
+    setAppointments(prev => prev.filter(a => a.id !== appointmentToDelete))
     setShowAppointmentModal(false)
     setEditingAppointment(null)
+    setShowDeleteConfirm(false)
+    setAppointmentToDelete(null)
+  }
+
+  // Annuler la suppression
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false)
+    setAppointmentToDelete(null)
   }
 
   // Gestion du drag du modal
@@ -2438,7 +2457,7 @@ export default function AdminPage() {
                     <div className="px-6 py-4 flex justify-between gap-4 border-t border-gray-700">
                       {editingAppointment ? (
                         <button
-                          onClick={() => deleteAppointment(editingAppointment.id)}
+                          onClick={() => confirmDeleteAppointment(editingAppointment.id)}
                           className="px-4 py-2 rounded-lg border border-red-500 text-red-500 text-sm hover:bg-red-500/10 transition-all"
                         >
                           Supprimer
