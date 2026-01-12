@@ -540,6 +540,134 @@ export default function AdminPage() {
     return Math.ceil(participants / 6)
   }
 
+  // Compacter les slots : déplacer les rendez-vous pour remplir les trous à gauche
+  // Priorité : les rendez-vous les plus longs ne sont pas déplacés
+  const compactSlots = (date: string, allAppointments: SimpleAppointment[], excludeAppointmentId?: string): SimpleAppointment[] => {
+    // Récupérer tous les rendez-vous pour cette date
+    const dateAppointments = allAppointments
+      .filter(a => a.date === date && a.id !== excludeAppointmentId && (a.assignedSlots?.length || 0) > 0)
+      .map(a => ({ ...a }))
+
+    if (dateAppointments.length === 0) return []
+
+    // Trier par durée décroissante (longues d'abord) pour ne pas déplacer les longues
+    dateAppointments.sort((a, b) => {
+      const aDuration = a.gameDurationMinutes || a.durationMinutes || 60
+      const bDuration = b.gameDurationMinutes || b.durationMinutes || 60
+      return bDuration - aDuration
+    })
+
+    // Créer une carte de disponibilité pour chaque slot à chaque moment
+    const slotUsage: Map<number, Set<number>> = new Map() // slot -> Set de minutes occupées
+    
+    // Initialiser tous les slots comme libres
+    for (let slot = 1; slot <= TOTAL_SLOTS; slot++) {
+      slotUsage.set(slot, new Set())
+    }
+
+    // Fonction pour vérifier si des slots sont disponibles pour un créneau
+    const areSlotsAvailable = (slots: number[], startMinutes: number, endMinutes: number): boolean => {
+      for (const slot of slots) {
+        const occupiedMinutes = slotUsage.get(slot)
+        if (!occupiedMinutes) return false
+        
+        for (let min = startMinutes; min < endMinutes; min += 15) {
+          if (occupiedMinutes.has(min)) {
+            return false
+          }
+        }
+      }
+      return true
+    }
+
+    // Fonction pour réserver des slots
+    const reserveSlots = (slots: number[], startMinutes: number, endMinutes: number) => {
+      for (const slot of slots) {
+        const occupiedMinutes = slotUsage.get(slot)
+        if (occupiedMinutes) {
+          for (let min = startMinutes; min < endMinutes; min += 15) {
+            occupiedMinutes.add(min)
+          }
+        }
+      }
+    }
+
+    // Fonction pour libérer des slots
+    const releaseSlots = (slots: number[], startMinutes: number, endMinutes: number) => {
+      for (const slot of slots) {
+        const occupiedMinutes = slotUsage.get(slot)
+        if (occupiedMinutes) {
+          for (let min = startMinutes; min < endMinutes; min += 15) {
+            occupiedMinutes.delete(min)
+          }
+        }
+      }
+    }
+
+    // Traiter chaque rendez-vous dans l'ordre (longues d'abord)
+    const compactedAppointments: SimpleAppointment[] = []
+    
+    for (const appointment of dateAppointments) {
+      const startMinutes = appointment.hour * 60 + (appointment.minute || 0)
+      const duration = appointment.gameDurationMinutes || appointment.durationMinutes || 60
+      const endMinutes = startMinutes + duration
+      const slotsNeeded = appointment.assignedSlots?.length || calculateSlotsNeeded(appointment.participants)
+      
+      // Chercher les slots les plus à gauche disponibles
+      let bestSlots: number[] | null = null
+      
+      // Essayer de trouver des slots consécutifs d'abord
+      for (let startSlot = 1; startSlot <= TOTAL_SLOTS - slotsNeeded + 1; startSlot++) {
+        const candidateSlots = Array.from({ length: slotsNeeded }, (_, i) => startSlot + i)
+        if (areSlotsAvailable(candidateSlots, startMinutes, endMinutes)) {
+          bestSlots = candidateSlots
+          break
+        }
+      }
+      
+      // Si pas de slots consécutifs, prendre les premiers disponibles
+      if (!bestSlots) {
+        const availableSlots: number[] = []
+        for (let slot = 1; slot <= TOTAL_SLOTS; slot++) {
+          if (availableSlots.length >= slotsNeeded) break
+          
+          const occupiedMinutes = slotUsage.get(slot)
+          if (occupiedMinutes) {
+            let isAvailable = true
+            for (let min = startMinutes; min < endMinutes; min += 15) {
+              if (occupiedMinutes.has(min)) {
+                isAvailable = false
+                break
+              }
+            }
+            if (isAvailable) {
+              availableSlots.push(slot)
+            }
+          }
+        }
+        
+        if (availableSlots.length >= slotsNeeded) {
+          bestSlots = availableSlots.slice(0, slotsNeeded)
+        }
+      }
+      
+      // Si on a trouvé des slots, les assigner
+      if (bestSlots) {
+        reserveSlots(bestSlots, startMinutes, endMinutes)
+        compactedAppointments.push({
+          ...appointment,
+          assignedSlots: bestSlots.sort((a, b) => a - b)
+        })
+      } else {
+        // Si pas de slots disponibles, garder les slots originaux
+        reserveSlots(appointment.assignedSlots || [], startMinutes, endMinutes)
+        compactedAppointments.push(appointment)
+      }
+    }
+
+    return compactedAppointments
+  }
+
   // Trouver les slots disponibles pour un créneau donné
   const findAvailableSlots = (
     date: string,
@@ -933,8 +1061,9 @@ export default function AdminPage() {
     }
 
     if (editingAppointment) {
-      setAppointments(prev =>
-        prev.map(a =>
+      setAppointments(prev => {
+        // Mettre à jour le rendez-vous modifié
+        const updated = prev.map(a =>
           a.id === editingAppointment.id
             ? {
                 ...a,
@@ -961,8 +1090,15 @@ export default function AdminPage() {
                 assignedRoom: assignedRoom,
               }
             : a,
-        ),
-      )
+        )
+        
+        // Compacter les slots pour cette date
+        const compacted = compactSlots(dateStr, updated, editingAppointment.id)
+        const otherDates = updated.filter(a => a.date !== dateStr)
+        
+        // Fusionner les rendez-vous compactés avec les autres dates
+        return [...otherDates, ...compacted]
+      })
     } else {
       const newAppointment: SimpleAppointment = {
         id: `app-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -988,7 +1124,18 @@ export default function AdminPage() {
         assignedSlots: availableSlots,
         assignedRoom: assignedRoom,
       }
-      setAppointments(prev => [...prev, newAppointment])
+      
+      setAppointments(prev => {
+        // Ajouter le nouveau rendez-vous
+        const withNew = [...prev, newAppointment]
+        
+        // Compacter les slots pour cette date
+        const compacted = compactSlots(dateStr, withNew)
+        const otherDates = withNew.filter(a => a.date !== dateStr)
+        
+        // Fusionner les rendez-vous compactés avec les autres dates
+        return [...otherDates, ...compacted]
+      })
     }
 
     setShowAppointmentModal(false)
