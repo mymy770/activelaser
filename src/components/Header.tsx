@@ -30,6 +30,8 @@ export default function Header({ translations, locale, onLocaleChange }: HeaderP
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
       if (window.innerWidth >= 768) {
@@ -43,6 +45,8 @@ export default function Header({ translations, locale, onLocaleChange }: HeaderP
   }, [])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    
     const handleClickOutside = (event: MouseEvent) => {
       if (isMobile && isMenuOpen) {
         const target = event.target as HTMLElement
