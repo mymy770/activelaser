@@ -8,6 +8,7 @@ import type {
   AllocationParams,
   AllocationResult,
   Conflict,
+  ConflictType,
   SlotAllocation,
   RoomAllocation,
   Allocation,
@@ -633,5 +634,109 @@ export function placeEventBooking(
       },
       slotAllocation: gameResult.allocation?.slotAllocation
     }
+  }
+}
+
+/**
+ * Réorganise TOUS les bookings d'une date et retourne un nouvel état complet
+ * RÈGLE : Retourne toujours un état complet, jamais de mutation directe
+ * L'UI NE DOIT JAMAIS muter les appointments directement
+ */
+export function reorganizeAllBookingsForDate(
+  existingBookings: Booking[],
+  newBooking: Booking | null, // null si suppression
+  date: string,
+  roomConfigs: Map<number, RoomConfig>,
+  allowSplit: boolean = false,
+  allowSurbook: boolean = false,
+  allowRoomOvercap: boolean = false
+): { success: boolean; bookings: Booking[]; conflict?: Conflict } {
+  // Filtrer les bookings de la date (exclure celui qu'on modifie/ajoute/supprime)
+  const dateBookings = existingBookings
+    .filter(b => b.date === date)
+    .filter(b => !newBooking || b.id !== newBooking.id)
+    .map(b => ({ ...b })) // Copie pour éviter mutation
+
+  // Si nouveau booking, l'ajouter à la liste
+  const bookingsToReorganize = newBooking
+    ? [...dateBookings, newBooking]
+    : dateBookings
+
+  // Trier par heure de début
+  bookingsToReorganize.sort((a, b) => {
+    const aStart = a.hour * 60 + a.minute
+    const bStart = b.hour * 60 + b.minute
+    return aStart - bStart
+  })
+
+  // Réorganiser chaque booking un par un dans l'ordre chronologique
+  const reorganizedBookings: Booking[] = []
+
+  for (const booking of bookingsToReorganize) {
+    const params: AllocationParams = {
+      date: booking.date,
+      hour: booking.hour,
+      minute: booking.minute,
+      participants: booking.participants,
+      type: booking.type,
+      durationMinutes: booking.durationMinutes,
+      gameDurationMinutes: booking.gameDurationMinutes,
+      excludeBookingId: booking.id // Exclure ce booking lui-même pendant la vérification
+    }
+
+    let result: AllocationResult
+
+    if (booking.type === 'event') {
+      result = placeEventBooking(reorganizedBookings, params, roomConfigs, allowRoomOvercap)
+    } else {
+      result = placeGameBooking(reorganizedBookings, params, allowSplit, allowSurbook)
+    }
+
+    if (result.success && result.allocation) {
+      // Mettre à jour le booking avec la nouvelle allocation
+      const updatedBooking: Booking = {
+        ...booking,
+        assignedSlots: result.allocation.slotAllocation?.slots,
+        assignedRoom: result.allocation.roomAllocation?.roomId,
+        surbooked: result.allocation.surbooked || false,
+        surbookedParticipants: result.allocation.surbookedParticipants || 0,
+        roomOvercap: result.allocation.roomOvercap || false,
+        roomOvercapParticipants: result.allocation.roomOvercapParticipants || 0,
+        split: result.allocation.split || false,
+        splitParts: result.allocation.splitParts || 1,
+        splitIndex: result.allocation.splitIndex || 0,
+      }
+      reorganizedBookings.push(updatedBooking)
+    } else {
+      // Échec : retourner conflit (pas de mutation)
+      return {
+        success: false,
+        bookings: existingBookings, // Retourner état original sans modifications
+        conflict: result.conflict
+      }
+    }
+  }
+
+  // Valider qu'il n'y a aucun chevauchement
+  const validation = validateNoOverlap(reorganizedBookings, date)
+  if (!validation.valid) {
+    return {
+      success: false,
+      bookings: existingBookings, // Rollback : retourner état original
+      conflict: {
+        type: 'OVERLAP_DETECTED' as ConflictType,
+        message: `${validation.conflicts.length} chevauchement(s) détecté(s) après réorganisation`,
+        details: {
+          conflicts: validation.conflicts.length
+        }
+      }
+    }
+  }
+
+  // Succès : retourner état complet (bookings de la date réorganisés + autres dates inchangés)
+  const otherDatesBookings = existingBookings.filter(b => b.date !== date)
+  return {
+    success: true,
+    bookings: [...otherDatesBookings, ...reorganizedBookings]
   }
 }

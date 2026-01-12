@@ -39,6 +39,7 @@ export type ConflictType =
   | 'ROOM_OVERCAP' // Salle disponible mais capacité dépassée
   | 'NEED_SURBOOK_CONFIRM' // Besoin de confirmation pour surbooking
   | 'NEED_ROOM_OVERCAP_CONFIRM' // Besoin de confirmation pour dépassement capacité salle
+  | 'OVERLAP_DETECTED' // Chevauchement détecté après réorganisation
 
 export interface Conflict {
   type: ConflictType
@@ -79,6 +80,9 @@ export interface Booking {
   surbookedParticipants?: number // Nombre de personnes en trop
   roomOvercap?: boolean
   roomOvercapParticipants?: number // Nombre de personnes en trop pour la salle
+  split?: boolean // Indique si le booking a été splitté visuellement
+  splitParts?: number // Nombre total de parties si splitté
+  splitIndex?: number // Index de la partie actuelle si splitté (0-indexed)
   
   // Métadonnées (pour affichage)
   customerFirstName?: string

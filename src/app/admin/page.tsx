@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Calendar, Clock, Users, MapPin, Phone, Mail, Search, Filter, X, Ban, CheckCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Grid, CalendarDays, Sun, Moon, Settings, Trash2 } from 'lucide-react'
 import { Reservation } from '@/lib/reservations'
 // Scheduler imports
-import { placeGameBooking, placeEventBooking, validateNoOverlap, calculateSlotsNeeded } from '@/lib/scheduler/engine'
+import { reorganizeAllBookingsForDate, validateNoOverlap, calculateSlotsNeeded } from '@/lib/scheduler/engine'
 import { toRoomConfigs, toBooking, fromBooking } from '@/lib/scheduler/adapters'
 import type { Booking } from '@/lib/scheduler/types'
 import { requiresConfirmation, getConflictDetails } from '@/lib/scheduler/exceptions'
