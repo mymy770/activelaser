@@ -808,8 +808,80 @@ export function reorganizeAllBookingsForDate(
           }
         }
       } else {
-        // Pas de place même après déplacement, essayer avec placeGameBooking (qui peut demander surbook)
-        result = placeEventBooking(currentBookings, params, roomConfigs, allowRoomOvercap, allowSurbook)
+        // Pas de place même après déplacement, essayer placeGameBooking directement avec allowSurbook
+        // puis placer la room manuellement (comme dans placeEventBooking mais sans appeler placeEventBooking)
+        const gameParams: AllocationParams = {
+          ...params,
+          gameDurationMinutes: 60, // Toujours 60 min centré pour EVENT
+          type: 'game' // Traiter comme GAME pour l'allocation de slots
+        }
+        const gameResult = placeGameBooking(currentBookings, gameParams, false, allowSurbook)
+        
+        if (!gameResult.success) {
+          // Si pas de slots pour le jeu, retourner le conflit
+          result = gameResult
+        } else {
+          // Slots placés, maintenant placer la room
+          const eventDuration = params.durationMinutes || 120
+          const timeKeys = rangeToKeys(
+            params.hour,
+            params.minute,
+            params.hour + Math.floor((params.minute + eventDuration) / 60),
+            (params.minute + eventDuration) % 60
+          )
+          
+          const roomResult = findSmallestFitRoom(
+            buildOccupancyState(currentBookings, params.date),
+            params.participants,
+            timeKeys,
+            roomConfigs,
+            params.excludeBookingId,
+            true // TOUJOURS chercher une salle disponible, même si capacité insuffisante
+          )
+          
+          if (!roomResult) {
+            result = {
+              success: false,
+              conflict: {
+                type: 'NO_ROOM',
+                message: 'Aucune salle disponible à cet horaire',
+                details: {
+                  participants: params.participants
+                }
+              }
+            }
+          } else if (roomResult.config.maxCapacity < params.participants && !allowRoomOvercap) {
+            result = {
+              success: false,
+              conflict: {
+                type: 'NEED_ROOM_OVERCAP_CONFIRM',
+                message: `La salle ${roomResult.config.name} a une capacité de ${roomResult.config.maxCapacity} personnes, mais ${params.participants} sont demandées. Autoriser ?`,
+                details: {
+                  roomId: roomResult.roomId,
+                  roomCapacity: roomResult.config.maxCapacity,
+                  participants: params.participants,
+                  excessParticipants: params.participants - roomResult.config.maxCapacity
+                }
+              }
+            }
+          } else {
+            // Succès : slots + room
+            result = {
+              success: true,
+              allocation: {
+                roomAllocation: {
+                  roomId: roomResult.roomId,
+                  startTimeKey: toTimeKey(params.hour, params.minute),
+                  endTimeKey: toTimeKey(
+                    params.hour + Math.floor((params.minute + eventDuration) / 60),
+                    (params.minute + eventDuration) % 60
+                  )
+                },
+                slotAllocation: gameResult.allocation?.slotAllocation
+              }
+            }
+          }
+        }
       }
     } else {
       // Pour les GAME, utiliser directement allocateLeftToRight pour récupérer les déplacements
