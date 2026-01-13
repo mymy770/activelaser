@@ -653,12 +653,18 @@ export function placeEventBooking(
   
   if (!gameResult.success) {
     // Si pas de slots pour le jeu, retourner le conflit (peut être NEED_SURBOOK_CONFIRM)
+    if (gameResult.conflict) {
+      return {
+        success: false,
+        conflict: gameResult.conflict
+      }
+    }
     return {
       success: false,
-      conflict: gameResult.conflict || {
+      conflict: {
         type: 'FULL',
         message: 'Aucun slot disponible pour la zone de jeu',
-        details: gameResult.conflict?.details
+        details: undefined
       }
     }
   }
@@ -984,7 +990,7 @@ export function reorganizeAllBookingsForDate(
         type: 'OVERLAP_DETECTED' as ConflictType,
         message: `${validation.conflicts.length} chevauchement(s) détecté(s) après réorganisation`,
         details: {
-          conflicts: validation.conflicts.length
+          // conflicts: validation.conflicts // Retiré car non défini dans le type Conflict.details.length
         }
       }
     }

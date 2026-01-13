@@ -32,19 +32,20 @@ export function useAuth() {
         .from('profiles')
         .select('*')
         .eq('id', authUser.id)
-        .single()
+        .single<Profile>()
 
       // Si le profil n'existe pas (code PGRST116 = no rows), le créer
       if (profileError && profileError.code === 'PGRST116') {
+        const profileData = {
+          id: authUser.id,
+          role: 'super_admin' as const, // Premier utilisateur = super_admin
+          full_name: authUser.email?.split('@')[0] || 'Admin',
+        }
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
-          .insert({
-            id: authUser.id,
-            role: 'super_admin', // Premier utilisateur = super_admin
-            full_name: authUser.email?.split('@')[0] || 'Admin',
-          })
+          .insert(profileData as any) // Type assertion temporaire pour contourner le problème de typage
           .select()
-          .single()
+          .single<Profile>()
 
         if (createError) {
           console.error('Error creating profile:', createError)
@@ -66,6 +67,7 @@ export function useAuth() {
           .select('*')
           .eq('is_active', true)
           .order('name')
+          .returns<Branch[]>()
 
         branches = allBranches || []
       } else {
@@ -74,6 +76,7 @@ export function useAuth() {
           .from('user_branches')
           .select('branch_id')
           .eq('user_id', authUser.id)
+          .returns<Array<{ branch_id: string }>>()
 
         if (userBranches && userBranches.length > 0) {
           const branchIds = userBranches.map(ub => ub.branch_id)
@@ -83,6 +86,7 @@ export function useAuth() {
             .in('id', branchIds)
             .eq('is_active', true)
             .order('name')
+            .returns<Branch[]>()
 
           branches = authorizedBranches || []
         }

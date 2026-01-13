@@ -92,6 +92,7 @@ export interface Database {
           reference_code: string
           total_price: number | null
           notes: string | null
+          color: string | null
           created_at: string
           updated_at: string
           cancelled_at: string | null

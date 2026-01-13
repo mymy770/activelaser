@@ -24,6 +24,7 @@ export interface CreateBookingData {
   customer_phone: string
   customer_email?: string
   notes?: string
+  color?: string
   slots: {
     slot_start: string
     slot_end: string
@@ -74,7 +75,7 @@ export function useBookings(branchId: string | null, date?: string) {
           .lte('start_datetime', endOfDay)
       }
 
-      const { data: bookingsData, error: bookingsError } = await query
+      const { data: bookingsData, error: bookingsError } = await query.returns<Booking[]>()
       console.log('Bookings fetched:', bookingsData?.length || 0, bookingsData)
 
       if (bookingsError) throw bookingsError
@@ -92,6 +93,7 @@ export function useBookings(branchId: string | null, date?: string) {
         .select('*')
         .in('booking_id', bookingIds)
         .order('slot_start')
+        .returns<BookingSlot[]>()
 
       // Associer les slots à chaque booking
       const bookingsWithSlots: BookingWithSlots[] = bookingsData.map(booking => ({
@@ -131,36 +133,111 @@ export function useBookings(branchId: string | null, date?: string) {
       })
 
       // Créer le booking
+      const insertData: Record<string, unknown> = {
+        branch_id: data.branch_id,
+        type: data.type,
+        status: 'CONFIRMED' as BookingStatus,
+        start_datetime: data.start_datetime,
+        end_datetime: data.end_datetime,
+        game_start_datetime: data.game_start_datetime,
+        game_end_datetime: data.game_end_datetime,
+        participants_count: data.participants_count,
+        event_room_id: data.event_room_id,
+        customer_first_name: data.customer_first_name,
+        customer_last_name: data.customer_last_name,
+        customer_phone: data.customer_phone,
+        customer_email: data.customer_email,
+        reference_code: generateReferenceCode(),
+        notes: data.notes,
+      }
+      
+      // Couleur désactivée temporairement jusqu'à ce que la colonne soit ajoutée dans la base de données
+      // if (data.color !== undefined && data.color !== null && data.color !== '') {
+      //   insertData.color = data.color
+      // }
+      
       const { data: newBooking, error: bookingError } = await supabase
         .from('bookings')
-        .insert({
-          branch_id: data.branch_id,
-          type: data.type,
-          status: 'CONFIRMED' as BookingStatus,
-          start_datetime: data.start_datetime,
-          end_datetime: data.end_datetime,
-          game_start_datetime: data.game_start_datetime,
-          game_end_datetime: data.game_end_datetime,
-          participants_count: data.participants_count,
-          event_room_id: data.event_room_id,
-          customer_first_name: data.customer_first_name,
-          customer_last_name: data.customer_last_name,
-          customer_phone: data.customer_phone,
-          customer_email: data.customer_email,
-          reference_code: generateReferenceCode(),
-          notes: data.notes,
-        })
+        .insert(insertData as any)
         .select()
-        .single()
+        .single<Booking>()
 
       if (bookingError) {
+        // Log complet de l'erreur
+        console.error('Booking insert error - Raw error:', bookingError)
+        console.error('Booking insert error - Type:', typeof bookingError)
+        console.error('Booking insert error - Keys:', Object.keys(bookingError))
         console.error('Booking insert error details:', {
           message: bookingError.message,
           code: bookingError.code,
           details: bookingError.details,
           hint: bookingError.hint,
         })
-        throw new Error(`Supabase booking error: ${bookingError.message} (code: ${bookingError.code})`)
+        console.error('Full error object (JSON):', JSON.stringify(bookingError, null, 2))
+        console.error('Insert data that was sent:', JSON.stringify(insertData, null, 2))
+        
+        // Si on a un champ color et qu'une erreur se produit, réessayer automatiquement sans color
+        // (la colonne color peut ne pas exister dans la base de données)
+        if (insertData.color !== undefined) {
+          console.warn('⚠️ Error occurred with color field. Retrying without color field...')
+          console.log('insertData.color:', insertData.color)
+          const retryData = { ...insertData }
+          delete retryData.color
+          
+          const { data: retryBooking, error: retryError } = await supabase
+            .from('bookings')
+            .insert(retryData as any)
+            .select()
+            .single<Booking>()
+          
+          if (retryError) {
+            console.error('❌ Retry also failed:', retryError)
+            console.error('Retry error details:', JSON.stringify(retryError, null, 2))
+            throw new Error(`Supabase booking error: ${retryError.message || JSON.stringify(retryError)}`)
+          }
+          
+          console.log('✅ Retry successful! Booking created without color field.')
+          // Utiliser le résultat du retry
+          const finalBooking = retryBooking
+          // Créer les slots
+          if (data.slots && data.slots.length > 0) {
+            const slotsToInsert = data.slots.map(slot => ({
+              booking_id: finalBooking.id,
+              branch_id: finalBooking.branch_id,
+              slot_start: slot.slot_start,
+              slot_end: slot.slot_end,
+              participants_count: slot.participants_count,
+              slot_type: 'game_zone',
+            }))
+
+            const { data: newSlots, error: slotsError } = await supabase
+              .from('booking_slots')
+              .insert(slotsToInsert as any)
+              .select()
+              .returns<BookingSlot[]>()
+
+            if (slotsError) {
+              console.error('Slots insert error:', slotsError)
+              throw new Error(`Supabase slots error: ${slotsError.message} (code: ${slotsError.code})`)
+            }
+
+            const result: BookingWithSlots = {
+              ...finalBooking,
+              slots: newSlots || [],
+            }
+
+            await fetchBookings()
+            return result
+          }
+
+          await fetchBookings()
+          return { ...finalBooking, slots: [] }
+        }
+        
+        // Si pas de champ color, l'erreur vient d'autre chose
+        const errorMessage = bookingError.message || 'Unknown error'
+        const errorCode = bookingError.code || 'unknown'
+        throw new Error(`Supabase booking error: ${errorMessage} (code: ${errorCode})`)
       }
 
       // Créer les slots
@@ -176,8 +253,9 @@ export function useBookings(branchId: string | null, date?: string) {
 
         const { data: newSlots, error: slotsError } = await supabase
           .from('booking_slots')
-          .insert(slotsToInsert)
+          .insert(slotsToInsert as any)
           .select()
+          .returns<BookingSlot[]>()
 
         if (slotsError) {
           console.error('Slots insert error details:', {
@@ -226,25 +304,28 @@ export function useBookings(branchId: string | null, date?: string) {
       // Mettre à jour le booking
       const updateData: Record<string, unknown> = {}
       if (data.type) updateData.type = data.type
-      if (data.start_datetime) updateData.start_datetime = data.start_datetime
-      if (data.end_datetime) updateData.end_datetime = data.end_datetime
+      if (data.start_datetime !== undefined) updateData.start_datetime = data.start_datetime
+      if (data.end_datetime !== undefined) updateData.end_datetime = data.end_datetime
       if (data.game_start_datetime !== undefined) updateData.game_start_datetime = data.game_start_datetime
       if (data.game_end_datetime !== undefined) updateData.game_end_datetime = data.game_end_datetime
-      if (data.participants_count) updateData.participants_count = data.participants_count
+      if (data.participants_count !== undefined) updateData.participants_count = data.participants_count
       if (data.event_room_id !== undefined) updateData.event_room_id = data.event_room_id
-      if (data.customer_first_name) updateData.customer_first_name = data.customer_first_name
-      if (data.customer_last_name) updateData.customer_last_name = data.customer_last_name
-      if (data.customer_phone) updateData.customer_phone = data.customer_phone
+      if (data.customer_first_name !== undefined) updateData.customer_first_name = data.customer_first_name
+      if (data.customer_last_name !== undefined) updateData.customer_last_name = data.customer_last_name
+      if (data.customer_phone !== undefined) updateData.customer_phone = data.customer_phone
       if (data.customer_email !== undefined) updateData.customer_email = data.customer_email
       if (data.notes !== undefined) updateData.notes = data.notes
+      // Couleur désactivée temporairement jusqu'à ce que la colonne soit ajoutée dans la base de données
+      // if (data.color !== undefined) updateData.color = data.color
       updateData.updated_at = new Date().toISOString()
 
       const { data: updatedBooking, error: bookingError } = await supabase
         .from('bookings')
+        // @ts-expect-error - Type assertion nécessaire pour contourner le problème de typage Supabase
         .update(updateData)
         .eq('id', id)
         .select()
-        .single()
+        .single<Booking>()
 
       if (bookingError) throw bookingError
 
@@ -269,7 +350,7 @@ export function useBookings(branchId: string | null, date?: string) {
 
           await supabase
             .from('booking_slots')
-            .insert(slotsToInsert)
+            .insert(slotsToInsert as any)
         }
       }
 
@@ -290,12 +371,13 @@ export function useBookings(branchId: string | null, date?: string) {
     try {
       const { error: cancelError } = await supabase
         .from('bookings')
+        // @ts-expect-error - Type assertion nécessaire pour contourner le problème de typage Supabase
         .update({
           status: 'CANCELLED' as BookingStatus,
           cancelled_at: new Date().toISOString(),
           cancelled_reason: reason,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq('id', id)
 
       if (cancelError) throw cancelError
@@ -332,6 +414,35 @@ export function useBookings(branchId: string | null, date?: string) {
     }
   }, [fetchBookings])
 
+  // Supprimer toutes les réservations (pour remettre le système à zéro)
+  const deleteAllBookings = useCallback(async (): Promise<boolean> => {
+    const supabase = getClient()
+    setError(null)
+
+    try {
+      if (!branchId) {
+        setError('Aucune branche sélectionnée')
+        return false
+      }
+
+      // Supprimer toutes les réservations de la branche
+      // Les slots seront supprimés automatiquement grâce à ON DELETE CASCADE
+      const { error: deleteError } = await supabase
+        .from('bookings')
+        .delete()
+        .eq('branch_id', branchId)
+
+      if (deleteError) throw deleteError
+
+      await fetchBookings()
+      return true
+    } catch (err) {
+      console.error('Error deleting all bookings:', err)
+      setError('Erreur lors de la suppression de toutes les réservations')
+      return false
+    }
+  }, [branchId, fetchBookings])
+
   return {
     bookings,
     loading,
@@ -340,6 +451,7 @@ export function useBookings(branchId: string | null, date?: string) {
     updateBooking,
     cancelBooking,
     deleteBooking,
+    deleteAllBookings,
     refresh: fetchBookings,
   }
 }

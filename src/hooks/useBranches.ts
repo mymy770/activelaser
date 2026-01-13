@@ -28,6 +28,7 @@ export function useBranches() {
         .select('*')
         .eq('is_active', true)
         .order('name')
+        .returns<Branch[]>()
 
       if (branchesError) throw branchesError
 
@@ -45,7 +46,7 @@ export function useBranches() {
             .from('branch_settings')
             .select('*')
             .eq('branch_id', branch.id)
-            .single()
+            .single<BranchSettings>()
 
           // Rooms
           const { data: rooms } = await supabase
@@ -54,6 +55,7 @@ export function useBranches() {
             .eq('branch_id', branch.id)
             .eq('is_active', true)
             .order('sort_order')
+            .returns<EventRoom[]>()
 
           return {
             ...branch,
