@@ -1115,8 +1115,8 @@ export default function AdminPage() {
     setAppointmentDate(`${year}-${month}-${day}`)
     setAppointmentBranch('')
     setAppointmentEventType('')
-    // Durées par défaut : 2h pour événement, 1h pour jeu
-    setAppointmentDuration(120) // 2 heures par défaut pour événement
+    // Durées par défaut : 1h pour événement (simplification), 1h pour jeu
+    setAppointmentDuration(60) // 1 heure par défaut pour événement (room = jeu = même heure)
     setAppointmentColor('#3b82f6') // Bleu par défaut (sera changé automatiquement si événement)
     setAppointmentEventNotes('')
     setAppointmentCustomerFirstName('')
@@ -3031,9 +3031,9 @@ export default function AdminPage() {
                                 type="number"
                                 min={15}
                                 step={15}
-                                value={appointmentDuration ?? 120}
+                                value={appointmentDuration ?? 60}
                                 onChange={(e) =>
-                                  setAppointmentDuration(e.target.value ? Number(e.target.value) : 120)
+                                  setAppointmentDuration(e.target.value ? Number(e.target.value) : 60)
                                 }
                                 className={`w-full px-3 py-2 rounded border ${borderColor} ${inputBg} ${textMain} text-sm focus:outline-none focus:border-primary`}
                                 title="Durée totale de l'événement (bloque la salle d'anniversaire)"
