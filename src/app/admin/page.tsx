@@ -1193,7 +1193,7 @@ export default function AdminPage() {
       setAppointmentColor('#22c55e')
       // Durée par défaut : 2h pour événement (seulement si nouvelle création)
       if (!editingAppointment) {
-        setAppointmentDuration(120)
+        setAppointmentDuration(60)
       }
     } else if (appointmentEventType === 'game' || appointmentEventType === '') {
       // Jeu normal → bleu
