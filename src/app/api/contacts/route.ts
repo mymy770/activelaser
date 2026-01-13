@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAllContacts, saveContact, findContactByPhoneOrEmail, updateContact } from '@/lib/contacts'
+import { getAllContacts, saveContact, updateContact } from '@/lib/contacts'
 
 /**
  * GET /api/contacts
@@ -28,8 +28,12 @@ export async function GET() {
 /**
  * POST /api/contacts
  * Crée un nouveau contact ou met à jour un contact existant
- * Si contactId est fourni, met à jour ce contact
- * Sinon, cherche par téléphone/email, et met à jour si trouvé, crée sinon
+ * IMPORTANT : La liaison se fait UNIQUEMENT par contactId
+ * - Si contactId est fourni → met à jour ce contact
+ * - Sinon → crée TOUJOURS un nouveau contact (ne cherche PAS par téléphone/email)
+ * 
+ * Cela permet d'avoir plusieurs contacts avec le même numéro de téléphone
+ * (ex: mari/femme, enfants utilisant le numéro des parents, etc.)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -43,6 +47,8 @@ export async function POST(request: NextRequest) {
       typeof body.lastName === 'string' ? body.lastName.trim() || null : null
     const email =
       typeof body.email === 'string' ? body.email.trim() || null : null
+    const alias =
+      typeof body.alias === 'string' ? body.alias.trim() || null : null
     const notes =
       typeof body.notes === 'string' ? body.notes.trim() || null : null
     const branch =
@@ -68,6 +74,7 @@ export async function POST(request: NextRequest) {
         lastName,
         phone: phone || undefined,
         email,
+        alias,
         notes,
         branch,
         source,
@@ -75,37 +82,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, contact, updated: true })
     }
 
-    // Sinon, chercher un contact existant par téléphone ou email
-    const existingContact = await findContactByPhoneOrEmail(phone, email)
-    
-    if (existingContact) {
-      // Mettre à jour le contact existant
-      contact = await updateContact(existingContact.id, {
-        firstName: firstName || existingContact.firstName,
-        lastName: lastName || existingContact.lastName,
-        phone: phone || existingContact.phone,
-        email: email || existingContact.email,
-        notes: notes || existingContact.notes,
-        branch: branch || existingContact.branch,
-        source,
-      })
-      return NextResponse.json({ success: true, contact, updated: true })
-    }
-
-    // Aucun contact trouvé, créer un nouveau
-    // Pour créer, on a besoin d'au moins un téléphone OU un email
-    if (!phone && !email) {
-      return NextResponse.json(
-        { success: false, error: 'Phone or email is required to create a new contact' },
-        { status: 400 }
-      )
-    }
-
+    // Sinon, créer TOUJOURS un nouveau contact
+    // On ne cherche PAS par téléphone/email pour éviter de lier plusieurs contacts différents
+    // qui partagent le même numéro (mari/femme, enfants, etc.)
     contact = await saveContact({
       firstName,
       lastName,
       phone: phone || '',
       email,
+      alias,
       notes,
       branch,
       source,

@@ -11,6 +11,7 @@ export interface Contact {
   lastName: string | null
   phone: string
   email: string | null
+  alias: string | null // Surnom (ex: nom de la personne qui fête son anniversaire)
   notes: string | null
   branch: string | null
   source: 'admin_agenda' | 'public_booking' | string
@@ -86,6 +87,7 @@ export async function updateContact(
       lastName: updates.lastName !== undefined ? updates.lastName : contacts[index].lastName,
       phone: updates.phone !== undefined && updates.phone !== null ? updates.phone : contacts[index].phone,
       email: updates.email !== undefined ? updates.email : contacts[index].email,
+      alias: updates.alias !== undefined ? updates.alias : contacts[index].alias, // Traité exactement comme firstName
       notes: updates.notes !== undefined ? updates.notes : contacts[index].notes,
       branch: updates.branch !== undefined ? updates.branch : contacts[index].branch,
       source: updates.source !== undefined ? updates.source : contacts[index].source,
@@ -96,6 +98,27 @@ export async function updateContact(
     return contacts[index]
   } catch (error) {
     console.error('Error updating contact:', error)
+    throw error
+  }
+}
+
+/**
+ * Supprime un contact par son ID
+ */
+export async function deleteContact(id: string): Promise<boolean> {
+  try {
+    const contacts = await getAllContacts()
+    const filtered = contacts.filter(c => c.id !== id)
+    
+    if (filtered.length === contacts.length) {
+      throw new Error(`Contact with id ${id} not found`)
+    }
+    
+    await fs.writeFile(CONTACTS_FILE, JSON.stringify(filtered, null, 2), 'utf-8')
+    
+    return true
+  } catch (error) {
+    console.error('Error deleting contact:', error)
     throw error
   }
 }
