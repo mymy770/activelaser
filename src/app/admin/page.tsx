@@ -155,7 +155,7 @@ export default function AdminPage() {
       const relevantBookings = bookings
         .filter(b => {
           if (b.type !== 'GAME' && b.type !== 'EVENT') return false
-          if (b.type === 'EVENT' && b.event_room_id) return false // Ignorer les EVENT avec salle pour les slots
+          // Les EVENT bloquent aussi le temps de jeu, même s'ils ont une salle
           const bookingStart = b.game_start_datetime ? new Date(b.game_start_datetime) : new Date(b.start_datetime)
           const bookingEnd = b.game_end_datetime ? new Date(b.game_end_datetime) : new Date(b.end_datetime)
           return bookingStart < timeSlotEnd && bookingEnd > timeSlotStart
@@ -187,8 +187,8 @@ export default function AdminPage() {
     for (const booking of bookings) {
       if (booking.type !== 'GAME' && booking.type !== 'EVENT') continue
 
-      // Pour les slots (GAME et EVENT sans salle)
-      if (booking.type === 'GAME' || (booking.type === 'EVENT' && !booking.event_room_id)) {
+      // Pour les slots : GAME et EVENT (même avec salle, ils bloquent le temps de jeu)
+      if (booking.type === 'GAME' || booking.type === 'EVENT') {
         // Utiliser les dates du jeu
         const gameStartTime = booking.game_start_datetime ? new Date(booking.game_start_datetime) : new Date(booking.start_datetime)
         const gameEndTime = booking.game_end_datetime ? new Date(booking.game_end_datetime) : new Date(booking.end_datetime)
@@ -1526,7 +1526,7 @@ export default function AdminPage() {
                         onClick={() => booking ? openBookingModal(slot.hour, slot.minute, booking) : openBookingModal(slot.hour, slot.minute)}
                         className={`cursor-pointer relative ${
                           booking
-                            ? `flex flex-col justify-start p-1 ${getTextAlignClass(displayTextAlign)}`
+                            ? `flex items-center justify-center p-1 text-center`
                             : `${isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'}`
                         }`}
                         style={{
@@ -1549,17 +1549,9 @@ export default function AdminPage() {
                           </div>
                         )}
                         {booking && showDetails && (
-                          <>
-                            <div className={`${getTextSizeClass(displayTextSize)} ${getTextWeightClass(displayTextWeight)} leading-tight ${isDark ? 'text-white' : 'text-white'}`} style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
-                              {booking.customer_first_name}
-                            </div>
-                            <div className={`${getTextSizeClass(displayTextSize)} ${getTextWeightClass(displayTextWeight)} leading-tight ${isDark ? 'text-white/95' : 'text-white/95'}`} style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
-                              {booking.participants_count} pers.
-                            </div>
-                            <div className={`${getTextSizeClass(displayTextSize)} ${getTextWeightClass(displayTextWeight)} leading-tight ${isDark ? 'text-white/90' : 'text-white/90'}`} style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
-                              {displayTime}
-                            </div>
-                          </>
+                          <div className={`${getTextSizeClass(displayTextSize)} ${getTextWeightClass(displayTextWeight)} leading-tight ${isDark ? 'text-white' : 'text-white'}`} style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
+                            {booking.customer_first_name}{booking.participants_count}
+                          </div>
                         )}
                       </div>
                     )
@@ -1622,7 +1614,7 @@ export default function AdminPage() {
                         onClick={() => booking ? openBookingModal(slot.hour, slot.minute, booking) : openBookingModal(slot.hour, slot.minute)}
                         className={`cursor-pointer ${
                           booking
-                            ? `flex flex-col justify-start p-1 ${getTextAlignClass(displayTextAlign)}`
+                            ? `flex flex-col items-center justify-center p-1 text-center`
                             : `${isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'}`
                         }`}
                         style={{
