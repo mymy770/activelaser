@@ -209,6 +209,31 @@ export default function ClientsPage() {
           </div>
           <div className="flex items-center gap-3">
             <button
+              onClick={() => {
+                const duplicates: Contact[] = []
+                const seen = new Set<string>()
+                contacts.forEach(contact => {
+                  const key = contact.phone || contact.email || ''
+                  if (key && seen.has(key)) {
+                    const first = contacts.find(c => (c.phone === key || c.email === key) && !duplicates.includes(c))
+                    if (first && !duplicates.includes(first)) duplicates.push(first)
+                    if (!duplicates.includes(contact)) duplicates.push(contact)
+                  } else if (key) seen.add(key)
+                })
+                if (duplicates.length >= 2) {
+                  setDuplicatesToMerge(duplicates)
+                  setShowMergeModal(true)
+                } else {
+                  alert('Aucun doublon trouvé dans les contacts affichés.')
+                }
+              }}
+              disabled={contacts.length < 2}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <GitMerge className="w-4 h-4" />
+              Détecter doublons
+            </button>
+            <button
               onClick={handleExportCSV}
               disabled={contacts.length === 0}
               className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -583,6 +608,21 @@ export default function ClientsPage() {
           contact={editingContact}
           branchId={selectedBranch.id}
           onSave={performSearch}
+          isDark={true}
+        />
+      )}
+
+      {/* Modal fusion contacts */}
+      {showMergeModal && selectedBranch && duplicatesToMerge.length >= 2 && (
+        <MergeContactsModal
+          isOpen={showMergeModal}
+          onClose={() => {
+            setShowMergeModal(false)
+            setDuplicatesToMerge([])
+          }}
+          contacts={duplicatesToMerge}
+          onMergeComplete={performSearch}
+          branchId={selectedBranch.id}
           isDark={true}
         />
       )}
