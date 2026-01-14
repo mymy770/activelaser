@@ -413,25 +413,77 @@ export default function ClientsPage() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm text-gray-400">Nom complet</label>
-                  <p className="text-white font-medium">{getDisplayName(selectedContact)}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-400">Téléphone</label>
-                  <p className="text-white">{selectedContact.phone}</p>
-                </div>
-                {selectedContact.email && (
+              <div className="space-y-6">
+                {/* Informations de base */}
+                <div className="space-y-4">
                   <div>
-                    <label className="text-sm text-gray-400">Email</label>
-                    <p className="text-white">{selectedContact.email}</p>
+                    <label className="text-sm text-gray-400">Nom complet</label>
+                    <p className="text-white font-medium text-lg">{getDisplayName(selectedContact)}</p>
                   </div>
-                )}
-                {selectedContact.notes_client && (
-                  <div>
-                    <label className="text-sm text-gray-400">Notes client</label>
-                    <p className="text-white whitespace-pre-wrap">{selectedContact.notes_client}</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm text-gray-400">Téléphone</label>
+                      <p className="text-white">{selectedContact.phone}</p>
+                    </div>
+                    {selectedContact.email && (
+                      <div>
+                        <label className="text-sm text-gray-400">Email</label>
+                        <p className="text-white">{selectedContact.email}</p>
+                      </div>
+                    )}
+                  </div>
+                  {selectedContact.notes_client && (
+                    <div>
+                      <label className="text-sm text-gray-400">Notes client</label>
+                      <p className="text-white whitespace-pre-wrap bg-gray-700/50 p-3 rounded-lg">{selectedContact.notes_client}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Statistiques */}
+                {contactStats && (
+                  <div className="pt-4 border-t border-gray-700">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5" />
+                      Statistiques
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="bg-gray-700/50 p-4 rounded-lg">
+                        <div className="text-2xl font-bold text-blue-400">{contactStats.totalBookings}</div>
+                        <div className="text-sm text-gray-400 mt-1">Réservations totales</div>
+                      </div>
+                      <div className="bg-gray-700/50 p-4 rounded-lg">
+                        <div className="text-2xl font-bold text-green-400">{contactStats.upcomingBookings}</div>
+                        <div className="text-sm text-gray-400 mt-1">À venir</div>
+                      </div>
+                      <div className="bg-gray-700/50 p-4 rounded-lg">
+                        <div className="text-2xl font-bold text-purple-400">{contactStats.totalParticipants}</div>
+                        <div className="text-sm text-gray-400 mt-1">Participants totaux</div>
+                      </div>
+                      <div className="bg-gray-700/50 p-4 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <div className="text-2xl font-bold text-yellow-400">{contactStats.gameBookings}</div>
+                          <Gamepad2 className="w-5 h-5 text-blue-400" />
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="text-2xl font-bold text-green-400">{contactStats.eventBookings}</div>
+                          <PartyPopper className="w-5 h-5 text-green-400" />
+                        </div>
+                        <div className="text-sm text-gray-400 mt-1">Jeux / Événements</div>
+                      </div>
+                    </div>
+                    {contactStats.lastActivity && (
+                      <div className="mt-4 flex items-center gap-2 text-sm text-gray-400">
+                        <Clock className="w-4 h-4" />
+                        Dernière activité: {new Date(contactStats.lastActivity).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
