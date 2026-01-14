@@ -52,22 +52,35 @@ export function AdminHeader({
   }, [showUserMenu])
 
   const getRoleBadge = () => {
+    const baseClasses = "px-2 py-0.5 text-xs rounded-full"
     switch (user.role) {
       case 'super_admin':
         return (
-          <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded-full">
+          <span className={`${baseClasses} ${
+            theme === 'dark'
+              ? 'bg-purple-500/20 text-purple-400'
+              : 'bg-purple-100 text-purple-700'
+          }`}>
             Super Admin
           </span>
         )
       case 'branch_admin':
         return (
-          <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full">
+          <span className={`${baseClasses} ${
+            theme === 'dark'
+              ? 'bg-blue-500/20 text-blue-400'
+              : 'bg-blue-100 text-blue-700'
+          }`}>
             Admin Agence
           </span>
         )
       case 'agent':
         return (
-          <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">
+          <span className={`${baseClasses} ${
+            theme === 'dark'
+              ? 'bg-green-500/20 text-green-400'
+              : 'bg-green-100 text-green-700'
+          }`}>
             Agent
           </span>
         )
@@ -91,6 +104,7 @@ export function AdminHeader({
             branches={branches}
             selectedBranch={selectedBranch}
             onSelect={onBranchSelect}
+            theme={theme}
           />
         </div>
 
@@ -130,7 +144,11 @@ export function AdminHeader({
           {/* Toggle thème */}
           <button
             onClick={onToggleTheme}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+            className={`p-2 rounded-lg transition-colors ${
+              theme === 'dark'
+                ? 'text-gray-400 hover:text-white hover:bg-gray-800'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
             title={theme === 'light' ? 'Mode sombre' : 'Mode clair'}
           >
             {theme === 'light' ? (
@@ -144,27 +162,45 @@ export function AdminHeader({
           <div ref={menuRef} className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-3 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                theme === 'dark'
+                  ? 'bg-gray-800 hover:bg-gray-700'
+                  : 'bg-gray-100 hover:bg-gray-200'
+              }`}
             >
               <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                 <User className="w-4 h-4 text-white" />
               </div>
               <div className="text-left hidden sm:block">
-                <div className="text-sm text-white font-medium">
+                <div className={`text-sm font-medium ${
+                  theme === 'dark' ? 'text-white' : 'text-gray-900'
+                }`}>
                   {user.profile?.full_name || user.email}
                 </div>
                 {getRoleBadge()}
               </div>
-              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-4 h-4 transition-transform ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              } ${showUserMenu ? 'rotate-180' : ''}`} />
             </button>
 
             {mounted && showUserMenu && (
-              <div className="absolute right-0 top-full mt-2 w-56 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-700">
-                  <div className="text-sm text-white font-medium">
+              <div className={`absolute right-0 top-full mt-2 w-56 rounded-lg shadow-xl z-50 overflow-hidden ${
+                theme === 'dark'
+                  ? 'bg-gray-800 border border-gray-700'
+                  : 'bg-white border border-gray-200'
+              }`}>
+                <div className={`px-4 py-3 border-b ${
+                  theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                }`}>
+                  <div className={`text-sm font-medium ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>
                     {user.profile?.full_name || 'Utilisateur'}
                   </div>
-                  <div className="text-xs text-gray-400">{user.email}</div>
+                  <div className={`text-xs ${
+                    theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                  }`}>{user.email}</div>
                 </div>
 
                 <div className="py-2">
@@ -173,7 +209,11 @@ export function AdminHeader({
                       setShowUserMenu(false)
                       // TODO: Ouvrir les paramètres
                     }}
-                    className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700 flex items-center gap-2"
+                    className={`w-full px-4 py-2 text-left flex items-center gap-2 transition-colors ${
+                      theme === 'dark'
+                        ? 'text-gray-300 hover:bg-gray-700'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
                   >
                     <Settings className="w-4 h-4" />
                     Paramètres
@@ -184,7 +224,11 @@ export function AdminHeader({
                       setShowUserMenu(false)
                       onSignOut()
                     }}
-                    className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 flex items-center gap-2"
+                    className={`w-full px-4 py-2 text-left flex items-center gap-2 transition-colors ${
+                      theme === 'dark'
+                        ? 'text-red-400 hover:bg-gray-700'
+                        : 'text-red-600 hover:bg-gray-100'
+                    }`}
                   >
                     <LogOut className="w-4 h-4" />
                     Déconnexion

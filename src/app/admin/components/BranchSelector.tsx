@@ -9,6 +9,7 @@ interface BranchSelectorProps {
   selectedBranch: Branch | null
   onSelect: (branchId: string) => void
   disabled?: boolean
+  theme?: 'light' | 'dark'
 }
 
 export function BranchSelector({
@@ -16,6 +17,7 @@ export function BranchSelector({
   selectedBranch,
   onSelect,
   disabled = false,
+  theme = 'dark',
 }: BranchSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -40,9 +42,15 @@ export function BranchSelector({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isOpen])
 
+  const isDark = theme === 'dark'
+
   if (branches.length === 0) {
     return (
-      <div className="flex items-center gap-2 px-4 py-2 bg-gray-800 rounded-lg text-gray-400">
+      <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+        isDark
+          ? 'bg-gray-800 text-gray-400'
+          : 'bg-gray-100 text-gray-600'
+      }`}>
         <Building2 className="w-5 h-5" />
         <span>Aucune agence disponible</span>
       </div>
@@ -51,8 +59,14 @@ export function BranchSelector({
 
   if (branches.length === 1) {
     return (
-      <div className="flex items-center gap-2 px-4 py-2 bg-gray-800 rounded-lg text-white">
-        <Building2 className="w-5 h-5 text-blue-400" />
+      <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+        isDark
+          ? 'bg-gray-800 text-white'
+          : 'bg-gray-100 text-gray-900'
+      }`}>
+        <Building2 className={`w-5 h-5 ${
+          isDark ? 'text-blue-400' : 'text-blue-600'
+        }`} />
         <span>{selectedBranch?.name || branches[0].name}</span>
       </div>
     )
@@ -63,17 +77,27 @@ export function BranchSelector({
       <button
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-white transition-colors ${
-          disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-        }`}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+          isDark
+            ? 'bg-gray-800 hover:bg-gray-700 text-white'
+            : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
       >
-        <Building2 className="w-5 h-5 text-blue-400" />
+        <Building2 className={`w-5 h-5 ${
+          isDark ? 'text-blue-400' : 'text-blue-600'
+        }`} />
         <span>{selectedBranch?.name || 'Sélectionner une agence'}</span>
-        <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 transition-transform ${
+          isDark ? 'text-gray-400' : 'text-gray-600'
+        } ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {mounted && isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden">
+        <div className={`absolute top-full left-0 mt-2 w-64 rounded-lg shadow-xl z-50 overflow-hidden ${
+          isDark
+            ? 'bg-gray-800 border border-gray-700'
+            : 'bg-white border border-gray-200'
+        }`}>
           {branches.map((branch) => (
             <button
               key={branch.id}
@@ -81,15 +105,21 @@ export function BranchSelector({
                 onSelect(branch.id)
                 setIsOpen(false)
               }}
-              className={`w-full px-4 py-3 text-left hover:bg-gray-700 transition-colors ${
+              className={`w-full px-4 py-3 text-left transition-colors ${
                 selectedBranch?.id === branch.id
-                  ? 'bg-blue-600/20 text-blue-400'
-                  : 'text-white'
+                  ? isDark
+                    ? 'bg-blue-600/20 text-blue-400'
+                    : 'bg-blue-100 text-blue-700'
+                  : isDark
+                  ? 'text-white hover:bg-gray-700'
+                  : 'text-gray-900 hover:bg-gray-100'
               }`}
             >
               <div className="font-medium">{branch.name}</div>
               {branch.name_en && (
-                <div className="text-sm text-gray-400">{branch.name_en}</div>
+                <div className={`text-sm ${
+                  isDark ? 'text-gray-400' : 'text-gray-600'
+                }`}>{branch.name_en}</div>
               )}
             </button>
           ))}
