@@ -117,6 +117,143 @@ export default function AdminPage() {
     return bookingDate === dateStr
   })
 
+  // Type pour un segment UI (uniquement pour l'affichage)
+  interface UISegment {
+    segmentId: string
+    bookingId: string
+    booking: BookingWithSlots
+    start: Date
+    end: Date
+    slotStart: number
+    slotEnd: number
+    slotsKey: string // Clé pour identifier les slots (pour regrouper les segments contigus)
+  }
+
+  // Construire les segments UI à partir des bookings (uniquement pour l'affichage)
+  const buildUISegments = (): UISegment[] => {
+    const segments: UISegment[] = []
+    const SLOT_DURATION = 15 // minutes
+    const MAX_PLAYERS_PER_SLOT = 6
+
+    // Générer toutes les tranches de 15 minutes pour la journée
+    const timeSlots: Date[] = []
+    for (let h = 10; h <= 22; h++) {
+      for (const m of [0, 15, 30, 45]) {
+        const slotDate = new Date(selectedDate)
+        slotDate.setHours(h, m, 0, 0)
+        timeSlots.push(slotDate)
+      }
+    }
+
+    // Fonction pour calculer quels slots sont occupés pour une tranche de 15 minutes
+    const getOccupiedSlotsForTimeSlot = (timeSlotStart: Date): Map<string, { slotStart: number; slotEnd: number }> => {
+      const occupiedSlots = new Map<string, { slotStart: number; slotEnd: number }>()
+      const timeSlotEnd = new Date(timeSlotStart)
+      timeSlotEnd.setMinutes(timeSlotEnd.getMinutes() + SLOT_DURATION)
+
+      // Trier les bookings par ordre chronologique
+      const relevantBookings = bookings
+        .filter(b => {
+          if (b.type !== 'GAME' && b.type !== 'EVENT') return false
+          if (b.type === 'EVENT' && b.event_room_id) return false // Ignorer les EVENT avec salle pour les slots
+          const bookingStart = b.game_start_datetime ? new Date(b.game_start_datetime) : new Date(b.start_datetime)
+          const bookingEnd = b.game_end_datetime ? new Date(b.game_end_datetime) : new Date(b.end_datetime)
+          return bookingStart < timeSlotEnd && bookingEnd > timeSlotStart
+        })
+        .sort((a, b) => {
+          const dateA = a.game_start_datetime ? new Date(a.game_start_datetime) : new Date(a.start_datetime)
+          const dateB = b.game_start_datetime ? new Date(b.game_start_datetime) : new Date(b.start_datetime)
+          if (dateA.getTime() !== dateB.getTime()) {
+            return dateA.getTime() - dateB.getTime()
+          }
+          return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+        })
+
+      // Assigner les slots de gauche à droite
+      let nextAvailableSlot = 0
+      for (const booking of relevantBookings) {
+        const slotsNeeded = Math.ceil(booking.participants_count / MAX_PLAYERS_PER_SLOT)
+        occupiedSlots.set(booking.id, {
+          slotStart: nextAvailableSlot,
+          slotEnd: nextAvailableSlot + slotsNeeded
+        })
+        nextAvailableSlot += slotsNeeded
+      }
+
+      return occupiedSlots
+    }
+
+    // Pour chaque booking, créer ses segments
+    for (const booking of bookings) {
+      if (booking.type !== 'GAME' && booking.type !== 'EVENT') continue
+
+      // Pour les slots (GAME et EVENT sans salle)
+      if (booking.type === 'GAME' || (booking.type === 'EVENT' && !booking.event_room_id)) {
+        // Utiliser les dates du jeu
+        const gameStartTime = booking.game_start_datetime ? new Date(booking.game_start_datetime) : new Date(booking.start_datetime)
+        const gameEndTime = booking.game_end_datetime ? new Date(booking.game_end_datetime) : new Date(booking.end_datetime)
+
+        // Trouver les tranches de 15 minutes couvertes
+        let currentSegment: UISegment | null = null
+
+        for (let i = 0; i < timeSlots.length; i++) {
+          const timeSlotStart = timeSlots[i]
+          const timeSlotEnd = new Date(timeSlotStart)
+          timeSlotEnd.setMinutes(timeSlotEnd.getMinutes() + SLOT_DURATION)
+
+          // Vérifier si cette tranche est dans la plage du jeu
+          if (timeSlotStart < gameEndTime && timeSlotEnd > gameStartTime) {
+            // Calculer quels slots sont occupés pour cette tranche
+            const occupiedSlots = getOccupiedSlotsForTimeSlot(timeSlotStart)
+            const bookingSlotInfo = occupiedSlots.get(booking.id)
+
+            if (bookingSlotInfo) {
+              const { slotStart, slotEnd } = bookingSlotInfo
+              const slotsKey = `${slotStart}-${slotEnd}`
+
+              // Vérifier si on peut continuer le segment actuel (mêmes slots)
+              if (currentSegment && currentSegment.slotsKey === slotsKey) {
+                // Continuer le segment
+                currentSegment.end = timeSlotEnd
+              } else {
+                // Nouveau segment
+                if (currentSegment) {
+                  segments.push(currentSegment)
+                }
+                currentSegment = {
+                  segmentId: `${booking.id}-${timeSlotStart.getTime()}-${timeSlotEnd.getTime()}-${slotsKey}`,
+                  bookingId: booking.id,
+                  booking,
+                  start: timeSlotStart,
+                  end: timeSlotEnd,
+                  slotStart,
+                  slotEnd,
+                  slotsKey
+                }
+              }
+            }
+          } else {
+            // Fin du segment
+            if (currentSegment) {
+              segments.push(currentSegment)
+              currentSegment = null
+            }
+          }
+        }
+
+        // Ajouter le dernier segment s'il existe
+        if (currentSegment) {
+          segments.push(currentSegment)
+        }
+      }
+    }
+
+    return segments
+  }
+
+  // Construire les segments UI
+  const uiSegments = buildUISegments()
+
   // Ouvrir le modal de réservation
   const openBookingModal = (hour?: number, minute?: number, booking?: BookingWithSlots) => {
     if (booking) {
@@ -598,62 +735,68 @@ export default function AdminPage() {
   }
 
 
-  // Vérifier si un créneau contient une réservation
-  const getBookingForCell = (hour: number, minute: number, slotIndex: number, isRoom: boolean): BookingWithSlots | null => {
-    const cellTime = hour * 60 + minute
-
-    // Parcourir les réservations dans l'ordre inverse pour prioriser les plus récentes
-    // Cela évite qu'une réservation courte "cache" une réservation longue sur un créneau partiel
-    for (let i = bookings.length - 1; i >= 0; i--) {
-      const booking = bookings[i]
-      // Pour les salles : vérifier les événements (EVENT)
-      if (isRoom && booking.type === 'EVENT') {
-        // Vérifier que cette réservation utilise une salle
+  // Vérifier si un créneau contient un segment (pour les slots)
+  const getSegmentForCell = (hour: number, minute: number, slotIndex: number, isRoom: boolean): UISegment | null => {
+    if (isRoom) {
+      // Pour les rooms : utiliser l'ancienne logique mais filtrer uniquement EVENT
+      const cellTime = hour * 60 + minute
+      for (let i = bookings.length - 1; i >= 0; i--) {
+        const booking = bookings[i]
+        // RÈGLE BÉTON : Rooms = uniquement EVENT
+        if (booking.type !== 'EVENT') continue
         if (!booking.event_room_id) continue
 
-        // Trouver la salle correspondante et vérifier son sort_order
         const bookingRoom = branchRooms.find(r => r.id === booking.event_room_id)
         if (!bookingRoom) continue
 
-        // Le slotIndex correspond au roomIndex dans l'affichage (basé sur sort_order)
         const sortedRooms = [...branchRooms]
           .filter(r => r.is_active)
           .sort((a, b) => a.sort_order - b.sort_order)
         
         const roomIndex = sortedRooms.findIndex(r => r.id === booking.event_room_id)
-        
-        // Si la salle demandée (slotIndex) ne correspond pas à la salle de la réservation, ignorer
         if (roomIndex !== slotIndex) continue
 
-        // Utiliser les dates de la salle (start_datetime et end_datetime pour la salle)
         const startTime = new Date(booking.start_datetime)
         const endTime = new Date(booking.end_datetime)
         const bookingStartMinutes = startTime.getHours() * 60 + startTime.getMinutes()
         const bookingEndMinutes = endTime.getHours() * 60 + endTime.getMinutes()
         
         if (cellTime >= bookingStartMinutes && cellTime < bookingEndMinutes) {
-          return booking
-        }
-      }
-      
-      // Pour les slots : vérifier les jeux (GAME) ET les événements (EVENT)
-      if (!isRoom && (booking.type === 'GAME' || booking.type === 'EVENT')) {
-        // Utiliser les dates du jeu (game_start_datetime et game_end_datetime)
-        const gameStartTime = booking.game_start_datetime ? new Date(booking.game_start_datetime) : new Date(booking.start_datetime)
-        const gameEndTime = booking.game_end_datetime ? new Date(booking.game_end_datetime) : new Date(booking.end_datetime)
-        const gameStartMinutes = gameStartTime.getHours() * 60 + gameStartTime.getMinutes()
-        const gameEndMinutes = gameEndTime.getHours() * 60 + gameEndTime.getMinutes()
-        
-        // Vérifier si le créneau est dans la plage du jeu
-        if (cellTime >= gameStartMinutes && cellTime < gameEndMinutes) {
-          // Version simple : chaque réservation prend ses slots nécessaires à partir de S1
-          const slotsNeeded = Math.ceil(booking.participants_count / 6)
-          if (slotIndex < slotsNeeded) {
-            return booking
+          // Retourner un segment factice pour les rooms (pour compatibilité)
+          return {
+            segmentId: `${booking.id}-room-${slotIndex}`,
+            bookingId: booking.id,
+            booking,
+            start: startTime,
+            end: endTime,
+            slotStart: slotIndex,
+            slotEnd: slotIndex + 1,
+            slotsKey: `room-${slotIndex}`
           }
         }
       }
+      return null
     }
+
+    // Pour les slots : utiliser les segments UI
+    const cellDate = new Date(selectedDate)
+    cellDate.setHours(hour, minute, 0, 0)
+    const cellDateEnd = new Date(cellDate)
+    cellDateEnd.setMinutes(cellDateEnd.getMinutes() + 15)
+
+    // Parcourir les segments dans l'ordre inverse pour prioriser les plus récents
+    for (let i = uiSegments.length - 1; i >= 0; i--) {
+      const segment = uiSegments[i]
+      
+      // Vérifier si ce segment chevauche la cellule
+      if (segment.start < cellDateEnd && segment.end > cellDate) {
+        // Vérifier si le slotIndex demandé est dans la plage du segment
+        if (slotIndex >= segment.slotStart && slotIndex < segment.slotEnd) {
+          return segment
+        }
+      }
+    }
+
     return null
   }
 
@@ -1321,50 +1464,49 @@ export default function AdminPage() {
                 <Fragment key={`row-${timeIndex}`}>
                   {/* Slots de jeu */}
                   {Array.from({ length: TOTAL_SLOTS }, (_, slotIndex) => {
-                    const booking = getBookingForCell(slot.hour, slot.minute, slotIndex, false)
+                    const segment = getSegmentForCell(slot.hour, slot.minute, slotIndex, false)
+                    const booking = segment?.booking
                     
-                    // Déterminer si cette cellule est le début d'une réservation (top-left corner)
-                    const isBookingTop = booking && (
+                    // Déterminer si cette cellule est le début d'un segment (top-left corner)
+                    // Utiliser segmentId au lieu de booking.id
+                    const isSegmentTop = segment && (
                       timeIndex === 0 ||
-                      getBookingForCell(timeSlots[timeIndex - 1].hour, timeSlots[timeIndex - 1].minute, slotIndex, false)?.id !== booking.id
+                      getSegmentForCell(timeSlots[timeIndex - 1].hour, timeSlots[timeIndex - 1].minute, slotIndex, false)?.segmentId !== segment.segmentId
                     )
-                    const isBookingStart = booking && (
-                      slotIndex === 0 || 
-                      getBookingForCell(slot.hour, slot.minute, slotIndex - 1, false)?.id !== booking.id
+                    const isSegmentStart = segment && (
+                      slotIndex === segment.slotStart || 
+                      getSegmentForCell(slot.hour, slot.minute, slotIndex - 1, false)?.segmentId !== segment.segmentId
                     )
-                    const isBookingEnd = booking && (
-                      slotIndex === TOTAL_SLOTS - 1 || 
-                      getBookingForCell(slot.hour, slot.minute, slotIndex + 1, false)?.id !== booking.id
+                    const isSegmentEnd = segment && (
+                      slotIndex === segment.slotEnd - 1 || 
+                      getSegmentForCell(slot.hour, slot.minute, slotIndex + 1, false)?.segmentId !== segment.segmentId
                     )
-                    const isBookingBottom = booking && (
+                    const isSegmentBottom = segment && (
                       timeIndex === timeSlots.length - 1 ||
-                      getBookingForCell(timeSlots[timeIndex + 1].hour, timeSlots[timeIndex + 1].minute, slotIndex, false)?.id !== booking.id
+                      getSegmentForCell(timeSlots[timeIndex + 1].hour, timeSlots[timeIndex + 1].minute, slotIndex, false)?.segmentId !== segment.segmentId
                     )
                     
-                    // Si cette cellule fait partie d'une réservation mais n'est pas le début, ne pas la rendre
-                    const isPartOfBooking = booking && !(isBookingStart && isBookingTop)
-                    if (isPartOfBooking) return null
+                    // Si cette cellule fait partie d'un segment mais n'est pas le début, ne pas la rendre
+                    const isPartOfSegment = segment && !(isSegmentStart && isSegmentTop)
+                    if (isPartOfSegment) return null
 
-                    // Afficher les détails uniquement sur le premier slot (top-left)
-                    const showDetails = booking && isBookingStart && isBookingTop
+                    // Afficher les détails uniquement sur la première ligne du segment (première tranche de 15 minutes)
+                    const showDetails = segment && isSegmentStart && isSegmentTop
                     
                     const gridColumn = slotIndex + 2 // +2 car colonne 1 = Heure
                     const gridRow = timeIndex + 1
                     
-                    // Calculer les spans pour les réservations
+                    // Calculer les spans pour les segments
                     let colSpan = 1
                     let rowSpan = 1
-                    if (booking && (booking.type === 'GAME' || booking.type === 'EVENT')) {
-                      // Pour les jeux ET les événements, calculer les slots nécessaires
-                      const slotsNeeded = Math.ceil(booking.participants_count / 6)
-                      colSpan = slotsNeeded
+                    if (segment) {
+                      // colSpan basé sur le nombre de slots du segment
+                      colSpan = segment.slotEnd - segment.slotStart
                       
-                      // Utiliser les dates du jeu (game_start_datetime et game_end_datetime)
-                      const gameStartTime = booking.game_start_datetime ? new Date(booking.game_start_datetime) : new Date(booking.start_datetime)
-                      const gameEndTime = booking.game_end_datetime ? new Date(booking.game_end_datetime) : new Date(booking.end_datetime)
-                      const gameStartMinutes = gameStartTime.getHours() * 60 + gameStartTime.getMinutes()
-                      const gameEndMinutes = gameEndTime.getHours() * 60 + gameEndTime.getMinutes()
-                      const durationMinutes = gameEndMinutes - gameStartMinutes
+                      // rowSpan basé sur la durée du segment (pas du booking global)
+                      const segmentStartMinutes = segment.start.getHours() * 60 + segment.start.getMinutes()
+                      const segmentEndMinutes = segment.end.getHours() * 60 + segment.end.getMinutes()
+                      const durationMinutes = segmentEndMinutes - segmentStartMinutes
                       rowSpan = Math.ceil(durationMinutes / 15) // Cases de 15 minutes
                     }
                     
@@ -1425,44 +1567,48 @@ export default function AdminPage() {
                   
                   {/* Salles d'événements */}
                   {Array.from({ length: TOTAL_ROOMS }, (_, roomIndex) => {
-                    const booking = getBookingForCell(slot.hour, slot.minute, roomIndex, true)
+                    const segment = getSegmentForCell(slot.hour, slot.minute, roomIndex, true)
+                    const booking = segment?.booking
                     
-                    // Déterminer si cette cellule est le début d'une réservation (top-left corner)
-                    const isBookingTop = booking && (
+                    // RÈGLE BÉTON : Rooms = uniquement EVENT
+                    if (booking && booking.type !== 'EVENT') return null
+                    
+                    // Déterminer si cette cellule est le début d'un segment (top-left corner)
+                    // Utiliser segmentId au lieu de booking.id
+                    const isSegmentTop = segment && (
                       timeIndex === 0 ||
-                      getBookingForCell(timeSlots[timeIndex - 1].hour, timeSlots[timeIndex - 1].minute, roomIndex, true)?.id !== booking.id
+                      getSegmentForCell(timeSlots[timeIndex - 1].hour, timeSlots[timeIndex - 1].minute, roomIndex, true)?.segmentId !== segment.segmentId
                     )
-                    const isBookingStart = booking && (
+                    const isSegmentStart = segment && (
                       roomIndex === 0 || 
-                      getBookingForCell(slot.hour, slot.minute, roomIndex - 1, true)?.id !== booking.id
+                      getSegmentForCell(slot.hour, slot.minute, roomIndex - 1, true)?.segmentId !== segment.segmentId
                     )
-                    const isBookingEnd = booking && (
+                    const isSegmentEnd = segment && (
                       roomIndex === TOTAL_ROOMS - 1 || 
-                      getBookingForCell(slot.hour, slot.minute, roomIndex + 1, true)?.id !== booking.id
+                      getSegmentForCell(slot.hour, slot.minute, roomIndex + 1, true)?.segmentId !== segment.segmentId
                     )
-                    const isBookingBottom = booking && (
+                    const isSegmentBottom = segment && (
                       timeIndex === timeSlots.length - 1 ||
-                      getBookingForCell(timeSlots[timeIndex + 1].hour, timeSlots[timeIndex + 1].minute, roomIndex, true)?.id !== booking.id
+                      getSegmentForCell(timeSlots[timeIndex + 1].hour, timeSlots[timeIndex + 1].minute, roomIndex, true)?.segmentId !== segment.segmentId
                     )
                     
-                    // Si cette cellule fait partie d'une réservation mais n'est pas le début, ne pas la rendre
-                    const isPartOfBooking = booking && !(isBookingStart && isBookingTop)
-                    if (isPartOfBooking) return null
+                    // Si cette cellule fait partie d'un segment mais n'est pas le début, ne pas la rendre
+                    const isPartOfSegment = segment && !(isSegmentStart && isSegmentTop)
+                    if (isPartOfSegment) return null
                     
                     const gridColumn = TOTAL_SLOTS + roomIndex + 2 // +2 car colonne 1 = Heure
                     const gridRow = timeIndex + 1
                     
-                    // Calculer les spans pour les réservations
+                    // Calculer les spans pour les segments
                     let colSpan = 1
                     let rowSpan = 1
-                    if (booking && booking.type === 'EVENT') {
-                      colSpan = 1 // Une salle = 1 colonne
+                    if (segment) {
+                      colSpan = segment.slotEnd - segment.slotStart // Pour les rooms, c'est toujours 1
                       
-                      const startTime = new Date(booking.start_datetime)
-                      const endTime = new Date(booking.end_datetime)
-                      const bookingStartMinutes = startTime.getHours() * 60 + startTime.getMinutes()
-                      const bookingEndMinutes = endTime.getHours() * 60 + endTime.getMinutes()
-                      const durationMinutes = bookingEndMinutes - bookingStartMinutes
+                      // rowSpan basé sur la durée du segment (pas du booking global)
+                      const segmentStartMinutes = segment.start.getHours() * 60 + segment.start.getMinutes()
+                      const segmentEndMinutes = segment.end.getHours() * 60 + segment.end.getMinutes()
+                      const durationMinutes = segmentEndMinutes - segmentStartMinutes
                       rowSpan = Math.ceil(durationMinutes / 15) // Cases de 15 minutes
                     }
                     
@@ -1480,15 +1626,15 @@ export default function AdminPage() {
                             : `${isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'}`
                         }`}
                         style={{
-                          gridColumn: booking ? `${gridColumn} / ${gridColumn + colSpan}` : gridColumn,
-                          gridRow: booking ? `${gridRow} / ${gridRow + rowSpan}` : gridRow,
-                          backgroundColor: booking ? (booking.color || '#22c55e') : 'transparent',
+                          gridColumn: segment ? `${gridColumn} / ${gridColumn + colSpan}` : gridColumn,
+                          gridRow: segment ? `${gridRow} / ${gridRow + rowSpan}` : gridRow,
+                          backgroundColor: segment ? (booking.color || '#22c55e') : 'transparent',
                           // Afficher les bordures seulement sur les créneaux de 30 minutes (0 et 30)
                           // Supprimer les bordures des créneaux de 15 minutes (15 et 45)
-                          borderTop: (slot.minute === 15 || slot.minute === 45) ? 'none' : `2px solid ${booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb')}`,
-                          borderBottom: (slot.minute === 15 || slot.minute === 45 || (timeSlots[timeIndex + 1]?.minute === 15 || timeSlots[timeIndex + 1]?.minute === 45)) ? 'none' : `2px solid ${booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb')}`,
-                          borderLeft: `2px solid ${booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb')}`,
-                          borderRight: `2px solid ${booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb')}`,
+                          borderTop: (slot.minute === 15 || slot.minute === 45) ? 'none' : `2px solid ${segment ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb')}`,
+                          borderBottom: (slot.minute === 15 || slot.minute === 45 || (timeSlots[timeIndex + 1]?.minute === 15 || timeSlots[timeIndex + 1]?.minute === 45)) ? 'none' : `2px solid ${segment ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb')}`,
+                          borderLeft: `2px solid ${segment ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb')}`,
+                          borderRight: `2px solid ${segment ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb')}`,
                         }}
                         title={booking ? `${booking.customer_first_name} ${booking.customer_last_name} - ${booking.participants_count} pers.` : ''}
                       >
