@@ -574,7 +574,9 @@ export default function ClientsPage() {
                           {contact.status === 'archived' ? (
                             <button
                               onClick={() => handleUnarchive(contact)}
-                              className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                              className={`p-2 rounded-lg transition-colors ${
+                                isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                              }`}
                               title="Restaurer"
                             >
                               <Archive className="w-4 h-4 text-green-400" />
@@ -582,7 +584,9 @@ export default function ClientsPage() {
                           ) : (
                             <button
                               onClick={() => handleArchive(contact)}
-                              className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                              className={`p-2 rounded-lg transition-colors ${
+                                isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                              }`}
                               title="Archiver"
                             >
                               <Archive className="w-4 h-4 text-yellow-400" />
