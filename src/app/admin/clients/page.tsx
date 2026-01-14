@@ -15,7 +15,7 @@ import type { Contact } from '@/lib/supabase/types'
 export default function ClientsPage() {
   const router = useRouter()
   const { user } = useAuth()
-  const { branches, selectedBranch } = useBranches()
+  const { branches, selectedBranch, selectBranch } = useBranches()
   const { searchContacts, archiveContact, unarchiveContact, getLinkedBookings, getContactStats } = useContacts(selectedBranch?.id || null)
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -201,9 +201,7 @@ export default function ClientsPage() {
         user={user}
         branches={branches}
         selectedBranch={selectedBranch}
-        onBranchSelect={(branchId) => {
-          setSelectedBranchId(branchId)
-        }}
+        onBranchSelect={selectBranch}
         onSignOut={handleSignOut}
         theme="dark"
         onToggleTheme={() => {}}
