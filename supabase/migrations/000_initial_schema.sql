@@ -96,6 +96,36 @@ CREATE INDEX IF NOT EXISTS idx_user_branches_user ON user_branches(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_branches_branch ON user_branches(branch_id);
 
 -- =====================================================
+-- Table: contacts (CRM) - CRÉÉE AVANT bookings car bookings la référence
+-- =====================================================
+CREATE TABLE IF NOT EXISTS contacts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  branch_id_main UUID NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+  first_name TEXT NOT NULL,
+  last_name TEXT,
+  phone TEXT NOT NULL,
+  email TEXT,
+  notes_client TEXT, -- Notes globales (allergies, préférences, comportement)
+  alias TEXT, -- Optionnel : peut être utile pour certains cas
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+  source TEXT DEFAULT 'admin_agenda' CHECK (source IN ('admin_agenda', 'public_booking')),
+  archived_at TIMESTAMPTZ,
+  archived_reason TEXT,
+  deleted_at TIMESTAMPTZ, -- Pour hard delete futur (pas utilisé en v1)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by UUID REFERENCES auth.users(id),
+  updated_by UUID REFERENCES auth.users(id)
+);
+
+-- Index pour performance (contacts)
+CREATE INDEX IF NOT EXISTS idx_contacts_branch_main ON contacts(branch_id_main);
+CREATE INDEX IF NOT EXISTS idx_contacts_status ON contacts(status) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_contacts_phone ON contacts(phone);
+CREATE INDEX IF NOT EXISTS idx_contacts_email ON contacts(email) WHERE email IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_contacts_name ON contacts(last_name, first_name);
+
+-- =====================================================
 -- Table: bookings
 -- =====================================================
 CREATE TABLE IF NOT EXISTS bookings (
@@ -118,7 +148,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   total_price DECIMAL(10,2),
   notes TEXT, -- Notes booking (spécifiques à l'événement)
   color TEXT,
-  primary_contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL, -- Ajouté pour CRM
+  primary_contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL, -- Ajouté pour CRM (contacts créé avant)
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   cancelled_at TIMESTAMPTZ,
@@ -149,35 +179,7 @@ CREATE INDEX IF NOT EXISTS idx_booking_slots_booking ON booking_slots(booking_id
 CREATE INDEX IF NOT EXISTS idx_booking_slots_branch ON booking_slots(branch_id);
 CREATE INDEX IF NOT EXISTS idx_booking_slots_slot_start ON booking_slots(slot_start);
 
--- =====================================================
--- Table: contacts (CRM)
--- =====================================================
-CREATE TABLE IF NOT EXISTS contacts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  branch_id_main UUID NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
-  first_name TEXT NOT NULL,
-  last_name TEXT,
-  phone TEXT NOT NULL,
-  email TEXT,
-  notes_client TEXT, -- Notes globales (allergies, préférences, comportement)
-  alias TEXT, -- Optionnel : peut être utile pour certains cas
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
-  source TEXT DEFAULT 'admin_agenda' CHECK (source IN ('admin_agenda', 'public_booking')),
-  archived_at TIMESTAMPTZ,
-  archived_reason TEXT,
-  deleted_at TIMESTAMPTZ, -- Pour hard delete futur (pas utilisé en v1)
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by UUID REFERENCES auth.users(id),
-  updated_by UUID REFERENCES auth.users(id)
-);
-
--- Index pour performance
-CREATE INDEX IF NOT EXISTS idx_contacts_branch_main ON contacts(branch_id_main);
-CREATE INDEX IF NOT EXISTS idx_contacts_status ON contacts(status) WHERE status = 'active';
-CREATE INDEX IF NOT EXISTS idx_contacts_phone ON contacts(phone);
-CREATE INDEX IF NOT EXISTS idx_contacts_email ON contacts(email) WHERE email IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_contacts_name ON contacts(last_name, first_name);
+-- (contacts créé plus haut, avant bookings)
 
 -- =====================================================
 -- Table: booking_contacts (junction table)
