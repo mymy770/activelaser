@@ -6,8 +6,10 @@ import { Search, Edit2, Archive, User, Phone, Mail, Loader2, Eye, Calendar, Game
 import { useContacts, type SearchContactsResult } from '@/hooks/useContacts'
 import { useBranches } from '@/hooks/useBranches'
 import { useAuth } from '@/hooks/useAuth'
+import { AdminHeader } from '../components/AdminHeader'
 import { ClientModal } from './components/ClientModal'
 import { MergeContactsModal } from './components/MergeContactsModal'
+import { createClient } from '@/lib/supabase/client'
 import type { Contact } from '@/lib/supabase/types'
 
 export default function ClientsPage() {
