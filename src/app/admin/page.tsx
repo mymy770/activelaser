@@ -597,6 +597,57 @@ export default function AdminPage() {
     return null
   }
 
+  // Trouver les premiers slots consécutifs d'une réservation (pour l'affichage des détails)
+  const getFirstConsecutiveSlots = (booking: BookingWithSlots, timeSlots: Array<{ hour: number; minute: number; label: string }>): {
+    startTimeIndex: number
+    endTimeIndex: number
+    startSlotIndex: number
+    endSlotIndex: number
+  } | null => {
+    if (!booking || booking.type === 'EVENT') return null
+
+    // Trouver le premier créneau horaire de la réservation
+    const gameStartTime = booking.game_start_datetime ? new Date(booking.game_start_datetime) : new Date(booking.start_datetime)
+    const gameEndTime = booking.game_end_datetime ? new Date(booking.game_end_datetime) : new Date(booking.end_datetime)
+    const gameStartMinutes = gameStartTime.getHours() * 60 + gameStartTime.getMinutes()
+    const gameEndMinutes = gameEndTime.getHours() * 60 + gameEndTime.getMinutes()
+
+    // Trouver l'index du premier créneau horaire
+    let startTimeIndex = -1
+    for (let i = 0; i < timeSlots.length; i++) {
+      const slotTime = timeSlots[i].hour * 60 + timeSlots[i].minute
+      if (slotTime >= gameStartMinutes && slotTime < gameEndMinutes) {
+        if (startTimeIndex === -1) startTimeIndex = i
+      }
+    }
+
+    if (startTimeIndex === -1) return null
+
+    // Dans le premier créneau, trouver les premiers slots consécutifs
+    // On suppose que les slots sont remplis de gauche à droite
+    const slotsNeeded = Math.ceil(booking.participants_count / 6)
+    const firstSlotIndex = 0
+    const lastSlotIndex = Math.min(slotsNeeded - 1, TOTAL_SLOTS - 1)
+
+    // Trouver le dernier créneau horaire
+    let endTimeIndex = startTimeIndex
+    for (let i = startTimeIndex; i < timeSlots.length; i++) {
+      const slotTime = timeSlots[i].hour * 60 + timeSlots[i].minute
+      if (slotTime >= gameStartMinutes && slotTime < gameEndMinutes) {
+        endTimeIndex = i
+      } else {
+        break
+      }
+    }
+
+    return {
+      startTimeIndex,
+      endTimeIndex,
+      startSlotIndex: firstSlotIndex,
+      endSlotIndex: lastSlotIndex
+    }
+  }
+
   // Vérifier si un créneau contient une réservation
   const getBookingForCell = (hour: number, minute: number, slotIndex: number, isRoom: boolean): BookingWithSlots | null => {
     const cellTime = hour * 60 + minute
@@ -643,11 +694,77 @@ export default function AdminPage() {
         
         // Vérifier si le créneau est dans la plage du jeu
         if (cellTime >= gameStartMinutes && cellTime < gameEndMinutes) {
-          // Pour les jeux ET les événements, vérifier les slots occupés
+          // Pour les jeux ET les événements, calculer quel slot (S1-S14) est utilisé
           if (booking.type === 'GAME' || booking.type === 'EVENT') {
-            const slotsNeeded = Math.ceil(booking.participants_count / 6)
-            if (slotIndex < slotsNeeded) {
-              return booking
+            // Trouver le slot de 15 minutes qui correspond à ce créneau
+            const cellDate = new Date(selectedDate)
+            cellDate.setHours(hour, minute, 0, 0)
+            
+            // Trouver le slot de cette réservation qui chevauche ce créneau
+            let matchingSlot = null
+            if (booking.slots && booking.slots.length > 0) {
+              for (const bookingSlot of booking.slots) {
+                const slotStart = new Date(bookingSlot.slot_start)
+                const slotEnd = new Date(bookingSlot.slot_end)
+                
+                // Vérifier si ce slot chevauche notre créneau
+                if (cellDate >= slotStart && cellDate < slotEnd) {
+                  matchingSlot = bookingSlot
+                  break
+                }
+              }
+            }
+            
+            // Calculer quels slots (S1-S14) sont utilisés par cette réservation pour ce créneau
+            // On doit calculer cela en tenant compte de TOUTES les réservations qui chevauchent ce créneau
+            // et déterminer l'ordre de remplissage de gauche à droite selon l'ordre de création
+            
+            // Récupérer toutes les réservations qui chevauchent ce créneau
+            const overlappingBookings = bookings.filter(b => {
+              if (b.type !== 'GAME' && b.type !== 'EVENT') return false
+              
+              const bGameStart = b.game_start_datetime ? new Date(b.game_start_datetime) : new Date(b.start_datetime)
+              const bGameEnd = b.game_end_datetime ? new Date(b.game_end_datetime) : new Date(b.end_datetime)
+              const bStartMinutes = bGameStart.getHours() * 60 + bGameStart.getMinutes()
+              const bEndMinutes = bGameEnd.getHours() * 60 + bGameEnd.getMinutes()
+              
+              // Vérifier le chevauchement temporel
+              return cellTime >= bStartMinutes && cellTime < bEndMinutes
+            })
+            
+            // Trier par date de création (ordre chronologique) pour déterminer l'ordre de remplissage
+            overlappingBookings.sort((a, b) => {
+              const aDate = new Date(a.created_at || a.start_datetime)
+              const bDate = new Date(b.created_at || b.start_datetime)
+              return aDate.getTime() - bDate.getTime()
+            })
+            
+            // Calculer quels slots sont occupés par chaque réservation (de gauche à droite)
+            let currentSlotIndex = 0
+            for (const b of overlappingBookings) {
+              // Trouver le slot de cette réservation qui correspond à ce créneau
+              let bParticipants = b.participants_count
+              if (b.slots && b.slots.length > 0) {
+                const bMatchingSlot = b.slots.find(bs => {
+                  const bsStart = new Date(bs.slot_start)
+                  const bsEnd = new Date(bs.slot_end)
+                  return cellDate >= bsStart && cellDate < bsEnd
+                })
+                if (bMatchingSlot) {
+                  bParticipants = bMatchingSlot.participants_count
+                }
+              }
+              
+              const bSlotsNeeded = Math.ceil(bParticipants / 6)
+              
+              if (b.id === booking.id) {
+                // C'est notre réservation : vérifier si slotIndex est dans sa plage
+                if (slotIndex >= currentSlotIndex && slotIndex < currentSlotIndex + bSlotsNeeded) {
+                  return booking
+                }
+              }
+              
+              currentSlotIndex += bSlotsNeeded
             }
           }
         }
@@ -1310,6 +1427,26 @@ export default function AdminPage() {
                     // Si cette cellule fait partie d'une réservation mais n'est pas le début, ne pas la rendre
                     const isPartOfBooking = booking && !(isBookingStart && isBookingTop)
                     if (isPartOfBooking) return null
+
+                    // Déterminer si on est dans les premiers slots consécutifs (pour afficher les détails)
+                    let showDetails = false
+                    if (booking && booking.type === 'GAME') {
+                      const firstSlots = getFirstConsecutiveSlots(booking, timeSlots)
+                      if (firstSlots) {
+                        showDetails = (
+                          timeIndex >= firstSlots.startTimeIndex &&
+                          timeIndex <= firstSlots.endTimeIndex &&
+                          slotIndex >= firstSlots.startSlotIndex &&
+                          slotIndex <= firstSlots.endSlotIndex
+                        )
+                      } else {
+                        // Fallback : afficher les détails sur le premier slot
+                        showDetails = isBookingStart && isBookingTop
+                      }
+                    } else if (booking) {
+                      // Pour les événements, toujours afficher les détails
+                      showDetails = isBookingStart && isBookingTop
+                    }
                     
                     const gridColumn = slotIndex + 2 // +2 car colonne 1 = Heure
                     const gridRow = timeIndex + 1
@@ -1319,7 +1456,25 @@ export default function AdminPage() {
                     let rowSpan = 1
                     if (booking && (booking.type === 'GAME' || booking.type === 'EVENT')) {
                       // Pour les jeux ET les événements, calculer les slots nécessaires
-                      const slotsNeeded = Math.ceil(booking.participants_count / 6)
+                      // On doit calculer combien de slots cette réservation occupe à ce créneau spécifique
+                      const cellDate = new Date(selectedDate)
+                      cellDate.setHours(slot.hour, slot.minute, 0, 0)
+                      
+                      // Trouver le slot de cette réservation qui correspond à ce créneau
+                      let participantsInThisSlot = booking.participants_count
+                      if (booking.slots && booking.slots.length > 0) {
+                        const matchingSlot = booking.slots.find(bs => {
+                          const bsStart = new Date(bs.slot_start)
+                          const bsEnd = new Date(bs.slot_end)
+                          return cellDate >= bsStart && cellDate < bsEnd
+                        })
+                        if (matchingSlot) {
+                          participantsInThisSlot = matchingSlot.participants_count
+                        }
+                      }
+                      
+                      // Calculer le nombre de slots nécessaires pour ce créneau
+                      const slotsNeeded = Math.ceil(participantsInThisSlot / 6)
                       colSpan = slotsNeeded
                       
                       // Utiliser les dates du jeu (game_start_datetime et game_end_datetime)
@@ -1335,11 +1490,17 @@ export default function AdminPage() {
                     const bookingStartTime = booking ? (booking.game_start_datetime ? new Date(booking.game_start_datetime) : new Date(booking.start_datetime)) : null
                     const displayTime = bookingStartTime ? formatTime(bookingStartTime) : ''
 
+                    // Calculer l'overbooking (si participants > capacité max de 84)
+                    const maxCapacity = TOTAL_SLOTS * 6 // 84
+                    const overbookedCount = booking && booking.participants_count > maxCapacity 
+                      ? booking.participants_count - maxCapacity 
+                      : 0
+
                     return (
                       <div
                         key={`cell-slot-${timeIndex}-${slotIndex}`}
                         onClick={() => booking ? openBookingModal(slot.hour, slot.minute, booking) : openBookingModal(slot.hour, slot.minute)}
-                        className={`cursor-pointer ${
+                        className={`cursor-pointer relative ${
                           booking
                             ? `flex flex-col justify-start p-1 ${getTextAlignClass(displayTextAlign)}`
                             : `${isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'}`
@@ -1353,9 +1514,15 @@ export default function AdminPage() {
                           borderLeft: `2px solid ${booking ? (booking.color || (booking.type === 'EVENT' ? (isDark ? '#4ade80' : '#16a34a') : (isDark ? '#60a5fa' : '#2563eb'))) : (isDark ? '#374151' : '#e5e7eb')}`,
                           borderRight: `2px solid ${booking ? (booking.color || (booking.type === 'EVENT' ? (isDark ? '#4ade80' : '#16a34a') : (isDark ? '#60a5fa' : '#2563eb'))) : (isDark ? '#374151' : '#e5e7eb')}`,
                         }}
-                        title={booking ? `${booking.customer_first_name} ${booking.customer_last_name} - ${booking.participants_count} pers.` : ''}
+                        title={booking ? `${booking.customer_first_name} ${booking.customer_last_name} - ${booking.participants_count} pers.${overbookedCount > 0 ? ` (${overbookedCount} en surplus)` : ''}` : ''}
                       >
-                        {booking && (
+                        {/* Indicateur d'overbooking (petit nombre à gauche) */}
+                        {booking && overbookedCount > 0 && showDetails && (
+                          <div className="absolute left-1 top-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center" style={{ zIndex: 10 }}>
+                            {overbookedCount}
+                          </div>
+                        )}
+                        {booking && showDetails && (
                           <>
                             <div className={`${getTextSizeClass(displayTextSize)} ${getTextWeightClass(displayTextWeight)} leading-tight ${isDark ? 'text-white' : 'text-white'}`} style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
                               {booking.customer_first_name}
@@ -1495,6 +1662,7 @@ export default function AdminPage() {
           editingBooking={editingBooking}
           isDark={isDark}
           findBestAvailableRoom={findBestAvailableRoom}
+          existingBookings={bookings}
         />
       )}
     </div>

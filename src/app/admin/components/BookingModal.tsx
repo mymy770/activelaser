@@ -16,6 +16,7 @@ interface BookingModalProps {
   editingBooking?: BookingWithSlots | null
   isDark: boolean
   findBestAvailableRoom?: (participants: number, startDateTime: Date, endDateTime: Date) => string | null
+  existingBookings?: BookingWithSlots[] // Pour vérifier la disponibilité des slots
 }
 
 type BookingType = 'GAME' | 'EVENT'
@@ -53,7 +54,8 @@ export function BookingModal({
   initialMinute = 0,
   editingBooking = null,
   isDark,
-  findBestAvailableRoom
+  findBestAvailableRoom,
+  existingBookings = []
 }: BookingModalProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -316,6 +318,74 @@ export function BookingModal({
     return Math.min(slotsNeeded, TOTAL_SLOTS)
   }
 
+  // Fonction pour trouver quels slots (S1-S14) sont OCCUPÉS pour un créneau de 15 minutes
+  // Retourne un tableau de booléens : true = occupé, false = libre
+  // IMPORTANT : Les slots sont remplis de gauche à droite selon l'ordre de création des réservations
+  const getOccupiedSlotsForTimeSlot = (
+    slotStart: Date,
+    slotEnd: Date,
+    excludeBookingId?: string
+  ): boolean[] => {
+    // Initialiser tous les slots comme libres
+    const occupiedSlots: boolean[] = new Array(TOTAL_SLOTS).fill(false)
+
+    // Récupérer toutes les réservations qui chevauchent ce créneau
+    const overlappingBookings = existingBookings.filter(booking => {
+      // Ignorer la réservation en cours d'édition
+      if (excludeBookingId && booking.id === excludeBookingId) return false
+
+      // Ne considérer que les réservations de type GAME (les slots)
+      if (booking.type !== 'GAME') return false
+
+      // Vérifier si cette réservation chevauche le créneau
+      const bookingGameStart = booking.game_start_datetime 
+        ? new Date(booking.game_start_datetime) 
+        : new Date(booking.start_datetime)
+      const bookingGameEnd = booking.game_end_datetime 
+        ? new Date(booking.game_end_datetime) 
+        : new Date(booking.end_datetime)
+
+      // Vérifier le chevauchement temporel
+      return slotStart < bookingGameEnd && slotEnd > bookingGameStart
+    })
+
+    // Trier par date de création (ordre chronologique) pour déterminer l'ordre de remplissage
+    overlappingBookings.sort((a, b) => {
+      const aDate = new Date(a.created_at || a.start_datetime)
+      const bDate = new Date(b.created_at || b.start_datetime)
+      return aDate.getTime() - bDate.getTime()
+    })
+
+    // Remplir les slots de gauche à droite selon l'ordre de création
+    let currentSlotIndex = 0
+    for (const booking of overlappingBookings) {
+      // Trouver le slot de cette réservation qui correspond à ce créneau
+      let participantsInThisSlot = booking.participants_count
+      if (booking.slots && booking.slots.length > 0) {
+        const matchingSlot = booking.slots.find(bs => {
+          const bsStart = new Date(bs.slot_start)
+          const bsEnd = new Date(bs.slot_end)
+          return slotStart < bsEnd && slotEnd > bsStart
+        })
+        if (matchingSlot) {
+          participantsInThisSlot = matchingSlot.participants_count
+        }
+      }
+
+      // Calculer le nombre de slots nécessaires
+      const slotsNeeded = Math.ceil(participantsInThisSlot / MAX_PLAYERS_PER_SLOT)
+      
+      // Marquer les slots occupés de gauche à droite
+      for (let i = 0; i < slotsNeeded && currentSlotIndex + i < TOTAL_SLOTS; i++) {
+        occupiedSlots[currentSlotIndex + i] = true
+      }
+      
+      currentSlotIndex += slotsNeeded
+    }
+
+    return occupiedSlots
+  }
+
   // Calculer l'heure de fin du jeu
   const calculateGameEndTime = () => {
     const startMinutes = hour * 60 + minute
@@ -412,12 +482,15 @@ export function BookingModal({
         }
       }
 
-      // Construire les slots (logique Tetris)
+      // Construire les slots (logique Tetris - remplissage intelligent)
+      // Chaque slot (S1-S14) ne peut être occupé que par UNE réservation
       const slots: CreateBookingData['slots'] = []
-      const slotsNeeded = calculateSlots()
+      let remainingParticipants = parsedParticipants
+      let totalOverbooked = 0
 
-      // Pour chaque slot de 15 minutes pendant la durée du jeu
-      for (let i = 0; i < parsedDuration / SLOT_DURATION; i++) {
+      // Pour chaque créneau de 15 minutes pendant la durée du jeu
+      const numberOfTimeSlots = parsedDuration / SLOT_DURATION
+      for (let i = 0; i < numberOfTimeSlots; i++) {
         const slotStartMinutes = hour * 60 + minute + (i * SLOT_DURATION)
         const slotEndMinutes = slotStartMinutes + SLOT_DURATION
 
@@ -427,11 +500,57 @@ export function BookingModal({
         const slotEnd = new Date(localDate)
         slotEnd.setHours(Math.floor(slotEndMinutes / 60), slotEndMinutes % 60, 0, 0)
 
-        slots.push({
-          slot_start: slotStart.toISOString(),
-          slot_end: slotEnd.toISOString(),
-          participants_count: Math.min(parsedParticipants, slotsNeeded * MAX_PLAYERS_PER_SLOT)
-        })
+        // Trouver quels slots (S1-S14) sont déjà occupés pour ce créneau
+        const excludeBookingId = editingBooking?.id
+        const occupiedSlots = getOccupiedSlotsForTimeSlot(slotStart, slotEnd, excludeBookingId)
+
+        // Compter les slots libres (de gauche à droite)
+        const freeSlots: number[] = []
+        for (let slotIdx = 0; slotIdx < TOTAL_SLOTS; slotIdx++) {
+          if (!occupiedSlots[slotIdx]) {
+            freeSlots.push(slotIdx)
+          }
+        }
+
+        // Calculer combien de participants peuvent être placés dans ce créneau
+        // Chaque slot libre peut accueillir MAX_PLAYERS_PER_SLOT participants
+        const totalAvailableCapacity = freeSlots.length * MAX_PLAYERS_PER_SLOT
+
+        // Placer les participants dans les slots libres (de gauche à droite)
+        let participantsInThisTimeSlot = Math.min(remainingParticipants, totalAvailableCapacity)
+        
+        // Si on dépasse la capacité, c'est de l'overbooking
+        if (remainingParticipants > totalAvailableCapacity) {
+          const overbooked = remainingParticipants - totalAvailableCapacity
+          totalOverbooked += overbooked
+          // On place quand même ce qu'on peut (jusqu'à S14 max)
+          participantsInThisTimeSlot = totalAvailableCapacity
+        }
+
+        // Créer un slot pour ce créneau avec le nombre de participants
+        if (participantsInThisTimeSlot > 0) {
+          slots.push({
+            slot_start: slotStart.toISOString(),
+            slot_end: slotEnd.toISOString(),
+            participants_count: participantsInThisTimeSlot
+          })
+        }
+
+        remainingParticipants -= participantsInThisTimeSlot
+
+        // Si on a placé tous les participants, on peut arrêter
+        if (remainingParticipants <= 0) break
+      }
+
+      // Gérer l'overbooking : demander confirmation si nécessaire
+      if (totalOverbooked > 0) {
+        const confirmMessage = `Attention : ${totalOverbooked} personne(s) en surplus ne peuvent pas être placées dans les créneaux disponibles (limite de ${TOTAL_SLOTS} slots). Voulez-vous continuer avec un surbooking ?`
+        const confirmed = window.confirm(confirmMessage)
+        if (!confirmed) {
+          setError(`Impossible de placer ${totalOverbooked} personne(s) supplémentaires. Veuillez réduire le nombre de participants ou choisir un autre créneau.`)
+          setLoading(false)
+          return
+        }
       }
 
       const bookingData: CreateBookingData = {
