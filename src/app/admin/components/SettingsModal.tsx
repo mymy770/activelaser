@@ -105,10 +105,11 @@ export function SettingsModal({
 
         const { error: roomError } = await supabase
           .from('event_rooms')
+          // @ts-expect-error - Type assertion nécessaire pour contourner le problème de typage Supabase
           .update({ 
             capacity: newCapacity,
             name: newName || `Salle ${room.sort_order + 1}` // Valeur par défaut si vide
-          } as any)
+          })
           .eq('id', room.id)
 
         if (roomError) {
@@ -126,6 +127,7 @@ export function SettingsModal({
 
         const { error: settingsError } = await supabase
           .from('branch_settings')
+          // @ts-expect-error - Type assertion nécessaire pour contourner le problème de typage Supabase
           .update({ max_concurrent_players: maxConcurrentPlayers })
           .eq('branch_id', branchId)
 
