@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { LogOut, User, Settings, ChevronDown, Sun, Moon } from 'lucide-react'
+import { LogOut, User, Settings, ChevronDown, Sun, Moon, Users } from 'lucide-react'
+import Link from 'next/link'
 import type { AuthUser } from '@/hooks/useAuth'
 import type { Branch } from '@/lib/supabase/types'
 import { BranchSelector } from './BranchSelector'
@@ -93,6 +94,16 @@ export function AdminHeader({
 
         {/* Actions */}
         <div className="flex items-center gap-4">
+          {/* Lien Clients (CRM) */}
+          <Link
+            href="/admin/clients"
+            target="_blank"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+          >
+            <Users className="w-4 h-4" />
+            <span className="hidden sm:inline">Clients</span>
+          </Link>
+
           {/* Toggle thème */}
           <button
             onClick={onToggleTheme}

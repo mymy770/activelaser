@@ -1,8 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Loader2, Users, Clock, User, Phone, Mail, MessageSquare, Gamepad2, PartyPopper, Palette, Home, Calendar, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
+import { X, Loader2, Users, Clock, User, Phone, Mail, MessageSquare, Gamepad2, PartyPopper, Palette, Home, Calendar, ChevronLeft, ChevronRight, Trash2, Edit2, RefreshCw, AlertTriangle } from 'lucide-react'
 import type { CreateBookingData, BookingWithSlots } from '@/hooks/useBookings'
+import { ContactSearch } from './ContactSearch'
+import { useContacts } from '@/hooks/useContacts'
+import type { Contact } from '@/lib/supabase/types'
 
 interface OverbookingInfo {
   willCauseOverbooking: boolean
@@ -103,6 +106,13 @@ export function BookingModal({
   const [notes, setNotes] = useState('')
   const [contactId, setContactId] = useState('') // ID unique du contact (auto-généré)
   const [color, setColor] = useState(COLORS[0].value) // Couleur par défaut bleu
+  
+  // CRM: Contact sélectionné
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false)
+  const [pendingContactData, setPendingContactData] = useState<{ phone: string; email: string | null } | null>(null)
+  const [pendingEventRoomId, setPendingEventRoomId] = useState<string | null | undefined>(null)
+  const { createContact, checkDuplicates, updateContact, getContact } = useContacts(branchId)
 
   // Pour les événements avec salle (automatique pour EVENT)
   const [roomStartHour, setRoomStartHour] = useState(initialHour)
@@ -112,6 +122,7 @@ export function BookingModal({
   const [eventNotes, setEventNotes] = useState('') // Notes spécifiques à l'événement/salle
 
   // Fonction pour générer un ID unique de contact (numéro séquentiel simple)
+  // NOTE: Ceci est conservé pour rétrocompatibilité mais ne sera plus utilisé avec le CRM
   const generateContactId = (): string => {
     // Utiliser localStorage pour stocker le dernier ID utilisé
     const storageKey = `lastContactId_${branchId}`
@@ -119,6 +130,43 @@ export function BookingModal({
     const nextId = lastId ? parseInt(lastId, 10) + 1 : 1
     localStorage.setItem(storageKey, nextId.toString())
     return nextId.toString()
+  }
+
+  // CRM: Quand un contact est sélectionné, remplir automatiquement les champs
+  useEffect(() => {
+    if (selectedContact) {
+      setFirstName(selectedContact.first_name || '')
+      setLastName(selectedContact.last_name || '')
+      setPhone(selectedContact.phone || '')
+      setEmail(selectedContact.email || '')
+      setNotes(selectedContact.notes_client || '')
+    }
+  }, [selectedContact])
+
+  // CRM: Ouvrir modal de modification de contact
+  const handleModifyClient = () => {
+    if (!selectedContact) return
+    // Pour l'instant, on ouvre juste un prompt simple
+    // TODO: Créer un modal dédié pour modifier le contact
+    const newFirstName = prompt('Nouveau prénom:', selectedContact.first_name || '')
+    const newLastName = prompt('Nouveau nom:', selectedContact.last_name || '')
+    const newPhone = prompt('Nouveau téléphone:', selectedContact.phone || '')
+    const newEmail = prompt('Nouvel email:', selectedContact.email || '')
+    const newNotes = prompt('Nouvelles notes client:', selectedContact.notes_client || '')
+
+    if (newFirstName !== null && newPhone !== null) {
+      updateContact(selectedContact.id, {
+        first_name: newFirstName.trim(),
+        last_name: newLastName?.trim() || null,
+        phone: newPhone.trim(),
+        email: newEmail?.trim() || null,
+        notes_client: newNotes?.trim() || null,
+      }).then((updated) => {
+        if (updated) {
+          setSelectedContact(updated)
+        }
+      })
+    }
   }
 
   // Fonction utilitaire pour formater une date en YYYY-MM-DD (sans conversion UTC)
@@ -218,6 +266,31 @@ export function BookingModal({
         setLastName(editingBooking.customer_last_name || '')
         setPhone(editingBooking.customer_phone || '')
         setEmail(editingBooking.customer_email || '')
+        
+        // CRM: Charger le contact si primary_contact_id existe
+        if (editingBooking.primary_contact_id) {
+          getContact(editingBooking.primary_contact_id).then((contact) => {
+            if (contact) {
+              setSelectedContact(contact)
+              // Ne pas écraser les champs si le contact existe (on garde les snapshot)
+              // Mais on peut les pré-remplir avec les infos du contact si les snapshot sont vides
+              if (!editingBooking.customer_first_name && contact.first_name) {
+                setFirstName(contact.first_name)
+              }
+              if (!editingBooking.customer_last_name && contact.last_name) {
+                setLastName(contact.last_name)
+              }
+              if (!editingBooking.customer_phone && contact.phone) {
+                setPhone(contact.phone)
+              }
+              if (!editingBooking.customer_email && contact.email) {
+                setEmail(contact.email)
+              }
+            }
+          }).catch(() => {
+            // Contact introuvable ou archivé, on garde les snapshot
+          })
+        }
         
         // Couleur : utiliser celle de la base de données si disponible, sinon couleur par défaut selon le type
         setColor(editingBooking.color || (editingBooking.type === 'GAME' ? COLORS[0].value : COLORS[1].value))
@@ -382,10 +455,87 @@ export function BookingModal({
   const isOverCapacity = parsedParticipants > TOTAL_CAPACITY
 
   // Fonction interne pour soumettre avec une salle spécifique
-  const submitWithRoom = async (eventRoomId: string | null | undefined) => {
+  const submitWithRoom = async (eventRoomId: string | null | undefined, skipDuplicateCheck = false) => {
     setLoading(true)
 
     try {
+      // CRM: Gérer le contact (création ou liaison)
+      let contactIdToLink: string | null = null
+      
+      if (selectedContact) {
+        // Contact déjà sélectionné, utiliser son ID
+        contactIdToLink = selectedContact.id
+        
+        // Si les infos ont été modifiées, mettre à jour le contact
+        const hasChanges = 
+          selectedContact.first_name !== firstName.trim() ||
+          selectedContact.last_name !== lastName.trim() ||
+          selectedContact.phone !== phone.trim() ||
+          selectedContact.email !== email.trim() ||
+          selectedContact.notes_client !== notes.trim()
+        
+        if (hasChanges) {
+          const updated = await updateContact(selectedContact.id, {
+            first_name: firstName.trim(),
+            last_name: lastName.trim() || null,
+            phone: phone.trim(),
+            email: email.trim() || null,
+            notes_client: notes.trim() || null,
+          })
+          if (updated) {
+            contactIdToLink = updated.id
+          }
+        }
+      } else if (!skipDuplicateCheck) {
+        // Nouveau contact à créer - vérifier les doublons
+        if (phone.trim()) {
+          const duplicates = await checkDuplicates(phone.trim(), email.trim() || null)
+          
+          if (duplicates.phoneMatches.length > 0 || duplicates.emailMatches.length > 0) {
+            // Il y a des doublons, demander confirmation
+            setPendingContactData({ phone: phone.trim(), email: email.trim() || null })
+            setPendingEventRoomId(eventRoomId)
+            setShowDuplicateWarning(true)
+            setLoading(false)
+            return
+          }
+          
+          // Pas de doublon, créer le contact
+          const newContact = await createContact({
+            branch_id_main: branchId,
+            first_name: firstName.trim(),
+            last_name: lastName.trim() || null,
+            phone: phone.trim(),
+            email: email.trim() || null,
+            notes_client: notes.trim() || null,
+            source: 'admin_agenda',
+          })
+          
+          if (newContact) {
+            contactIdToLink = newContact.id
+            setSelectedContact(newContact)
+          }
+        }
+      } else {
+        // skipDuplicateCheck = true : créer directement sans vérifier (après confirmation doublon)
+        if (phone.trim()) {
+          const newContact = await createContact({
+            branch_id_main: branchId,
+            first_name: firstName.trim(),
+            last_name: lastName.trim() || null,
+            phone: phone.trim(),
+            email: email.trim() || null,
+            notes_client: notes.trim() || null,
+            source: 'admin_agenda',
+          })
+          
+          if (newContact) {
+            contactIdToLink = newContact.id
+            setSelectedContact(newContact)
+          }
+        }
+      }
+
       // Construire les dates du jeu (format simple)
       const gameStartDate = new Date(localDate)
       gameStartDate.setHours(hour, minute, 0, 0)
@@ -426,6 +576,13 @@ export function BookingModal({
         participants_count: parsedParticipants
       }]
 
+      // Notes : séparer notes client (globales) et notes réservation (spécifiques)
+      const bookingNotes = bookingType === 'EVENT' 
+        ? (eventAlias.trim() || eventNotes.trim()
+            ? `Alias: ${eventAlias.trim() || 'N/A'}\n${eventNotes.trim()}`.trim() 
+            : '')
+        : notes.trim()
+
       const bookingData: CreateBookingData = {
         branch_id: branchId,
         type: bookingType,
@@ -436,16 +593,12 @@ export function BookingModal({
         participants_count: parsedParticipants,
         event_room_id: bookingType === 'EVENT' ? (eventRoomId ?? undefined) : undefined,
         customer_first_name: firstName.trim(),
-        customer_last_name: lastName.trim() || '', // Nom optionnel, chaîne vide si non renseigné
+        customer_last_name: lastName.trim() || '',
         customer_phone: phone.trim(),
         customer_email: email.trim() || undefined,
-        notes: bookingType === 'EVENT' 
-          ? (eventAlias.trim() || eventNotes.trim() || contactId
-              ? `Contact ID: ${contactId}\nAlias: ${eventAlias.trim() || 'N/A'}\n${eventNotes.trim()}`.trim() 
-              : `Contact ID: ${contactId}`)
-          : (notes.trim() || contactId
-              ? `Contact ID: ${contactId}\n${notes.trim()}`.trim()
-              : `Contact ID: ${contactId}`),
+        customer_notes_at_booking: selectedContact?.notes_client || notes.trim() || undefined, // Snapshot
+        primary_contact_id: contactIdToLink || undefined,
+        notes: bookingNotes || undefined,
         color: color,
         slots
       }
@@ -1145,97 +1298,132 @@ export function BookingModal({
             </div>
           )}
 
-          {/* Infos client */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* CRM: Contact principal */}
+          <div className="space-y-4">
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                 <User className="w-4 h-4 inline mr-1" />
-                Prénom *
+                Contact principal
               </label>
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                required
-                className={`w-full px-3 py-2 rounded-lg border ${
-                  isDark
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500'
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
-                }`}
-                placeholder="Prénom"
+              <ContactSearch
+                branchId={branchId}
+                onSelectContact={setSelectedContact}
+                selectedContact={selectedContact}
+                isDark={isDark}
+                placeholder="Rechercher un contact existant (nom, téléphone, email)..."
               />
+              {selectedContact && (
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleModifyClient}
+                    className={`px-3 py-1.5 text-xs rounded-lg flex items-center gap-1.5 transition-colors ${
+                      isDark
+                        ? 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30'
+                        : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                    }`}
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    Modifier client
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedContact(null)
+                      setFirstName('')
+                      setLastName('')
+                      setPhone('')
+                      setEmail('')
+                      setNotes('')
+                    }}
+                    className={`px-3 py-1.5 text-xs rounded-lg flex items-center gap-1.5 transition-colors ${
+                      isDark
+                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Changer contact
+                  </button>
+                </div>
+              )}
             </div>
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Nom
-              </label>
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className={`w-full px-3 py-2 rounded-lg border ${
-                  isDark
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500'
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
-                }`}
-                placeholder="Nom (optionnel)"
-              />
-            </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                <Phone className="w-4 h-4 inline mr-1" />
-                Téléphone *
-              </label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-                className={`w-full px-3 py-2 rounded-lg border ${
-                  isDark
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500'
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
-                }`}
-                placeholder="05X XXX XXXX"
-              />
+            {/* Informations du contact (modifiables si contact sélectionné ou nouvelle saisie) */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <User className="w-4 h-4 inline mr-1" />
+                  Prénom *
+                </label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                  className={`w-full px-3 py-2 rounded-lg border ${
+                    isDark
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500'
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                  }`}
+                  placeholder="Prénom"
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Nom
+                </label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className={`w-full px-3 py-2 rounded-lg border ${
+                    isDark
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500'
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                  }`}
+                  placeholder="Nom (optionnel)"
+                />
+              </div>
             </div>
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                <Mail className="w-4 h-4 inline mr-1" />
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={`w-full px-3 py-2 rounded-lg border ${
-                  isDark
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500'
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
-                }`}
-                placeholder="email@exemple.com"
-              />
-            </div>
-          </div>
 
-          {/* Contact ID */}
-          <div className="mt-4">
-            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-              Contact ID
-            </label>
-            <div className={`px-3 py-2 rounded-lg border text-sm font-mono ${
-              isDark
-                ? 'bg-gray-700/50 border-gray-600 text-gray-300'
-                : 'bg-gray-100 border-gray-300 text-gray-700'
-            }`}>
-              {contactId || 'Génération...'}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <Phone className="w-4 h-4 inline mr-1" />
+                  Téléphone *
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  className={`w-full px-3 py-2 rounded-lg border ${
+                    isDark
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500'
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                  }`}
+                  placeholder="05X XXX XXXX"
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <Mail className="w-4 h-4 inline mr-1" />
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={`w-full px-3 py-2 rounded-lg border ${
+                    isDark
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500'
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                  }`}
+                  placeholder="email@exemple.com"
+                />
+              </div>
             </div>
-            <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-              Numéro unique généré automatiquement
-            </p>
           </div>
 
           {/* Notes */}
@@ -1468,6 +1656,104 @@ export function BookingModal({
                     </>
                   ) : (
                     'Utiliser cette salle'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal : Avertissement de doublon de contact */}
+      {showDuplicateWarning && pendingContactData && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowDuplicateWarning(false)}
+          />
+
+          {/* Modal */}
+          <div className={`relative w-full max-w-md mx-4 rounded-2xl shadow-2xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <AlertTriangle className={`w-6 h-6 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
+                <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Doublon détecté
+                </h3>
+              </div>
+              <p className={`mb-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                Un ou plusieurs contacts existent déjà avec :
+              </p>
+              <div className={`p-4 rounded-lg mb-4 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                {pendingContactData.phone && (
+                  <div className="mb-2">
+                    <strong className={isDark ? 'text-gray-300' : 'text-gray-700'}>Téléphone :</strong>{' '}
+                    <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>{pendingContactData.phone}</span>
+                  </div>
+                )}
+                {pendingContactData.email && (
+                  <div>
+                    <strong className={isDark ? 'text-gray-300' : 'text-gray-700'}>Email :</strong>{' '}
+                    <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>{pendingContactData.email}</span>
+                  </div>
+                )}
+              </div>
+              <p className={`mb-6 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                Voulez-vous créer un nouveau contact quand même ? Ce contact sera créé même si des données similaires existent déjà.
+              </p>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDuplicateWarning(false)
+                    setPendingContactData(null)
+                  }}
+                  disabled={loading}
+                  className={`px-4 py-2 rounded-lg ${
+                    isDark
+                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  } disabled:opacity-50`}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!pendingContactData) return
+                    
+                    // Créer le contact malgré le doublon
+                    const newContact = await createContact({
+                      branch_id_main: branchId,
+                      first_name: firstName.trim(),
+                      last_name: lastName.trim() || null,
+                      phone: pendingContactData.phone,
+                      email: pendingContactData.email || null,
+                      notes_client: notes.trim() || null,
+                      source: 'admin_agenda',
+                    })
+                    
+                    if (newContact) {
+                      setSelectedContact(newContact)
+                      setShowDuplicateWarning(false)
+                      setPendingContactData(null)
+                      // Relancer la soumission avec skipDuplicateCheck = true
+                      const roomId = pendingEventRoomId
+                      setPendingEventRoomId(null)
+                      await submitWithRoom(roomId, true)
+                    }
+                  }}
+                  disabled={loading}
+                  className="px-4 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white flex items-center gap-2 disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      En cours...
+                    </>
+                  ) : (
+                    'Créer quand même'
                   )}
                 </button>
               </div>

@@ -1,37 +1,64 @@
 /**
- * Gestion des contacts (CRM léger) stockés dans un fichier JSON
+ * Gestion des contacts (CRM) - Migration vers Supabase
+ * Cette lib remplace l'ancienne version JSON par des appels Supabase
  */
 
-import { promises as fs } from 'fs'
-import { join } from 'path'
+import { createClient } from '@/lib/supabase/server'
+import type { Contact, ContactSource, ContactStatus } from '@/lib/supabase/types'
 
-export interface Contact {
+export interface ContactData {
   id: string
   firstName: string | null
   lastName: string | null
   phone: string
   email: string | null
-  alias: string | null // Surnom (ex: nom de la personne qui fête son anniversaire)
+  alias: string | null
   notes: string | null
   branch: string | null
-  source: 'admin_agenda' | 'public_booking' | string
+  source: ContactSource
   createdAt: string
 }
 
-const CONTACTS_FILE = join(process.cwd(), 'data', 'contacts.json')
+/**
+ * Convertit un Contact Supabase vers l'interface ContactData (pour compatibilité)
+ */
+function contactToData(contact: Contact): ContactData {
+  return {
+    id: contact.id,
+    firstName: contact.first_name || null,
+    lastName: contact.last_name || null,
+    phone: contact.phone,
+    email: contact.email || null,
+    alias: contact.alias || null,
+    notes: contact.notes_client || null,
+    branch: contact.branch_id_main || null,
+    source: contact.source,
+    createdAt: contact.created_at,
+  }
+}
 
 /**
- * Lit tous les contacts depuis le fichier JSON
+ * Lit tous les contacts actifs depuis Supabase
  */
-export async function getAllContacts(): Promise<Contact[]> {
+export async function getAllContacts(branchId?: string): Promise<ContactData[]> {
   try {
-    const data = await fs.readFile(CONTACTS_FILE, 'utf-8')
-    return JSON.parse(data)
-  } catch (error) {
-    // Si le fichier n'existe pas encore, retourner un tableau vide
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return []
+    const supabase = await createClient()
+
+    let query = supabase
+      .from('contacts')
+      .select('*')
+      .eq('status', 'active')
+
+    if (branchId) {
+      query = query.eq('branch_id_main', branchId)
     }
+
+    const { data, error } = await query.order('created_at', { ascending: false }).returns<Contact[]>()
+
+    if (error) throw error
+
+    return (data || []).map(contactToData)
+  } catch (error) {
     console.error('Error reading contacts:', error)
     throw error
   }
@@ -42,60 +69,78 @@ export async function getAllContacts(): Promise<Contact[]> {
  */
 export async function findContactByPhoneOrEmail(
   phone: string | null,
-  email: string | null
-): Promise<Contact | null> {
+  email: string | null,
+  branchId: string
+): Promise<ContactData | null> {
   try {
-    const contacts = await getAllContacts()
-    
+    const supabase = await createClient()
+
     if (phone) {
-      const byPhone = contacts.find(c => c.phone === phone)
-      if (byPhone) return byPhone
+      const { data: phoneContact } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('branch_id_main', branchId)
+        .eq('phone', phone.trim())
+        .eq('status', 'active')
+        .single<Contact>()
+
+      if (phoneContact) return contactToData(phoneContact)
     }
-    
-    if (email) {
-      const byEmail = contacts.find(c => c.email === email)
-      if (byEmail) return byEmail
+
+    if (email && email.trim()) {
+      const { data: emailContact } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('branch_id_main', branchId)
+        .eq('email', email.trim())
+        .eq('status', 'active')
+        .single<Contact>()
+
+      if (emailContact) return contactToData(emailContact)
     }
-    
+
     return null
   } catch (error) {
+    // Si aucun contact trouvé, retourner null (pas une erreur)
+    if ((error as any)?.code === 'PGRST116') {
+      return null
+    }
     console.error('Error finding contact:', error)
     return null
   }
 }
 
 /**
- * Met à jour un contact existant
+ * Met à jour un contact existant dans Supabase
  */
 export async function updateContact(
   id: string,
-  updates: Partial<Omit<Contact, 'id' | 'createdAt'>>
-): Promise<Contact> {
+  updates: Partial<Omit<ContactData, 'id' | 'createdAt' | 'source'>>
+): Promise<ContactData> {
   try {
-    const contacts = await getAllContacts()
-    const index = contacts.findIndex(c => c.id === id)
-    
-    if (index === -1) {
-      throw new Error(`Contact with id ${id} not found`)
-    }
-    
-    // Mettre à jour les champs fournis, en gardant les anciens pour les champs non fournis
-    contacts[index] = {
-      ...contacts[index],
-      // Ne pas écraser avec null/undefined si le champ n'est pas fourni
-      firstName: updates.firstName !== undefined ? updates.firstName : contacts[index].firstName,
-      lastName: updates.lastName !== undefined ? updates.lastName : contacts[index].lastName,
-      phone: updates.phone !== undefined && updates.phone !== null ? updates.phone : contacts[index].phone,
-      email: updates.email !== undefined ? updates.email : contacts[index].email,
-      alias: updates.alias !== undefined ? updates.alias : contacts[index].alias, // Traité exactement comme firstName
-      notes: updates.notes !== undefined ? updates.notes : contacts[index].notes,
-      branch: updates.branch !== undefined ? updates.branch : contacts[index].branch,
-      source: updates.source !== undefined ? updates.source : contacts[index].source,
-    }
-    
-    await fs.writeFile(CONTACTS_FILE, JSON.stringify(contacts, null, 2), 'utf-8')
-    
-    return contacts[index]
+    const supabase = await createClient()
+
+    const updateData: Record<string, unknown> = {}
+
+    if (updates.firstName !== undefined) updateData.first_name = updates.firstName?.trim() || null
+    if (updates.lastName !== undefined) updateData.last_name = updates.lastName?.trim() || null
+    if (updates.phone !== undefined) updateData.phone = updates.phone.trim()
+    if (updates.email !== undefined) updateData.email = updates.email?.trim() || null
+    if (updates.alias !== undefined) updateData.alias = updates.alias?.trim() || null
+    if (updates.notes !== undefined) updateData.notes_client = updates.notes?.trim() || null
+    if (updates.branch !== undefined) updateData.branch_id_main = updates.branch || null
+
+    const { data: updatedContact, error } = await supabase
+      .from('contacts')
+      .update(updateData as any)
+      .eq('id', id)
+      .select()
+      .single<Contact>()
+
+    if (error) throw error
+    if (!updatedContact) throw new Error('Contact not found after update')
+
+    return contactToData(updatedContact)
   } catch (error) {
     console.error('Error updating contact:', error)
     throw error
@@ -103,19 +148,22 @@ export async function updateContact(
 }
 
 /**
- * Supprime un contact par son ID
+ * Supprime un contact (archive) par son ID
  */
 export async function deleteContact(id: string): Promise<boolean> {
   try {
-    const contacts = await getAllContacts()
-    const filtered = contacts.filter(c => c.id !== id)
-    
-    if (filtered.length === contacts.length) {
-      throw new Error(`Contact with id ${id} not found`)
-    }
-    
-    await fs.writeFile(CONTACTS_FILE, JSON.stringify(filtered, null, 2), 'utf-8')
-    
+    const supabase = await createClient()
+
+    const { error } = await supabase
+      .from('contacts')
+      .update({
+        status: 'archived' as ContactStatus,
+        archived_at: new Date().toISOString(),
+      } as any)
+      .eq('id', id)
+
+    if (error) throw error
+
     return true
   } catch (error) {
     console.error('Error deleting contact:', error)
@@ -124,28 +172,42 @@ export async function deleteContact(id: string): Promise<boolean> {
 }
 
 /**
- * Sauvegarde un nouveau contact ou met à jour un contact existant
+ * Sauvegarde un nouveau contact dans Supabase
  */
 export async function saveContact(
-  contact: Omit<Contact, 'id' | 'createdAt'>
-): Promise<Contact> {
+  contact: Omit<ContactData, 'id' | 'createdAt'>,
+  branchId: string
+): Promise<ContactData> {
   try {
-    const contacts = await getAllContacts()
+    const supabase = await createClient()
 
-    const newContact: Contact = {
-      ...contact,
-      id: `contact-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      createdAt: new Date().toISOString(),
-    }
+    const { data: newContact, error } = await supabase
+      .from('contacts')
+      .insert({
+        branch_id_main: branchId,
+        first_name: contact.firstName?.trim() || null,
+        last_name: contact.lastName?.trim() || null,
+        phone: contact.phone.trim(),
+        email: contact.email?.trim() || null,
+        alias: contact.alias?.trim() || null,
+        notes_client: contact.notes?.trim() || null,
+        source: contact.source || 'admin_agenda',
+        status: 'active',
+      } as any)
+      .select()
+      .single<Contact>()
 
-    contacts.push(newContact)
+    if (error) throw error
+    if (!newContact) throw new Error('Failed to create contact')
 
-    await fs.writeFile(CONTACTS_FILE, JSON.stringify(contacts, null, 2), 'utf-8')
-
-    return newContact
+    return contactToData(newContact)
   } catch (error) {
     console.error('Error saving contact:', error)
     throw error
   }
 }
 
+/**
+ * Export pour compatibilité avec l'ancien code
+ */
+export type { ContactData as Contact }

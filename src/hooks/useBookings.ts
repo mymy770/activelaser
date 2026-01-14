@@ -23,6 +23,8 @@ export interface CreateBookingData {
   customer_last_name: string
   customer_phone: string
   customer_email?: string
+  customer_notes_at_booking?: string // Snapshot des notes client au moment de la réservation
+  primary_contact_id?: string // ID du contact principal (CRM)
   notes?: string
   color?: string
   slots: {
@@ -147,6 +149,8 @@ export function useBookings(branchId: string | null, date?: string) {
         customer_last_name: data.customer_last_name,
         customer_phone: data.customer_phone,
         customer_email: data.customer_email,
+        customer_notes_at_booking: data.customer_notes_at_booking,
+        primary_contact_id: data.primary_contact_id,
         reference_code: generateReferenceCode(),
         notes: data.notes,
       }
@@ -180,6 +184,23 @@ export function useBookings(branchId: string | null, date?: string) {
         const errorMessage = bookingError.message || 'Unknown error'
         const errorCode = bookingError.code || 'unknown'
         throw new Error(`Supabase booking error: ${errorMessage} (code: ${errorCode})`)
+      }
+
+      // CRM: Créer la liaison booking_contacts si primary_contact_id existe
+      if (data.primary_contact_id) {
+        const { error: bookingContactError } = await supabase
+          .from('booking_contacts')
+          .insert({
+            booking_id: newBooking.id,
+            contact_id: data.primary_contact_id,
+            is_primary: true,
+            role: null,
+          } as any)
+
+        if (bookingContactError) {
+          console.error('Booking contact link error:', bookingContactError)
+          // Ne pas bloquer la création si la liaison échoue
+        }
       }
 
       // Créer les slots
