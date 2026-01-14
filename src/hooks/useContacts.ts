@@ -74,7 +74,7 @@ export function useContacts(branchId: string | null) {
         query = query.or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`)
       }
 
-      // Tri par défaut : plus récents
+      // Tri (sera géré côté client pour l'instant, mais on garde un tri par défaut)
       query = query.order('created_at', { ascending: false })
 
       // Pagination
@@ -355,6 +355,86 @@ export function useContacts(branchId: string | null) {
     }
   }, [branchId])
 
+  // Statistiques d'un contact
+  const getContactStats = useCallback(async (contactId: string) => {
+    if (!branchId) {
+      return null
+    }
+
+    const supabase = getClient()
+
+    try {
+      // Récupérer les réservations liées
+      const { data: bookingContacts, error: bookingContactsError } = await supabase
+        .from('booking_contacts')
+        .select('booking_id')
+        .eq('contact_id', contactId)
+
+      if (bookingContactsError) throw bookingContactsError
+
+      if (!bookingContacts || bookingContacts.length === 0) {
+        return {
+          totalBookings: 0,
+          totalParticipants: 0,
+          upcomingBookings: 0,
+          pastBookings: 0,
+          lastActivity: null,
+          firstBooking: null,
+          gameBookings: 0,
+          eventBookings: 0,
+        }
+      }
+
+      const bookingIds = bookingContacts.map(bc => bc.booking_id)
+      const now = new Date().toISOString()
+
+      // Récupérer les bookings avec stats
+      const { data: bookings, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('id, type, status, start_datetime, participants_count, created_at')
+        .in('id', bookingIds)
+        .eq('branch_id', branchId)
+
+      if (bookingsError) throw bookingsError
+
+      const bookingsList = bookings || []
+      const totalBookings = bookingsList.length
+      const totalParticipants = bookingsList.reduce((sum, b) => sum + (b.participants_count || 0), 0)
+      
+      const upcomingBookings = bookingsList.filter(b => b.start_datetime > now && b.status !== 'CANCELLED').length
+      const pastBookings = bookingsList.filter(b => b.start_datetime <= now || b.status === 'CANCELLED').length
+      
+      const gameBookings = bookingsList.filter(b => b.type === 'GAME').length
+      const eventBookings = bookingsList.filter(b => b.type === 'EVENT').length
+
+      // Dernière activité (dernière réservation)
+      const sortedByDate = [...bookingsList].sort((a, b) => 
+        new Date(b.start_datetime).getTime() - new Date(a.start_datetime).getTime()
+      )
+      const lastActivity = sortedByDate.length > 0 ? sortedByDate[0].start_datetime : null
+      
+      // Première réservation
+      const sortedByCreated = [...bookingsList].sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      )
+      const firstBooking = sortedByCreated.length > 0 ? sortedByCreated[0].created_at : null
+
+      return {
+        totalBookings,
+        totalParticipants,
+        upcomingBookings,
+        pastBookings,
+        lastActivity,
+        firstBooking,
+        gameBookings,
+        eventBookings,
+      }
+    } catch (err) {
+      console.error('Error fetching contact stats:', err)
+      return null
+    }
+  }, [branchId])
+
   return {
     contacts,
     loading,
@@ -367,5 +447,6 @@ export function useContacts(branchId: string | null) {
     unarchiveContact,
     checkDuplicates,
     getLinkedBookings,
+    getContactStats,
   }
 }

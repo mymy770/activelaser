@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Edit2, Archive, User, Phone, Mail, Loader2, Eye, Calendar, Gamepad2, PartyPopper, ChevronLeft, ChevronRight, X, Plus } from 'lucide-react'
+import { Search, Edit2, Archive, User, Phone, Mail, Loader2, Eye, Calendar, Gamepad2, PartyPopper, ChevronLeft, ChevronRight, X, Plus, Download, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, Users as UsersIcon, Clock } from 'lucide-react'
 import { useContacts, type SearchContactsResult } from '@/hooks/useContacts'
 import { useBranches } from '@/hooks/useBranches'
 import { useAuth } from '@/hooks/useAuth'
@@ -13,7 +13,7 @@ export default function ClientsPage() {
   const router = useRouter()
   const { user } = useAuth()
   const { branches, selectedBranch } = useBranches()
-  const { searchContacts, archiveContact, unarchiveContact, getLinkedBookings } = useContacts(selectedBranch?.id || null)
+  const { searchContacts, archiveContact, unarchiveContact, getLinkedBookings, getContactStats } = useContacts(selectedBranch?.id || null)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [includeArchived, setIncludeArchived] = useState(false)
@@ -28,6 +28,9 @@ export default function ClientsPage() {
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
   const [linkedBookings, setLinkedBookings] = useState<any[]>([])
   const [loadingBookings, setLoadingBookings] = useState(false)
+  const [contactStats, setContactStats] = useState<any>(null)
+  const [sortField, setSortField] = useState<'name' | 'created_at' | 'last_activity'>('created_at')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
   const pageSize = 20
 
@@ -82,11 +85,60 @@ export default function ClientsPage() {
     setSelectedContact(contact)
     setShowDetailsModal(true)
     
-    // Charger les réservations liées
+    // Charger les réservations liées et stats
     setLoadingBookings(true)
-    const bookings = await getLinkedBookings(contact.id)
+    const [bookings, stats] = await Promise.all([
+      getLinkedBookings(contact.id),
+      getContactStats(contact.id),
+    ])
     setLinkedBookings(bookings || [])
+    setContactStats(stats)
     setLoadingBookings(false)
+  }
+
+  // Export CSV
+  const handleExportCSV = () => {
+    const headers = ['Prénom', 'Nom', 'Téléphone', 'Email', 'Source', 'Statut', 'Créé le', 'Dernière mise à jour']
+    const rows = contacts.map(contact => [
+      contact.first_name || '',
+      contact.last_name || '',
+      contact.phone || '',
+      contact.email || '',
+      contact.source === 'admin_agenda' ? 'Agenda' : 'Public',
+      contact.status === 'active' ? 'Actif' : 'Archivé',
+      new Date(contact.created_at).toLocaleDateString('fr-FR'),
+      new Date(contact.updated_at).toLocaleDateString('fr-FR'),
+    ])
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n')
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `clients_${selectedBranch?.name || 'export'}_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  // Tri
+  const handleSort = (field: 'name' | 'created_at' | 'last_activity') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('desc')
+    }
+  }
+
+  const getSortIcon = (field: 'name' | 'created_at' | 'last_activity') => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-50" />
+    return sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 ml-1" /> : <ArrowDown className="w-3 h-3 ml-1" />
   }
 
   // Ouvrir modal création/édition
@@ -132,13 +184,23 @@ export default function ClientsPage() {
               {selectedBranch.name}
             </span>
           </div>
-          <button
-            onClick={() => handleOpenEditModal(null)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Nouveau contact
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleExportCSV}
+              disabled={contacts.length === 0}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
+            </button>
+            <button
+              onClick={() => handleOpenEditModal(null)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Nouveau contact
+            </button>
+          </div>
         </div>
       </div>
 
@@ -189,11 +251,28 @@ export default function ClientsPage() {
               <table className="w-full">
                 <thead className="bg-gray-700/50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Nom</th>
+                    <th 
+                      className="px-4 py-3 text-left text-sm font-medium text-gray-300 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center">
+                        Nom
+                        {getSortIcon('name')}
+                      </div>
+                    </th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Téléphone</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Email</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Source</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Statut</th>
+                    <th 
+                      className="px-4 py-3 text-left text-sm font-medium text-gray-300 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleSort('created_at')}
+                    >
+                      <div className="flex items-center">
+                        Créé le
+                        {getSortIcon('created_at')}
+                      </div>
+                    </th>
                     <th className="px-4 py-3 text-right text-sm font-medium text-gray-300">Actions</th>
                   </tr>
                 </thead>
@@ -225,6 +304,13 @@ export default function ClientsPage() {
                             Actif
                           </span>
                         )}
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-sm">
+                        {new Date(contact.created_at).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
