@@ -77,13 +77,13 @@ export function AdminHeader({
   }
 
   return (
-    <header className="bg-gray-900 border-b border-gray-800 px-6 py-4">
+    <header className={`${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} border-b px-6 py-4`}>
       <div className="flex items-center justify-between">
         {/* Logo et titre */}
         <div className="flex items-center gap-6">
-          <h1 className="text-xl font-bold text-white">
+          <h1 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
             Active Games
-            <span className="text-blue-400 ml-2">Admin</span>
+            <span className={`ml-2 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>Admin</span>
           </h1>
 
           {/* Sélecteur d'agence */}
@@ -94,15 +94,16 @@ export function AdminHeader({
           />
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-3">
-          {/* Boutons Navigation - Agenda et CRM */}
+        {/* Boutons Navigation - Agenda et CRM (au centre) */}
+        <div className="flex items-center gap-3 absolute left-1/2 transform -translate-x-1/2">
           <Link
             href="/admin"
             className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
               pathname === '/admin'
                 ? 'bg-blue-600 text-white'
-                : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                : theme === 'dark' 
+                  ? 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
             }`}
           >
             <Calendar className="w-4 h-4" />
@@ -113,12 +114,18 @@ export function AdminHeader({
             className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
               pathname === '/admin/clients'
                 ? 'bg-blue-600 text-white'
-                : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                : theme === 'dark' 
+                  ? 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
             }`}
           >
             <Users className="w-4 h-4" />
             <span className="hidden sm:inline">CRM</span>
           </Link>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-3">
 
           {/* Toggle thème */}
           <button
