@@ -295,7 +295,9 @@ export default function ClientsPage() {
       </div>
 
       {/* Recherche et filtres */}
-      <div className="px-6 py-4 bg-gray-800/50 border-b border-gray-700">
+      <div className={`px-6 py-4 border-b ${
+        isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'
+      }`}>
         <div className="flex items-center gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -423,17 +425,25 @@ export default function ClientsPage() {
             <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
           </div>
         ) : contacts.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">
+          <div className={`text-center py-12 ${
+            isDark ? 'text-gray-400' : 'text-gray-600'
+          }`}>
             Aucun contact trouvé
           </div>
         ) : (
           <>
-            <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+            <div className={`rounded-lg border overflow-hidden ${
+              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
               <table className="w-full">
-                <thead className="bg-gray-700/50">
+                <thead className={isDark ? 'bg-gray-700/50' : 'bg-gray-50'}>
                   <tr>
                     <th 
-                      className="px-4 py-3 text-left text-sm font-medium text-gray-300 cursor-pointer hover:bg-gray-700 transition-colors"
+                      className={`px-4 py-3 text-left text-sm font-medium cursor-pointer transition-colors ${
+                        isDark
+                          ? 'text-gray-300 hover:bg-gray-700'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
                       onClick={() => handleSort('name')}
                     >
                       <div className="flex items-center">
@@ -441,12 +451,24 @@ export default function ClientsPage() {
                         {getSortIcon('name')}
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Téléphone</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Email</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Source</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Statut</th>
+                    <th className={`px-4 py-3 text-left text-sm font-medium ${
+                      isDark ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Téléphone</th>
+                    <th className={`px-4 py-3 text-left text-sm font-medium ${
+                      isDark ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Email</th>
+                    <th className={`px-4 py-3 text-left text-sm font-medium ${
+                      isDark ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Source</th>
+                    <th className={`px-4 py-3 text-left text-sm font-medium ${
+                      isDark ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Statut</th>
                     <th 
-                      className="px-4 py-3 text-left text-sm font-medium text-gray-300 cursor-pointer hover:bg-gray-700 transition-colors"
+                      className={`px-4 py-3 text-left text-sm font-medium cursor-pointer transition-colors ${
+                        isDark
+                          ? 'text-gray-300 hover:bg-gray-700'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
                       onClick={() => handleSort('created_at')}
                     >
                       <div className="flex items-center">
@@ -454,24 +476,40 @@ export default function ClientsPage() {
                         {getSortIcon('created_at')}
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-300">Actions</th>
+                    <th className={`px-4 py-3 text-right text-sm font-medium ${
+                      isDark ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-700">
+                <tbody className={`divide-y ${
+                  isDark ? 'divide-gray-700' : 'divide-gray-200'
+                }`}>
                   {contacts.map((contact) => (
-                    <tr key={contact.id} className="hover:bg-gray-700/30 transition-colors">
+                    <tr key={contact.id} className={`transition-colors ${
+                      isDark ? 'hover:bg-gray-700/30' : 'hover:bg-gray-50'
+                    }`}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                             <User className="w-4 h-4 text-white" />
                           </div>
-                          <span className="font-medium">{getDisplayName(contact)}</span>
+                          <span className={`font-medium ${
+                            isDark ? 'text-white' : 'text-gray-900'
+                          }`}>{getDisplayName(contact)}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-gray-300">{contact.phone}</td>
-                      <td className="px-4 py-3 text-gray-300">{contact.email || '-'}</td>
+                      <td className={`px-4 py-3 ${
+                        isDark ? 'text-gray-300' : 'text-gray-700'
+                      }`}>{contact.phone}</td>
+                      <td className={`px-4 py-3 ${
+                        isDark ? 'text-gray-300' : 'text-gray-700'
+                      }`}>{contact.email || '-'}</td>
                       <td className="px-4 py-3">
-                        <span className="px-2 py-1 text-xs rounded-full bg-gray-700 text-gray-300">
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          isDark
+                            ? 'bg-gray-700 text-gray-300'
+                            : 'bg-gray-200 text-gray-700'
+                        }`}>
                           {contact.source === 'admin_agenda' ? 'Agenda' : 'Public'}
                         </span>
                       </td>
@@ -486,7 +524,9 @@ export default function ClientsPage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-gray-400 text-sm">
+                      <td className={`px-4 py-3 text-sm ${
+                        isDark ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
                         {new Date(contact.created_at).toLocaleDateString('fr-FR', {
                           day: 'numeric',
                           month: 'short',
@@ -497,17 +537,23 @@ export default function ClientsPage() {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleViewDetails(contact)}
-                            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                            className={`p-2 rounded-lg transition-colors ${
+                              isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                            }`}
                             title="Voir détails"
                           >
                             <Eye className="w-4 h-4 text-blue-400" />
                           </button>
                           <button
                             onClick={() => handleOpenEditModal(contact)}
-                            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                            className={`p-2 rounded-lg transition-colors ${
+                              isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                            }`}
                             title="Modifier"
                           >
-                            <Edit2 className="w-4 h-4 text-gray-400" />
+                            <Edit2 className={`w-4 h-4 ${
+                              isDark ? 'text-gray-400' : 'text-gray-600'
+                            }`} />
                           </button>
                           {contact.status === 'archived' ? (
                             <button
