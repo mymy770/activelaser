@@ -1,5 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { updateContact, deleteContact, getAllContacts } from '@/lib/contacts'
+import { createClient } from '@/lib/supabase/server'
+import type { Contact, ContactStatus } from '@/lib/supabase/types'
+
+/**
+ * GET /api/contacts/[id]
+ * Récupère un contact spécifique
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const supabase = await createClient()
+    const { id } = await params
+
+    const { data: contact, error } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('id', id)
+      .single<Contact>()
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return NextResponse.json(
+          { success: false, error: 'Contact not found' },
+          { status: 404 }
+        )
+      }
+      console.error('Error fetching contact:', error)
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch contact' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({ success: true, contact })
+  } catch (error) {
+    console.error('Error fetching contact:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch contact' },
+      { status: 500 }
+    )
+  }
+}
 
 /**
  * PUT /api/contacts/[id]
@@ -10,43 +53,57 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const supabase = await createClient()
     const { id } = await params
     const body = await request.json()
 
-    const phone = (body.phone || '').toString().trim() || null
-    const firstName =
-      typeof body.firstName === 'string' ? body.firstName.trim() || null : null
-    const lastName =
-      typeof body.lastName === 'string' ? body.lastName.trim() || null : null
-    const email =
-      typeof body.email === 'string' ? body.email.trim() || null : null
-    const alias =
-      typeof body.alias === 'string' ? body.alias.trim() || null : null
-    const notes =
-      typeof body.notes === 'string' ? body.notes.trim() || null : null
-    const branch =
-      typeof body.branch === 'string' ? body.branch.trim() || null : null
-    const source =
-      (typeof body.source === 'string' && body.source.trim()) || undefined
+    const updateData: Record<string, unknown> = {}
 
-    // Au moins prénom OU nom requis
-    if (!firstName && !lastName) {
-      return NextResponse.json(
-        { success: false, error: 'First name or last name is required' },
-        { status: 400 }
-      )
+    if (body.first_name !== undefined) updateData.first_name = body.first_name?.trim()
+    if (body.last_name !== undefined) updateData.last_name = body.last_name?.trim() || null
+    if (body.phone !== undefined) updateData.phone = body.phone?.trim()
+    if (body.email !== undefined) updateData.email = body.email?.trim() || null
+    if (body.notes_client !== undefined) updateData.notes_client = body.notes_client?.trim() || null
+    if (body.alias !== undefined) updateData.alias = body.alias?.trim() || null
+    if (body.source !== undefined) updateData.source = body.source
+
+    // Gestion du status (archivage/désarchivage)
+    if (body.status !== undefined) {
+      updateData.status = body.status as ContactStatus
+      if (body.status === 'archived') {
+        updateData.archived_at = new Date().toISOString()
+        if (body.archived_reason !== undefined) {
+          updateData.archived_reason = body.archived_reason?.trim() || null
+        }
+      } else if (body.status === 'active') {
+        updateData.archived_at = null
+        updateData.archived_reason = null
+      }
     }
 
-    const contact = await updateContact(id, {
-      firstName,
-      lastName,
-      phone: phone || undefined,
-      email,
-      alias,
-      notes,
-      branch,
-      source,
-    })
+    // updated_at sera mis à jour automatiquement par le trigger
+    updateData.updated_at = new Date().toISOString()
+
+    const { data: contact, error } = await supabase
+      .from('contacts')
+      .update(updateData as any)
+      .eq('id', id)
+      .select()
+      .single<Contact>()
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return NextResponse.json(
+          { success: false, error: 'Contact not found' },
+          { status: 404 }
+        )
+      }
+      console.error('Error updating contact:', error)
+      return NextResponse.json(
+        { success: false, error: error.message || 'Failed to update contact' },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({ success: true, contact })
   } catch (error) {
@@ -60,52 +117,45 @@ export async function PUT(
 
 /**
  * DELETE /api/contacts/[id]
- * Supprime un contact spécifique
+ * Archive un contact (soft delete) - pas de hard delete via UI
  */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const supabase = await createClient()
     const { id } = await params
 
-    await deleteContact(id)
+    // Soft delete = archivage (pas de hard delete via UI en v1)
+    const { error } = await supabase
+      .from('contacts')
+      .update({
+        status: 'archived',
+        archived_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as any)
+      .eq('id', id)
 
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('Error deleting contact:', error)
-    return NextResponse.json(
-      { success: false, error: 'Failed to delete contact' },
-      { status: 500 }
-    )
-  }
-}
-
-/**
- * GET /api/contacts/[id]
- * Récupère un contact spécifique
- */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params
-    const contacts = await getAllContacts()
-    const contact = contacts.find(c => c.id === id)
-
-    if (!contact) {
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return NextResponse.json(
+          { success: false, error: 'Contact not found' },
+          { status: 404 }
+        )
+      }
+      console.error('Error archiving contact:', error)
       return NextResponse.json(
-        { success: false, error: 'Contact not found' },
-        { status: 404 }
+        { success: false, error: error.message || 'Failed to archive contact' },
+        { status: 500 }
       )
     }
 
-    return NextResponse.json({ success: true, contact })
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error fetching contact:', error)
+    console.error('Error archiving contact:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch contact' },
+      { success: false, error: 'Failed to archive contact' },
       { status: 500 }
     )
   }
