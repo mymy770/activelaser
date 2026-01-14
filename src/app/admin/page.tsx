@@ -136,6 +136,7 @@ export default function AdminPage() {
     capacity: number
     isOverbooked: boolean
     overbookedCount: number
+    slotsOver: number // Nombre de slots en surplus
   }
 
   // Constantes configurables
@@ -179,6 +180,10 @@ export default function AdminPage() {
 
       const isOverbooked = totalParticipants > capacity
       const overbookedCount = isOverbooked ? totalParticipants - capacity : 0
+      
+      // Calculer le nombre de slots en surplus (overSlots)
+      // overSlots = ceil(overPeople / MAX_PLAYERS_PER_SLOT)
+      const overSlots = isOverbooked ? Math.ceil(overbookedCount / MAX_PLAYERS_PER_SLOT) : 0
 
       // Clé = timestamp arrondi à 15 min
       const timeKey = Math.floor(timeSlotStart.getTime() / (SLOT_DURATION * 60 * 1000)) * (SLOT_DURATION * 60 * 1000)
@@ -187,7 +192,8 @@ export default function AdminPage() {
         totalParticipants,
         capacity,
         isOverbooked,
-        overbookedCount
+        overbookedCount,
+        slotsOver: overSlots
       })
     }
 
@@ -293,7 +299,32 @@ export default function AdminPage() {
       }
     }
 
-    return segments
+    // Merger les segments contigus (même bookingId + même slotsKey + end == next.start)
+    const mergedSegments: UISegment[] = []
+    for (let i = 0; i < segments.length; i++) {
+      const current = segments[i]
+      if (mergedSegments.length === 0) {
+        mergedSegments.push({ ...current })
+        continue
+      }
+      
+      const last = mergedSegments[mergedSegments.length - 1]
+      // Vérifier si on peut merger : même booking, même slots, et contigu
+      if (
+        last.bookingId === current.bookingId &&
+        last.slotsKey === current.slotsKey &&
+        last.end.getTime() === current.start.getTime()
+      ) {
+        // Merger : étendre le dernier segment
+        last.end = current.end
+        last.segmentId = `${last.bookingId}-${last.start.getTime()}-${last.end.getTime()}-${last.slotsKey}`
+      } else {
+        // Nouveau segment
+        mergedSegments.push({ ...current })
+      }
+    }
+
+    return mergedSegments
   }
 
   // Calculer CAPACITY (après les hooks, mais TOTAL_SLOTS est déjà défini plus haut)
@@ -1430,7 +1461,9 @@ export default function AdminPage() {
         {/* Grille de l'agenda */}
         <div className={`rounded-xl overflow-hidden relative ${isDark ? 'bg-gray-800' : 'bg-white'}`} style={{ 
           position: 'relative',
-          border: `2px solid ${isDark ? '#374151' : '#e5e7eb'}` // Même épaisseur que les cellules (2px)
+          border: `2px solid ${isDark ? '#374151' : '#e5e7eb'}`, // Même épaisseur que les cellules (2px)
+          width: '100%',
+          maxWidth: '100%'
         }}>
           {/* Loader sur la grille */}
           {bookingsLoading && (
@@ -1440,9 +1473,9 @@ export default function AdminPage() {
           )}
 
           {/* 3 Grilles séparées côte à côte */}
-          <div className="flex gap-0">
+          <div className="flex gap-0" style={{ width: '100%', minWidth: 0 }}>
             {/* GRID GAME - Heure + S1-S14 */}
-            <div className="flex-shrink-0" style={{ borderRight: `2px solid ${isDark ? '#374151' : '#e5e7eb'}` }}>
+            <div style={{ flex: '1 1 auto', minWidth: 0, borderRight: `2px solid ${isDark ? '#374151' : '#e5e7eb'}` }}>
               {/* En-tête GRID GAME */}
               <div className={`grid ${isDark ? '' : ''}`} style={{
                 gridTemplateColumns: `80px repeat(${TOTAL_SLOTS}, 1fr)`,
@@ -1462,6 +1495,7 @@ export default function AdminPage() {
               <div className="grid" style={{
                 gridTemplateColumns: `80px repeat(${TOTAL_SLOTS}, 1fr)`,
                 gridTemplateRows: `repeat(${timeSlots.length}, 20px)`,
+                minWidth: 0
               }}>
             {/* Colonne Heure */}
             {timeSlots.map((slot, timeIndex) => {
@@ -1534,8 +1568,13 @@ export default function AdminPage() {
                     const isPartOfSegment = segment && !(isSegmentStart && isSegmentTop)
                     if (isPartOfSegment) return null
 
-                    // Afficher les détails uniquement sur la première ligne du segment (première tranche de 15 minutes)
-                    const showDetails = segment && isSegmentStart && isSegmentTop
+                    // Afficher les détails uniquement sur le premier segment du booking (premier segment continu)
+                    // Vérifier si c'est le premier segment de ce booking (pas juste le premier segment de 15 min)
+                    const isFirstSegmentOfBooking = segment && (
+                      timeIndex === 0 || 
+                      getSegmentForCellSlots(timeSlots[timeIndex - 1].hour, timeSlots[timeIndex - 1].minute, slotIndex)?.bookingId !== segment.bookingId
+                    )
+                    const showDetails = segment && isSegmentStart && isSegmentTop && isFirstSegmentOfBooking
                     
                     const gridColumn = slotIndex + 2 // +2 car colonne 1 = Heure
                     const gridRow = timeIndex + 1
@@ -1578,6 +1617,7 @@ export default function AdminPage() {
                           backgroundColor: booking ? (booking.color || (booking.type === 'EVENT' ? '#22c55e' : '#3b82f6')) : 'transparent',
                           // Afficher les bordures seulement sur les créneaux de 30 minutes (0 et 30)
                           // Supprimer les bordures des créneaux de 15 minutes (15 et 45)
+                          // Masquer les bordures internes si c'est le même booking continu
                           borderTop: (slot.minute === 15 || slot.minute === 45) ? 'none' : `2px solid ${booking ? (booking.color || (booking.type === 'EVENT' ? (isDark ? '#4ade80' : '#16a34a') : (isDark ? '#60a5fa' : '#2563eb'))) : (isDark ? '#374151' : '#e5e7eb')}`,
                           borderBottom: (slot.minute === 15 || slot.minute === 45 || (timeSlots[timeIndex + 1]?.minute === 15 || timeSlots[timeIndex + 1]?.minute === 45)) ? 'none' : `2px solid ${booking ? (booking.color || (booking.type === 'EVENT' ? (isDark ? '#4ade80' : '#16a34a') : (isDark ? '#60a5fa' : '#2563eb'))) : (isDark ? '#374151' : '#e5e7eb')}`,
                           borderLeft: `2px solid ${booking ? (booking.color || (booking.type === 'EVENT' ? (isDark ? '#4ade80' : '#16a34a') : (isDark ? '#60a5fa' : '#2563eb'))) : (isDark ? '#374151' : '#e5e7eb')}`,
@@ -1585,12 +1625,7 @@ export default function AdminPage() {
                         }}
                         title={booking ? `${booking.customer_first_name} ${booking.customer_last_name} - ${booking.participants_count} pers.` : ''}
                       >
-                        {/* Badge OB (sans chiffre) si overbooking sur cette tranche */}
-                        {segment && segment.isOverbooked && showDetails && (
-                          <div className="absolute left-1 top-1 bg-red-500 text-white text-xs font-bold rounded px-1" style={{ zIndex: 10 }}>
-                            OB
-                          </div>
-                        )}
+                        {/* Badge OB supprimé - la colonne OB est la source de vérité */}
                         {booking && showDetails && (
                           <div className={`${getTextSizeClass(displayTextSize)} ${getTextWeightClass(displayTextWeight)} leading-tight ${isDark ? 'text-white' : 'text-white'}`} style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
                             {booking.customer_first_name}{booking.participants_count}
@@ -1606,7 +1641,7 @@ export default function AdminPage() {
             </div>
 
             {/* GRID OB - 1 colonne métrique */}
-            <div className="flex-shrink-0" style={{ borderRight: `2px solid ${isDark ? '#374151' : '#e5e7eb'}` }}>
+            <div style={{ flex: '0 0 80px', borderRight: `2px solid ${isDark ? '#374151' : '#e5e7eb'}` }}>
               {/* En-tête GRID OB */}
               <div className={`grid ${isDark ? '' : ''}`} style={{
                 gridTemplateColumns: `1fr`,
@@ -1652,8 +1687,12 @@ export default function AdminPage() {
                       }}
                     >
                       {obData && obData.totalParticipants > 0 && (
-                        <span>
-                          {obData.isOverbooked ? `+${obData.overbookedCount}` : obData.totalParticipants}
+                        <span className="text-xs font-bold">
+                          {obData.isOverbooked ? (
+                            `+${obData.slotsOver}S/${obData.overbookedCount}P`
+                          ) : (
+                            `${obData.totalParticipants}`
+                          )}
                         </span>
                       )}
                     </div>
@@ -1663,7 +1702,7 @@ export default function AdminPage() {
             </div>
 
             {/* GRID ROOMS - Heure + Room A-D */}
-            <div className="flex-shrink-0">
+            <div style={{ flex: '0 0 auto', minWidth: 0 }}>
               {/* En-tête GRID ROOMS */}
               <div className={`grid ${isDark ? '' : ''}`} style={{
                 gridTemplateColumns: `80px repeat(${TOTAL_ROOMS}, 1fr)`,
