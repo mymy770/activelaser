@@ -1,8 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X, Loader2, Users, Clock, User, Phone, Mail, MessageSquare, Gamepad2, PartyPopper, Palette, Home, Calendar, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 import type { CreateBookingData, BookingWithSlots } from '@/hooks/useBookings'
+
+interface OverbookingInfo {
+  willCauseOverbooking: boolean
+  maxOverbookedCount: number
+  maxOverbookedSlots: number
+  affectedTimeSlots: Array<{ time: string; overbookedCount: number; overbookedSlots: number; totalParticipants: number; capacity: number }>
+}
 
 interface BookingModalProps {
   isOpen: boolean
@@ -15,7 +22,10 @@ interface BookingModalProps {
   initialMinute?: number
   editingBooking?: BookingWithSlots | null
   isDark: boolean
+  defaultBookingType?: BookingType // Type par défaut selon où on clique
   findBestAvailableRoom?: (participants: number, startDateTime: Date, endDateTime: Date) => string | null
+  findRoomAvailability?: (participants: number, startDateTime: Date, endDateTime: Date) => { bestRoomId: string | null; availableRoomWithLowerCapacity: { id: string; capacity: number } | null; hasAnyAvailableRoom: boolean }
+  calculateOverbooking?: (participants: number, startDateTime: Date, endDateTime: Date, excludeBookingId?: string) => OverbookingInfo
 }
 
 type BookingType = 'GAME' | 'EVENT'
@@ -53,13 +63,24 @@ export function BookingModal({
   initialMinute = 0,
   editingBooking = null,
   isDark,
-  findBestAvailableRoom
+  defaultBookingType = 'GAME',
+  findBestAvailableRoom,
+  findRoomAvailability,
+  calculateOverbooking
 }: BookingModalProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showOverCapacityConfirm, setShowOverCapacityConfirm] = useState(false)
+  const [showNoRoomAvailable, setShowNoRoomAvailable] = useState(false)
+  const [showLowerCapacityRoom, setShowLowerCapacityRoom] = useState(false)
+  const [showOverbookingWarning, setShowOverbookingWarning] = useState(false)
+  const [overbookingInfo, setOverbookingInfo] = useState<OverbookingInfo | null>(null)
   const [pendingRoomId, setPendingRoomId] = useState<string | null | undefined>(null)
+  const [lowerCapacityRoomInfo, setLowerCapacityRoomInfo] = useState<{ id: string; capacity: number } | null>(null)
+  
+  // Référence pour suivre si le modal vient de s'ouvrir (pour éviter de réinitialiser le type quand l'utilisateur le change)
+  const prevIsOpenRef = useRef(false)
 
   // Date locale (modifiable)
   const [localDate, setLocalDate] = useState(selectedDate)
@@ -87,22 +108,11 @@ export function BookingModal({
   const [roomDurationMinutes, setRoomDurationMinutes] = useState('120') // Durée salle par défaut 2 heures, modifiable
   const [eventAlias, setEventAlias] = useState('') // Alias : nom de la personne qui fête l'événement
   const [eventNotes, setEventNotes] = useState('') // Notes spécifiques à l'événement/salle
-  const [sessionId, setSessionId] = useState('') // ID unique de la session (jeu ou événement, auto-généré)
 
   // Fonction pour générer un ID unique de contact (numéro séquentiel simple)
   const generateContactId = (): string => {
     // Utiliser localStorage pour stocker le dernier ID utilisé
     const storageKey = `lastContactId_${branchId}`
-    const lastId = localStorage.getItem(storageKey)
-    const nextId = lastId ? parseInt(lastId, 10) + 1 : 1
-    localStorage.setItem(storageKey, nextId.toString())
-    return nextId.toString()
-  }
-
-  // Fonction pour générer un ID unique de session (numéro séquentiel simple)
-  const generateSessionId = (): string => {
-    // Utiliser localStorage pour stocker le dernier ID utilisé
-    const storageKey = `lastSessionId_${branchId}`
     const lastId = localStorage.getItem(storageKey)
     const nextId = lastId ? parseInt(lastId, 10) + 1 : 1
     localStorage.setItem(storageKey, nextId.toString())
@@ -125,7 +135,11 @@ export function BookingModal({
 
   // Reset le formulaire quand on ouvre/ferme ou charge une réservation à éditer
   useEffect(() => {
-    if (isOpen) {
+    // Ne réinitialiser que si le modal vient de s'ouvrir (passage de false à true)
+    const justOpened = isOpen && !prevIsOpenRef.current
+    prevIsOpenRef.current = isOpen
+    
+    if (justOpened) {
       if (editingBooking) {
         // Mode édition : pré-remplir avec les données de la réservation
         const bookingStartDate = extractLocalDateFromISO(editingBooking.game_start_datetime || editingBooking.start_datetime)
@@ -148,17 +162,17 @@ export function BookingModal({
           setContactId(generateContactId())
         }
         
-        // Extraire l'alias (pour les événements)
-        if (editingBooking.type === 'EVENT') {
-          const aliasMatch = notes.match(/Alias: ([^\n]+)/)
-          if (aliasMatch) {
-            setEventAlias(aliasMatch[1].trim())
-          }
-          // Extraire les notes de l'événement (après Alias)
-          const eventNotesMatch = notes.match(/Alias: [^\n]+\n(.*?)(?:\n(?:Contact ID|Session ID):|$)/s)
-          if (eventNotesMatch) {
-            setEventNotes(eventNotesMatch[1].trim())
-          }
+          // Extraire l'alias (pour les événements)
+          if (editingBooking.type === 'EVENT') {
+            const aliasMatch = notes.match(/Alias: ([^\n]+)/)
+            if (aliasMatch) {
+              setEventAlias(aliasMatch[1].trim())
+            }
+            // Extraire les notes de l'événement (après Alias)
+            const eventNotesMatch = notes.match(/Alias: [^\n]+\n(.*?)(?:\n(?:Contact ID):|$)/s)
+            if (eventNotesMatch) {
+              setEventNotes(eventNotesMatch[1].trim())
+            }
           
           // Calculer la durée de la salle
           if (editingBooking.start_datetime && editingBooking.end_datetime) {
@@ -191,7 +205,7 @@ export function BookingModal({
           }
           
           // Extraire les notes de contact (pour les jeux)
-          const contactNotesMatch = notes.match(/(?:Session ID: \d+\n)?Contact ID: \d+\n(.*?)$/s)
+          const contactNotesMatch = notes.match(/Contact ID: \d+\n(.*?)$/s)
           if (contactNotesMatch) {
             setNotes(contactNotesMatch[1].trim())
           }
@@ -215,11 +229,11 @@ export function BookingModal({
         setRoomStartHour(initialHour)
         setRoomStartMinute(initialMinute)
         setParticipants('1')
+        setBookingType(defaultBookingType) // Utiliser le type par défaut selon où on clique
         setEventAlias('')
         setEventNotes('')
         setNotes('')
         setContactId(generateContactId())
-        setSessionId(generateSessionId())
         setDurationMinutes('60')
         setRoomDurationMinutes('120')
         setFirstName('')
@@ -228,17 +242,11 @@ export function BookingModal({
         setEmail('')
         setError(null)
         // Couleur par défaut selon le type
-        setColor(bookingType === 'GAME' ? COLORS[0].value : COLORS[1].value)
+        setColor(defaultBookingType === 'GAME' ? COLORS[0].value : COLORS[1].value)
       }
     }
-  }, [isOpen, selectedDate, initialHour, initialMinute, bookingType, editingBooking])
+  }, [isOpen, selectedDate, initialHour, initialMinute, defaultBookingType, editingBooking])
 
-  // Générer le Session ID si nécessaire
-  useEffect(() => {
-    if (!sessionId && !editingBooking) {
-      setSessionId(generateSessionId())
-    }
-  }, [sessionId, editingBooking])
 
   // Générer le calendrier pour le modal
   const getCalendarDays = () => {
@@ -300,6 +308,24 @@ export function BookingModal({
   useEffect(() => {
     setColor(bookingType === 'GAME' ? COLORS[0].value : COLORS[1].value)
   }, [bookingType])
+
+  // Pour les EVENT : synchroniser automatiquement l'heure du jeu avec l'heure de la salle + 15 minutes
+  useEffect(() => {
+    if (bookingType === 'EVENT' && !editingBooking) {
+      // Calculer l'heure du jeu = heure de la salle + 15 minutes
+      const roomStartMinutes = roomStartHour * 60 + roomStartMinute
+      const gameStartMinutes = roomStartMinutes + 15
+      const newGameHour = Math.floor(gameStartMinutes / 60)
+      const newGameMinute = gameStartMinutes % 60
+      
+      // Mettre à jour seulement si différent (éviter les boucles infinies)
+      // Ne pas inclure hour et minute dans les dépendances pour éviter les boucles
+      if (hour !== newGameHour || minute !== newGameMinute) {
+        setHour(newGameHour)
+        setMinute(newGameMinute)
+      }
+    }
+  }, [bookingType, roomStartHour, roomStartMinute, editingBooking, hour, minute])
 
   // Générer les options d'heures
   const hourOptions = []
@@ -401,12 +427,12 @@ export function BookingModal({
         customer_phone: phone.trim(),
         customer_email: email.trim() || undefined,
         notes: bookingType === 'EVENT' 
-          ? (eventAlias.trim() || eventNotes.trim() || contactId || sessionId
-              ? `Session ID: ${sessionId}\nContact ID: ${contactId}\nAlias: ${eventAlias.trim() || 'N/A'}\n${eventNotes.trim()}`.trim() 
-              : `Session ID: ${sessionId}\nContact ID: ${contactId}`)
-          : (notes.trim() || contactId || sessionId
-              ? `Session ID: ${sessionId}\nContact ID: ${contactId}\n${notes.trim()}`.trim()
-              : `Session ID: ${sessionId}\nContact ID: ${contactId}`),
+          ? (eventAlias.trim() || eventNotes.trim() || contactId
+              ? `Contact ID: ${contactId}\nAlias: ${eventAlias.trim() || 'N/A'}\n${eventNotes.trim()}`.trim() 
+              : `Contact ID: ${contactId}`)
+          : (notes.trim() || contactId
+              ? `Contact ID: ${contactId}\n${notes.trim()}`.trim()
+              : `Contact ID: ${contactId}`),
         // color: color, // Désactivé temporairement jusqu'à ce que la colonne soit ajoutée dans la base de données
         slots
       }
@@ -467,7 +493,35 @@ export function BookingModal({
     // Si événement, vérifier la salle
     let eventRoomId: string | null | undefined = editingBooking?.event_room_id || null
     
-    if (bookingType === 'EVENT' && findBestAvailableRoom) {
+    if (bookingType === 'EVENT' && findRoomAvailability) {
+      const roomStartDate = new Date(localDate)
+      roomStartDate.setHours(roomStartHour, roomStartMinute, 0, 0)
+
+      const { endHour: roomEndHour, endMinute: roomEndMinute } = calculateRoomEndTime()
+      const roomEndDate = new Date(localDate)
+      roomEndDate.setHours(roomEndHour, roomEndMinute, 0, 0)
+
+      const roomAvailability = findRoomAvailability(parsedParticipants, roomStartDate, roomEndDate)
+      
+      if (roomAvailability.bestRoomId) {
+        // Une salle avec capacité suffisante est disponible
+        eventRoomId = roomAvailability.bestRoomId
+      } else if (roomAvailability.availableRoomWithLowerCapacity) {
+        // Une salle disponible mais avec capacité inférieure
+        setLowerCapacityRoomInfo(roomAvailability.availableRoomWithLowerCapacity)
+        setShowLowerCapacityRoom(true)
+        return
+      } else if (!roomAvailability.hasAnyAvailableRoom) {
+        // Aucune salle disponible du tout - NE PAS AUTORISER
+        setShowNoRoomAvailable(true)
+        return
+      } else {
+        // Cas de secours (ne devrait pas arriver)
+        setError('Aucune salle disponible pour cette quantité. Veuillez réduire le nombre de participants.')
+        return
+      }
+    } else if (bookingType === 'EVENT' && findBestAvailableRoom) {
+      // Fallback vers l'ancienne fonction si findRoomAvailability n'est pas fournie
       const roomStartDate = new Date(localDate)
       roomStartDate.setHours(roomStartHour, roomStartMinute, 0, 0)
 
@@ -488,21 +542,135 @@ export function BookingModal({
       }
     }
 
+    // Vérifier l'overbooking avant de soumettre (pour GAME et EVENT)
+    if (calculateOverbooking && (bookingType === 'GAME' || bookingType === 'EVENT')) {
+      const gameStartDate = new Date(localDate)
+      gameStartDate.setHours(hour || 10, minute || 0, 0, 0)
+      
+      const { endHour: gameEndHour, endMinute: gameEndMinute } = calculateGameEndTime()
+      const gameEndDate = new Date(localDate)
+      gameEndDate.setHours(gameEndHour, gameEndMinute, 0, 0)
+
+      const obInfo = calculateOverbooking(
+        parsedParticipants,
+        gameStartDate,
+        gameEndDate,
+        editingBooking?.id
+      )
+
+      if (obInfo.willCauseOverbooking) {
+        // Stocker la salle avant d'afficher le popup
+        setPendingRoomId(eventRoomId)
+        setOverbookingInfo(obInfo)
+        setShowOverbookingWarning(true)
+        return
+      }
+    }
+
     // Soumettre avec la salle trouvée
     await submitWithRoom(eventRoomId)
   }
 
   const handleOverCapacityConfirm = async () => {
+    const confirmedRoomId = pendingRoomId
     setShowOverCapacityConfirm(false)
-    // Soumettre avec la salle actuelle (ou null)
-    await submitWithRoom(pendingRoomId)
     setPendingRoomId(null)
+    
+    // Après avoir confirmé la salle, vérifier l'overbooking avant de soumettre
+    if (calculateOverbooking && (bookingType === 'GAME' || bookingType === 'EVENT')) {
+      const gameStartDate = new Date(localDate)
+      gameStartDate.setHours(hour || 10, minute || 0, 0, 0)
+      
+      const { endHour: gameEndHour, endMinute: gameEndMinute } = calculateGameEndTime()
+      const gameEndDate = new Date(localDate)
+      gameEndDate.setHours(gameEndHour, gameEndMinute, 0, 0)
+
+      const obInfo = calculateOverbooking(
+        parsedParticipants,
+        gameStartDate,
+        gameEndDate,
+        editingBooking?.id
+      )
+
+      if (obInfo.willCauseOverbooking) {
+        // Stocker la salle confirmée et afficher le popup d'overbooking
+        setPendingRoomId(confirmedRoomId)
+        setOverbookingInfo(obInfo)
+        setShowOverbookingWarning(true)
+        return
+      }
+    }
+    
+    // Pas d'overbooking, soumettre directement
+    await submitWithRoom(confirmedRoomId)
   }
 
   const handleOverCapacityCancel = () => {
     setShowOverCapacityConfirm(false)
     setError('Réservation annulée. Veuillez réduire le nombre de participants ou choisir une autre période.')
     setPendingRoomId(null)
+  }
+
+  const handleLowerCapacityRoomConfirm = async () => {
+    if (lowerCapacityRoomInfo) {
+      const confirmedRoomId = lowerCapacityRoomInfo.id
+      setShowLowerCapacityRoom(false)
+      setLowerCapacityRoomInfo(null)
+      
+      // Après avoir confirmé la salle, vérifier l'overbooking avant de soumettre
+      if (calculateOverbooking && (bookingType === 'GAME' || bookingType === 'EVENT')) {
+        const gameStartDate = new Date(localDate)
+        gameStartDate.setHours(hour || 10, minute || 0, 0, 0)
+        
+        const { endHour: gameEndHour, endMinute: gameEndMinute } = calculateGameEndTime()
+        const gameEndDate = new Date(localDate)
+        gameEndDate.setHours(gameEndHour, gameEndMinute, 0, 0)
+
+        const obInfo = calculateOverbooking(
+          parsedParticipants,
+          gameStartDate,
+          gameEndDate,
+          editingBooking?.id
+        )
+
+        if (obInfo.willCauseOverbooking) {
+          // Stocker la salle confirmée et afficher le popup d'overbooking
+          setPendingRoomId(confirmedRoomId)
+          setOverbookingInfo(obInfo)
+          setShowOverbookingWarning(true)
+          return
+        }
+      }
+      
+      // Pas d'overbooking, soumettre directement
+      await submitWithRoom(confirmedRoomId)
+    }
+  }
+
+  const handleLowerCapacityRoomCancel = () => {
+    setShowLowerCapacityRoom(false)
+    setError(`Aucune salle disponible pour ${parsedParticipants} participants. Veuillez réduire le nombre de participants ou choisir une autre période.`)
+    setLowerCapacityRoomInfo(null)
+  }
+
+  const handleNoRoomAvailableClose = () => {
+    setShowNoRoomAvailable(false)
+    setError(`Aucune salle disponible pour ${parsedParticipants} participants. Veuillez réduire le nombre de participants ou choisir une autre période.`)
+  }
+
+  const handleOverbookingConfirm = async () => {
+    setShowOverbookingWarning(false)
+    // Continuer avec la soumission
+    const eventRoomId = pendingRoomId || editingBooking?.event_room_id || null
+    await submitWithRoom(eventRoomId)
+    setOverbookingInfo(null)
+    setPendingRoomId(null)
+  }
+
+  const handleOverbookingCancel = () => {
+    setShowOverbookingWarning(false)
+    setError('Réservation annulée. Veuillez réduire le nombre de participants ou choisir une autre période.')
+    setOverbookingInfo(null)
   }
 
   const handleDeleteClick = () => {
@@ -670,20 +838,20 @@ export function BookingModal({
 
         {/* Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
-          {/* Session ID */}
+          {/* Reference Code / Numéro de commande */}
           <div>
             <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-              Session ID
+              Numéro de commande
             </label>
             <div className={`px-3 py-2 rounded-lg border text-sm font-mono ${
               isDark
                 ? 'bg-gray-700/50 border-gray-600 text-gray-300'
                 : 'bg-gray-100 border-gray-300 text-gray-700'
             }`}>
-              {sessionId || 'Génération...'}
+              {editingBooking?.reference_code || 'Création en cours...'}
             </div>
             <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-              Numéro unique généré automatiquement
+              {editingBooking ? 'Numéro unique de la réservation' : 'Sera généré automatiquement à la création'}
             </p>
           </div>
 
@@ -1194,6 +1362,185 @@ export function BookingModal({
                     </>
                   ) : (
                     'Continuer quand même'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal : Aucune salle disponible (NON AUTORISABLE) */}
+      {showNoRoomAvailable && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={handleNoRoomAvailableClose}
+          />
+
+          {/* Modal */}
+          <div className={`relative w-full max-w-md mx-4 rounded-2xl shadow-2xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+            <div className="p-6">
+              <h3 className={`text-xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                ❌ Aucune salle disponible
+              </h3>
+              <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                Aucune salle disponible pour <strong>{parsedParticipants} participants</strong> à cette période.<br /><br />
+                Veuillez réduire le nombre de participants ou choisir une autre période.
+              </p>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleNoRoomAvailableClose}
+                  disabled={loading}
+                  className={`px-4 py-2 rounded-lg ${
+                    isDark
+                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  } disabled:opacity-50`}
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal : Salle disponible avec capacité inférieure (AUTORISABLE) */}
+      {showLowerCapacityRoom && lowerCapacityRoomInfo && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={handleLowerCapacityRoomCancel}
+          />
+
+          {/* Modal */}
+          <div className={`relative w-full max-w-md mx-4 rounded-2xl shadow-2xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+            <div className="p-6">
+              <h3 className={`text-xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                ⚠️ Capacité inférieure disponible
+              </h3>
+              <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                Vous avez demandé <strong>{parsedParticipants} participants</strong>, mais la plus grande salle disponible a une capacité de <strong>{lowerCapacityRoomInfo.capacity} participants</strong>.<br /><br />
+                {parsedParticipants > lowerCapacityRoomInfo.capacity ? (
+                  <>
+                    Cette salle dépasse sa capacité maximale de <strong>{parsedParticipants - lowerCapacityRoomInfo.capacity} participants</strong>.<br /><br />
+                  </>
+                ) : null}
+                Voulez-vous utiliser cette salle quand même ?
+              </p>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleLowerCapacityRoomCancel}
+                  disabled={loading}
+                  className={`px-4 py-2 rounded-lg ${
+                    isDark
+                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  } disabled:opacity-50`}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLowerCapacityRoomConfirm}
+                  disabled={loading}
+                  className="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white flex items-center gap-2 disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      En cours...
+                    </>
+                  ) : (
+                    'Utiliser cette salle'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal : Avertissement d'overbooking */}
+      {showOverbookingWarning && overbookingInfo && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={handleOverbookingCancel}
+          />
+
+          {/* Modal */}
+          <div className={`relative w-full max-w-lg mx-4 rounded-2xl shadow-2xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+            <div className="p-6">
+              <h3 className={`text-xl font-bold mb-4 ${isDark ? 'text-red-400' : 'text-red-600'}`}>
+                ⚠️ Avertissement : Overbooking détecté
+              </h3>
+              <div className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                <p className="mb-4">
+                  Cette réservation va créer un <strong>overbooking</strong> :
+                </p>
+                <div className={`p-4 rounded-lg ${isDark ? 'bg-red-900/30 border border-red-700' : 'bg-red-50 border border-red-200'}`}>
+                  <div className="space-y-2">
+                    <div>
+                      <strong className={isDark ? 'text-red-300' : 'text-red-700'}>Maximum :</strong>
+                      <span className="ml-2">
+                        <strong>{overbookingInfo.maxOverbookedCount} personnes</strong> en surplus
+                        {' '}(<strong>{overbookingInfo.maxOverbookedSlots} slots</strong>)
+                      </span>
+                    </div>
+                    {overbookingInfo.affectedTimeSlots.length > 0 && (
+                      <div className="mt-3">
+                        <strong className={isDark ? 'text-red-300' : 'text-red-700'}>Tranches horaires affectées :</strong>
+                        <ul className="mt-2 space-y-1 text-sm">
+                          {overbookingInfo.affectedTimeSlots.slice(0, 5).map((slot, idx) => (
+                            <li key={idx}>
+                              • <strong>{slot.time}</strong> : +{slot.overbookedCount} pers. ({slot.totalParticipants}/{slot.capacity})
+                            </li>
+                          ))}
+                          {overbookingInfo.affectedTimeSlots.length > 5 && (
+                            <li className="italic">... et {overbookingInfo.affectedTimeSlots.length - 5} autre(s) tranche(s)</li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <p className="mt-4">
+                  <strong>Autorisation manuelle requise</strong> pour continuer.
+                </p>
+              </div>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleOverbookingCancel}
+                  disabled={loading}
+                  className={`px-4 py-2 rounded-lg ${
+                    isDark
+                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  } disabled:opacity-50`}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOverbookingConfirm}
+                  disabled={loading}
+                  className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center gap-2 disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      En cours...
+                    </>
+                  ) : (
+                    'Autoriser et continuer'
                   )}
                 </button>
               </div>

@@ -46,6 +46,7 @@ export default function AdminPage() {
   const [showBookingModal, setShowBookingModal] = useState(false)
   const [modalInitialHour, setModalInitialHour] = useState(10)
   const [modalInitialMinute, setModalInitialMinute] = useState(0)
+  const [modalDefaultBookingType, setModalDefaultBookingType] = useState<'GAME' | 'EVENT'>('GAME')
   const [editingBooking, setEditingBooking] = useState<BookingWithSlots | null>(null)
   const [agendaSearchQuery, setAgendaSearchQuery] = useState('')
   const [showCalendarModal, setShowCalendarModal] = useState(false)
@@ -342,17 +343,19 @@ export default function AdminPage() {
   const uiSegments = buildUISegments()
 
   // Ouvrir le modal de réservation
-  const openBookingModal = (hour?: number, minute?: number, booking?: BookingWithSlots) => {
+  const openBookingModal = (hour?: number, minute?: number, booking?: BookingWithSlots, defaultType: 'GAME' | 'EVENT' = 'GAME') => {
     if (booking) {
       setEditingBooking(booking)
       // Extraire l'heure de début de la réservation
       const startTime = new Date(booking.game_start_datetime || booking.start_datetime)
       setModalInitialHour(startTime.getHours())
       setModalInitialMinute(startTime.getMinutes())
+      // Le type sera celui de la réservation existante
     } else {
       setEditingBooking(null)
       setModalInitialHour(hour ?? 10)
       setModalInitialMinute(minute ?? 0)
+      setModalDefaultBookingType(defaultType) // Définir le type selon où on clique
     }
     setShowBookingModal(true)
   }
@@ -821,6 +824,155 @@ export default function AdminPage() {
     return null
   }
 
+  // Fonction pour obtenir des informations détaillées sur la disponibilité des salles
+  const findRoomAvailability = (
+    participants: number,
+    startDateTime: Date,
+    endDateTime: Date
+  ): { bestRoomId: string | null; availableRoomWithLowerCapacity: { id: string; capacity: number } | null; hasAnyAvailableRoom: boolean } => {
+    if (!branchRooms || branchRooms.length === 0) {
+      return { bestRoomId: null, availableRoomWithLowerCapacity: null, hasAnyAvailableRoom: false }
+    }
+
+    // Trier les salles par capacité croissante
+    const sortedRooms = [...branchRooms]
+      .filter(room => room.is_active)
+      .sort((a, b) => {
+        if (a.capacity !== b.capacity) {
+          return a.capacity - b.capacity
+        }
+        return a.sort_order - b.sort_order
+      })
+
+    // Fonction pour vérifier si une salle est disponible
+    const isRoomAvailable = (roomId: string): boolean => {
+      for (const booking of bookings) {
+        if (booking.type === 'EVENT' && booking.event_room_id === roomId) {
+          const bookingStart = new Date(booking.start_datetime)
+          const bookingEnd = new Date(booking.end_datetime)
+
+          if (
+            (startDateTime >= bookingStart && startDateTime < bookingEnd) ||
+            (endDateTime > bookingStart && endDateTime <= bookingEnd) ||
+            (startDateTime <= bookingStart && endDateTime >= bookingEnd)
+          ) {
+            return false
+          }
+        }
+      }
+      return true
+    }
+
+    // Chercher une salle avec capacité suffisante
+    const suitableRooms = sortedRooms.filter(room => room.capacity >= participants)
+    for (const room of suitableRooms) {
+      if (isRoomAvailable(room.id)) {
+        return { bestRoomId: room.id, availableRoomWithLowerCapacity: null, hasAnyAvailableRoom: true }
+      }
+    }
+
+    // Si aucune salle avec capacité suffisante, chercher la plus grande salle disponible
+    // (même si sa capacité est inférieure au nombre de participants demandé)
+    let bestAvailableRoom: { id: string; capacity: number } | null = null
+    let hasAnyAvailable = false
+
+    // Trier par capacité décroissante pour trouver la plus grande salle disponible
+    const sortedRoomsDesc = [...sortedRooms].sort((a, b) => {
+      if (a.capacity !== b.capacity) {
+        return b.capacity - a.capacity // Décroissant
+      }
+      return a.sort_order - b.sort_order
+    })
+
+    for (const room of sortedRoomsDesc) {
+      if (isRoomAvailable(room.id)) {
+        hasAnyAvailable = true
+        // Prendre la première salle disponible (la plus grande)
+        if (!bestAvailableRoom) {
+          bestAvailableRoom = { id: room.id, capacity: room.capacity }
+          break
+        }
+      }
+    }
+
+    return {
+      bestRoomId: null,
+      availableRoomWithLowerCapacity: bestAvailableRoom,
+      hasAnyAvailableRoom: hasAnyAvailable
+    }
+  }
+
+  // Fonction pour calculer l'overbooking potentiel d'une réservation
+  const calculateOverbooking = (
+    participants: number,
+    startDateTime: Date,
+    endDateTime: Date,
+    excludeBookingId?: string
+  ): { willCauseOverbooking: boolean; maxOverbookedCount: number; maxOverbookedSlots: number; affectedTimeSlots: Array<{ time: string; overbookedCount: number; overbookedSlots: number; totalParticipants: number; capacity: number }> } => {
+    const CAPACITY = TOTAL_SLOTS * MAX_PLAYERS_PER_SLOT
+    const affectedTimeSlots: Array<{ time: string; overbookedCount: number; overbookedSlots: number; totalParticipants: number; capacity: number }> = []
+    let maxOverbookedCount = 0
+    let maxOverbookedSlots = 0
+
+    // Générer toutes les tranches de 15 minutes couvertes par cette réservation
+    const bookingTimeSlots: Date[] = []
+    let currentTime = new Date(startDateTime)
+    while (currentTime < endDateTime) {
+      const slotStart = new Date(currentTime)
+      slotStart.setMinutes(Math.floor(slotStart.getMinutes() / SLOT_DURATION) * SLOT_DURATION, 0, 0)
+      
+      if (!bookingTimeSlots.some(ts => ts.getTime() === slotStart.getTime())) {
+        bookingTimeSlots.push(new Date(slotStart))
+      }
+      
+      currentTime = new Date(currentTime)
+      currentTime.setMinutes(currentTime.getMinutes() + SLOT_DURATION)
+    }
+
+    // Pour chaque tranche de 15 minutes
+    for (const timeSlotStart of bookingTimeSlots) {
+      const timeSlotEnd = new Date(timeSlotStart)
+      timeSlotEnd.setMinutes(timeSlotEnd.getMinutes() + SLOT_DURATION)
+
+      // Calculer totalParticipants = somme des participants actifs sur cette tranche (sans exclure le booking en cours de modification)
+      let totalParticipants = participants // Inclure la nouvelle réservation
+      for (const booking of bookings) {
+        if (booking.id === excludeBookingId) continue // Exclure le booking en cours de modification
+        if (booking.type !== 'GAME' && booking.type !== 'EVENT') continue
+        const bookingStart = booking.game_start_datetime ? new Date(booking.game_start_datetime) : new Date(booking.start_datetime)
+        const bookingEnd = booking.game_end_datetime ? new Date(booking.game_end_datetime) : new Date(booking.end_datetime)
+        
+        if (bookingStart < timeSlotEnd && bookingEnd > timeSlotStart) {
+          totalParticipants += booking.participants_count
+        }
+      }
+
+      const isOverbooked = totalParticipants > CAPACITY
+      if (isOverbooked) {
+        const overbookedCount = totalParticipants - CAPACITY
+        const overbookedSlots = Math.ceil(overbookedCount / MAX_PLAYERS_PER_SLOT)
+        
+        maxOverbookedCount = Math.max(maxOverbookedCount, overbookedCount)
+        maxOverbookedSlots = Math.max(maxOverbookedSlots, overbookedSlots)
+        
+        const timeLabel = timeSlotStart.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        affectedTimeSlots.push({
+          time: timeLabel,
+          overbookedCount,
+          overbookedSlots,
+          totalParticipants,
+          capacity: CAPACITY
+        })
+      }
+    }
+
+    return {
+      willCauseOverbooking: affectedTimeSlots.length > 0,
+      maxOverbookedCount,
+      maxOverbookedSlots,
+      affectedTimeSlots
+    }
+  }
 
   // Vérifier si un créneau contient un segment pour GRID GAME (slots uniquement)
   const getSegmentForCellSlots = (hour: number, minute: number, slotIndex: number): UISegment | null => {
@@ -1448,7 +1600,7 @@ export default function AdminPage() {
 
           {/* DROITE : Nouvelle réservation */}
           <button
-            onClick={() => openBookingModal()}
+            onClick={() => openBookingModal(undefined, undefined, undefined, 'GAME')}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
           >
             <Plus className="w-5 h-5" />
@@ -1598,6 +1750,31 @@ export default function AdminPage() {
                       rowSpan = Math.ceil(durationMinutes / 15) // Cases de 15 minutes
                     }
                     
+                    // Vérifier les segments adjacents pour les bordures entre réservations
+                    const leftSegment = slotIndex > 0 ? getSegmentForCellSlots(slot.hour, slot.minute, slotIndex - 1) : null
+                    const rightSegment = slotIndex < TOTAL_SLOTS - 1 ? getSegmentForCellSlots(slot.hour, slot.minute, slotIndex + 1) : null
+                    const topSegment = timeIndex > 0 ? getSegmentForCellSlots(timeSlots[timeIndex - 1].hour, timeSlots[timeIndex - 1].minute, slotIndex) : null
+                    const bottomSegment = timeIndex < timeSlots.length - 1 ? getSegmentForCellSlots(timeSlots[timeIndex + 1].hour, timeSlots[timeIndex + 1].minute, slotIndex) : null
+                    
+                    const isDifferentBookingLeft = segment && leftSegment && segment.bookingId !== leftSegment.bookingId
+                    const isDifferentBookingRight = segment && rightSegment && segment.bookingId !== rightSegment.bookingId
+                    const isDifferentBookingTop = segment && topSegment && segment.bookingId !== topSegment.bookingId
+                    const isDifferentBookingBottom = segment && bottomSegment && segment.bookingId !== bottomSegment.bookingId
+                    const isEmptyLeft = !segment && leftSegment // Slot vide à gauche mais réservation à droite
+                    const isEmptyRight = !segment && rightSegment // Slot vide à droite mais réservation à gauche
+                    
+                    // Bordures verticales : afficher une séparation grise si réservation différente ou slot vide
+                    const borderLeftColor = (slotIndex === 0 || isDifferentBookingLeft || isEmptyLeft)
+                      ? (isDark ? '#374151' : '#e5e7eb')
+                      : (booking ? (booking.color || (booking.type === 'EVENT' ? (isDark ? '#4ade80' : '#16a34a') : (isDark ? '#60a5fa' : '#2563eb'))) : (isDark ? '#374151' : '#e5e7eb'))
+                    const borderRightColor = (slotIndex === TOTAL_SLOTS - 1 || isDifferentBookingRight || isEmptyRight)
+                      ? (isDark ? '#374151' : '#e5e7eb')
+                      : (booking ? (booking.color || (booking.type === 'EVENT' ? (isDark ? '#4ade80' : '#16a34a') : (isDark ? '#60a5fa' : '#2563eb'))) : (isDark ? '#374151' : '#e5e7eb'))
+                    
+                    // Bordures horizontales : afficher même sur 15/45 si réservation différente
+                    const shouldShowTopBorder = (slot.minute === 0 || slot.minute === 30) || isDifferentBookingTop
+                    const shouldShowBottomBorder = (slot.minute === 0 || slot.minute === 30) || isDifferentBookingBottom
+                    
                     // Formater l'heure pour l'affichage
                     const bookingStartTime = booking ? (booking.game_start_datetime ? new Date(booking.game_start_datetime) : new Date(booking.start_datetime)) : null
                     const displayTime = bookingStartTime ? formatTime(bookingStartTime) : ''
@@ -1610,7 +1787,7 @@ export default function AdminPage() {
                     return (
                       <div
                         key={`cell-slot-${timeIndex}-${slotIndex}`}
-                        onClick={() => booking ? openBookingModal(slot.hour, slot.minute, booking) : openBookingModal(slot.hour, slot.minute)}
+                        onClick={() => booking ? openBookingModal(slot.hour, slot.minute, booking) : openBookingModal(slot.hour, slot.minute, undefined, 'GAME')}
                         className={`cursor-pointer relative ${
                           booking
                             ? `flex items-center justify-center p-1 text-center`
@@ -1620,13 +1797,11 @@ export default function AdminPage() {
                           gridColumn: booking ? `${gridColumn} / ${gridColumn + colSpan}` : gridColumn,
                           gridRow: booking ? `${gridRow} / ${gridRow + rowSpan}` : gridRow,
                           backgroundColor: booking ? (booking.color || (booking.type === 'EVENT' ? '#22c55e' : '#3b82f6')) : 'transparent',
-                          // Afficher les bordures seulement sur les créneaux de 30 minutes (0 et 30)
-                          // Supprimer les bordures des créneaux de 15 minutes (15 et 45)
-                          // Masquer les bordures internes si c'est le même booking continu
-                          borderTop: (slot.minute === 15 || slot.minute === 45) ? 'none' : `2px solid ${booking ? (booking.color || (booking.type === 'EVENT' ? (isDark ? '#4ade80' : '#16a34a') : (isDark ? '#60a5fa' : '#2563eb'))) : (isDark ? '#374151' : '#e5e7eb')}`,
-                          borderBottom: (slot.minute === 15 || slot.minute === 45 || (timeSlots[timeIndex + 1]?.minute === 15 || timeSlots[timeIndex + 1]?.minute === 45)) ? 'none' : `2px solid ${booking ? (booking.color || (booking.type === 'EVENT' ? (isDark ? '#4ade80' : '#16a34a') : (isDark ? '#60a5fa' : '#2563eb'))) : (isDark ? '#374151' : '#e5e7eb')}`,
-                          borderLeft: `2px solid ${booking ? (booking.color || (booking.type === 'EVENT' ? (isDark ? '#4ade80' : '#16a34a') : (isDark ? '#60a5fa' : '#2563eb'))) : (isDark ? '#374151' : '#e5e7eb')}`,
-                          borderRight: `2px solid ${booking ? (booking.color || (booking.type === 'EVENT' ? (isDark ? '#4ade80' : '#16a34a') : (isDark ? '#60a5fa' : '#2563eb'))) : (isDark ? '#374151' : '#e5e7eb')}`,
+                          // Afficher les bordures : toujours sur 0 et 30, ou si réservation différente adjacente
+                          borderTop: shouldShowTopBorder ? `2px solid ${isDifferentBookingTop ? (isDark ? '#374151' : '#e5e7eb') : (booking ? (booking.color || (booking.type === 'EVENT' ? (isDark ? '#4ade80' : '#16a34a') : (isDark ? '#60a5fa' : '#2563eb'))) : (isDark ? '#374151' : '#e5e7eb'))}` : 'none',
+                          borderBottom: shouldShowBottomBorder ? `2px solid ${isDifferentBookingBottom ? (isDark ? '#374151' : '#e5e7eb') : (booking ? (booking.color || (booking.type === 'EVENT' ? (isDark ? '#4ade80' : '#16a34a') : (isDark ? '#60a5fa' : '#2563eb'))) : (isDark ? '#374151' : '#e5e7eb'))}` : 'none',
+                          borderLeft: `2px solid ${borderLeftColor}`,
+                          borderRight: `2px solid ${borderRightColor}`,
                         }}
                         title={booking ? `${booking.customer_first_name} ${booking.customer_last_name} - ${booking.participants_count} pers.` : ''}
                       >
@@ -1803,6 +1978,33 @@ export default function AdminPage() {
                       rowSpan = Math.ceil(durationMinutes / 15) // Cases de 15 minutes
                     }
                     
+                    // Vérifier les segments adjacents pour les bordures entre salles
+                    const leftSegment = roomIndex > 0 ? getSegmentForCellRooms(slot.hour, slot.minute, roomIndex - 1) : null
+                    const rightSegment = roomIndex < TOTAL_ROOMS - 1 ? getSegmentForCellRooms(slot.hour, slot.minute, roomIndex + 1) : null
+                    const topSegment = timeIndex > 0 ? getSegmentForCellRooms(timeSlots[timeIndex - 1].hour, timeSlots[timeIndex - 1].minute, roomIndex) : null
+                    const bottomSegment = timeIndex < timeSlots.length - 1 ? getSegmentForCellRooms(timeSlots[timeIndex + 1].hour, timeSlots[timeIndex + 1].minute, roomIndex) : null
+                    
+                    const isDifferentBookingLeft = segment && leftSegment && segment.bookingId !== leftSegment.bookingId
+                    const isDifferentBookingRight = segment && rightSegment && segment.bookingId !== rightSegment.bookingId
+                    const isDifferentBookingTop = segment && topSegment && segment.bookingId !== topSegment.bookingId
+                    const isDifferentBookingBottom = segment && bottomSegment && segment.bookingId !== bottomSegment.bookingId
+                    const isEmptyLeft = !segment && leftSegment // Salle vide à gauche mais réservation à droite
+                    const isEmptyRight = !segment && rightSegment // Salle vide à droite mais réservation à gauche
+                    
+                    // Bordures verticales : toujours afficher une séparation grise entre les salles
+                    // Toujours afficher une bordure grise entre les salles (séparation physique)
+                    const borderLeftColor = (roomIndex === 0) 
+                      ? (segment && booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb'))
+                      : (isDark ? '#374151' : '#e5e7eb') // Toujours gris entre les salles
+                    const borderRightColor = (roomIndex === TOTAL_ROOMS - 1)
+                      ? (segment && booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb'))
+                      : (isDark ? '#374151' : '#e5e7eb') // Toujours gris entre les salles
+                    
+                    // Bordures horizontales : vérifier si on doit afficher même sur les créneaux 15/45
+                    // Si la réservation du dessus ou du dessous est différente, afficher la bordure
+                    const shouldShowTopBorder = (slot.minute === 0 || slot.minute === 30) || isDifferentBookingTop
+                    const shouldShowBottomBorder = (slot.minute === 0 || slot.minute === 30) || isDifferentBookingBottom
+                    
                     // Formater l'heure pour l'affichage
                     const roomBookingStartTime = booking ? new Date(booking.start_datetime) : null
                     const roomDisplayTime = roomBookingStartTime ? formatTime(roomBookingStartTime) : ''
@@ -1810,7 +2012,7 @@ export default function AdminPage() {
                     return (
                       <div
                         key={`cell-room-${timeIndex}-${roomIndex}`}
-                        onClick={() => booking ? openBookingModal(slot.hour, slot.minute, booking) : openBookingModal(slot.hour, slot.minute)}
+                        onClick={() => booking ? openBookingModal(slot.hour, slot.minute, booking) : openBookingModal(slot.hour, slot.minute, undefined, 'EVENT')}
                         className={`cursor-pointer ${
                           booking
                             ? `flex flex-col items-center justify-center p-1 text-center`
@@ -1820,12 +2022,11 @@ export default function AdminPage() {
                           gridColumn: segment ? `${gridColumn} / ${gridColumn + colSpan}` : gridColumn,
                           gridRow: segment ? `${gridRow} / ${gridRow + rowSpan}` : gridRow,
                           backgroundColor: segment && booking ? (booking.color || '#22c55e') : 'transparent',
-                          // Afficher les bordures seulement sur les créneaux de 30 minutes (0 et 30)
-                          // Supprimer les bordures des créneaux de 15 minutes (15 et 45)
-                          borderTop: (slot.minute === 15 || slot.minute === 45) ? 'none' : `2px solid ${segment && booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb')}`,
-                          borderBottom: (slot.minute === 15 || slot.minute === 45 || (timeSlots[timeIndex + 1]?.minute === 15 || timeSlots[timeIndex + 1]?.minute === 45)) ? 'none' : `2px solid ${segment && booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb')}`,
-                          borderLeft: `2px solid ${segment && booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb')}`,
-                          borderRight: `2px solid ${segment && booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb')}`,
+                          // Afficher les bordures : toujours sur 0 et 30, ou si réservation différente adjacente
+                          borderTop: shouldShowTopBorder ? `2px solid ${isDifferentBookingTop ? (isDark ? '#374151' : '#e5e7eb') : (segment && booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb'))}` : 'none',
+                          borderBottom: shouldShowBottomBorder ? `2px solid ${isDifferentBookingBottom ? (isDark ? '#374151' : '#e5e7eb') : (segment && booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb'))}` : 'none',
+                          borderLeft: `2px solid ${borderLeftColor}`,
+                          borderRight: `2px solid ${borderRightColor}`,
                         }}
                         title={booking ? `${booking.customer_first_name} ${booking.customer_last_name} - ${booking.participants_count} pers.` : ''}
                       >
@@ -1886,7 +2087,10 @@ export default function AdminPage() {
           initialMinute={modalInitialMinute}
           editingBooking={editingBooking}
           isDark={isDark}
+          defaultBookingType={modalDefaultBookingType}
           findBestAvailableRoom={findBestAvailableRoom}
+          findRoomAvailability={findRoomAvailability}
+          calculateOverbooking={calculateOverbooking}
         />
       )}
     </div>
