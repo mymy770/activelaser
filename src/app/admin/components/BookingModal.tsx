@@ -40,16 +40,18 @@ const TOTAL_CAPACITY = TOTAL_SLOTS * MAX_PLAYERS_PER_SLOT // 84 joueurs max
 const OPENING_HOUR = 10
 const CLOSING_HOUR = 23
 
-// Couleurs disponibles
+// Couleurs disponibles (10 couleurs)
 const COLORS = [
-  { name: 'Bleu', value: '#3B82F6' },
-  { name: 'Vert', value: '#22C55E' },
+  { name: 'Bleu', value: '#3B82F6' },        // Défaut pour GAME
+  { name: 'Vert', value: '#22C55E' },        // Défaut pour EVENT
   { name: 'Rouge', value: '#EF4444' },
   { name: 'Orange', value: '#F97316' },
   { name: 'Violet', value: '#A855F7' },
   { name: 'Rose', value: '#EC4899' },
   { name: 'Cyan', value: '#06B6D4' },
   { name: 'Jaune', value: '#EAB308' },
+  { name: 'Indigo', value: '#6366F1' },
+  { name: 'Emeraude', value: '#10B981' },
 ]
 
 export function BookingModal({
@@ -304,10 +306,21 @@ export function BookingModal({
     setCalendarYear(calendarYear + 1)
   }
 
-  // Changer la couleur par défaut quand on change de type
+  // Changer la couleur par défaut quand on change de type (uniquement lors de la création)
+  // Si l'utilisateur a déjà choisi une couleur, on ne l'écrase pas
   useEffect(() => {
-    setColor(bookingType === 'GAME' ? COLORS[0].value : COLORS[1].value)
-  }, [bookingType])
+    // Ne changer la couleur que si on est en mode création (pas d'édition)
+    // et que la couleur actuelle est une couleur par défaut
+    if (!editingBooking) {
+      const currentDefaultColor = bookingType === 'GAME' ? COLORS[0].value : COLORS[1].value
+      const oppositeDefaultColor = bookingType === 'GAME' ? COLORS[1].value : COLORS[0].value
+      
+      // Si la couleur actuelle est la couleur par défaut de l'autre type, on la change
+      if (color === oppositeDefaultColor) {
+        setColor(currentDefaultColor)
+      }
+    }
+  }, [bookingType, editingBooking])
 
   // Pour les EVENT : synchroniser automatiquement l'heure du jeu avec l'heure de la salle + 15 minutes
   useEffect(() => {
@@ -893,11 +906,11 @@ export function BookingModal({
               </div>
             </div>
 
-            {/* Couleur - Désactivée temporairement jusqu'à ce que la colonne soit ajoutée dans la base de données */}
-            {/* <div>
+            {/* Sélecteur de couleur */}
+            <div>
               <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                 <Palette className="w-4 h-4 inline mr-1" />
-                Couleur
+                Couleur de l'événement
               </label>
               <div className="flex flex-wrap gap-2">
                 {COLORS.map((c) => (
@@ -905,15 +918,20 @@ export function BookingModal({
                     key={c.value}
                     type="button"
                     onClick={() => setColor(c.value)}
-                    className={`w-8 h-8 rounded-lg transition-all ${
-                      color === c.value ? 'ring-2 ring-offset-2 ring-white scale-110' : 'hover:scale-105'
+                    className={`w-10 h-10 rounded-lg transition-all border-2 ${
+                      color === c.value 
+                        ? `${isDark ? 'ring-2 ring-offset-2 ring-white ring-offset-gray-800' : 'ring-2 ring-offset-2 ring-gray-800 ring-offset-white'} scale-110 border-white shadow-lg` 
+                        : `${isDark ? 'border-gray-600 hover:border-gray-500' : 'border-gray-300 hover:border-gray-400'} hover:scale-105`
                     }`}
                     style={{ backgroundColor: c.value }}
                     title={c.name}
                   />
                 ))}
               </div>
-            </div> */}
+              <p className={`mt-1 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                Couleur par défaut: {bookingType === 'GAME' ? 'Bleu' : 'Vert'} (modifiable)
+              </p>
+            </div>
           </div>
 
           {/* Temps de jeu */}
