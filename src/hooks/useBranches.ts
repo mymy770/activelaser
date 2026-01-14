@@ -67,10 +67,18 @@ export function useBranches() {
 
       setBranches(branchesWithDetails)
 
-      // Sélectionner la première branche par défaut si aucune n'est sélectionnée
+      // Sélectionner Rishon LeZion par défaut si aucune n'est sélectionnée
       setSelectedBranchId(prev => {
         if (!prev && branchesWithDetails.length > 0) {
-          return branchesWithDetails[0].id
+          // Chercher Rishon LeZion en priorité (par slug ou nom)
+          const rishonBranch = branchesWithDetails.find(
+            b => b.slug === 'rishon-lezion' || 
+                 b.name.toLowerCase().includes('rishon') ||
+                 b.name.toLowerCase().includes('rly')
+          )
+          
+          // Si Rishon trouvé, l'utiliser, sinon première branche
+          return rishonBranch?.id || branchesWithDetails[0].id
         }
         return prev
       })
