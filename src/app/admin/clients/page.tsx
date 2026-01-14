@@ -55,7 +55,11 @@ export default function ClientsPage() {
       const result: SearchContactsResult = await searchContacts({
         query: searchQuery.trim() || undefined,
         branchId: selectedBranch.id,
-        includeArchived,
+        includeArchived: filterStatus === 'all' ? includeArchived : filterStatus === 'archived',
+        status: filterStatus === 'all' ? undefined : filterStatus,
+        source: filterSource === 'all' ? undefined : filterSource,
+        dateFrom: filterDateFrom || undefined,
+        dateTo: filterDateTo || undefined,
         page,
         pageSize,
       })
@@ -300,8 +304,99 @@ export default function ClientsPage() {
             />
             <span className="text-sm text-gray-300">Inclure les archivés</span>
           </label>
+          <button
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
+          >
+            <Settings className="w-4 h-4" />
+            <span className="hidden sm:inline">Filtres avancés</span>
+          </button>
         </div>
       </div>
+
+      {/* Filtres avancés */}
+      {showAdvancedFilters && (
+        <div className="px-6 py-4 bg-gray-800/30 border-b border-gray-700">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Statut */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">Statut</label>
+              <select
+                value={filterStatus}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value as any)
+                  setPage(1)
+                }}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">Tous</option>
+                <option value="active">Actifs</option>
+                <option value="archived">Archivés</option>
+              </select>
+            </div>
+
+            {/* Source */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">Source</label>
+              <select
+                value={filterSource}
+                onChange={(e) => {
+                  setFilterSource(e.target.value as any)
+                  setPage(1)
+                }}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">Toutes</option>
+                <option value="admin_agenda">Admin Agenda</option>
+                <option value="public_booking">Réservation publique</option>
+              </select>
+            </div>
+
+            {/* Date de début */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">Date de début</label>
+              <input
+                type="date"
+                value={filterDateFrom}
+                onChange={(e) => {
+                  setFilterDateFrom(e.target.value)
+                  setPage(1)
+                }}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Date de fin */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">Date de fin</label>
+              <input
+                type="date"
+                value={filterDateTo}
+                onChange={(e) => {
+                  setFilterDateTo(e.target.value)
+                  setPage(1)
+                }}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          {(filterStatus !== 'all' || filterSource !== 'all' || filterDateFrom || filterDateTo) && (
+            <button
+              onClick={() => {
+                setFilterStatus('all')
+                setFilterSource('all')
+                setFilterDateFrom('')
+                setFilterDateTo('')
+                setPage(1)
+              }}
+              className="mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
+            >
+              <X className="w-4 h-4" />
+              Réinitialiser les filtres
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Tableau */}
       <div className="px-6 py-4">
