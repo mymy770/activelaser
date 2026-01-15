@@ -112,9 +112,10 @@ export default function AdminPage() {
     refresh: refreshAllBookings
   } = useBookings(selectedBranchId, undefined) // undefined = pas de filtre par date, on charge tout
 
-  // Hook pour récupérer les salles et settings de la branche
-  // IMPORTANT: Doit être appelé avant les early returns pour respecter les règles des hooks React
-  const { branches, refresh: refreshBranches } = useBranches()
+  // Utiliser les branches du hook principal (déjà appelé plus haut)
+  const branches = branchesHook.branches
+  const selectedBranch = branchesHook.selectedBranch
+  const refreshBranches = branchesHook.refresh
 
   // Filtrer les réservations pour l'agenda du jour sélectionné
   const dateStr = formatDateToString(selectedDate)
@@ -1269,7 +1270,7 @@ export default function AdminPage() {
           branches={branches}
           selectedBranch={selectedBranch}
           onBranchSelect={(branchId) => {
-            setSelectedBranchId(branchId)
+            branchesHook.selectBranch(branchId) // Utiliser selectBranch du hook pour synchroniser avec le CRM
             setShowBranchMenu(false)
           }}
           onSignOut={handleSignOut}
