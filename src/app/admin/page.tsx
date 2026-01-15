@@ -10,7 +10,8 @@ import { AdminHeader } from './components/AdminHeader'
 import { ConfirmationModal } from './components/ConfirmationModal'
 import { useBranches } from '@/hooks/useBranches'
 import { useAuth } from '@/hooks/useAuth'
-import type { Profile, UserBranch } from '@/lib/supabase/types'
+import { useLaserRooms } from '@/hooks/useLaserRooms'
+import type { Profile, UserBranch, GameArea, GameSession } from '@/lib/supabase/types'
 
 type Theme = 'light' | 'dark'
 
@@ -57,6 +58,7 @@ export default function AdminPage() {
   const [modalInitialHour, setModalInitialHour] = useState(10)
   const [modalInitialMinute, setModalInitialMinute] = useState(0)
   const [modalDefaultBookingType, setModalDefaultBookingType] = useState<'GAME' | 'EVENT'>('GAME')
+  const [modalDefaultGameArea, setModalDefaultGameArea] = useState<'ACTIVE' | 'LASER'>('ACTIVE')
   const [editingBooking, setEditingBooking] = useState<BookingWithSlots | null>(null)
   const [agendaSearchQuery, setAgendaSearchQuery] = useState('')
   const [showCalendarModal, setShowCalendarModal] = useState(false)
@@ -255,18 +257,37 @@ export default function AdminPage() {
 
       // Calculer totalParticipants = somme des participants actifs sur cette tranche
       // Calculer totalSlotsUsed = somme des slots utilisés pour cette tranche
+      // IMPORTANT : Ne prendre en compte que les sessions ACTIVE (pas LASER)
       let totalParticipants = 0
       let totalSlotsUsed = 0
       for (const booking of bookings) {
         if (booking.type !== 'GAME' && booking.type !== 'EVENT') continue
-        // Les EVENT bloquent aussi le temps de jeu, même s'ils ont une salle
-        const bookingStart = booking.game_start_datetime ? new Date(booking.game_start_datetime) : new Date(booking.start_datetime)
-        const bookingEnd = booking.game_end_datetime ? new Date(booking.game_end_datetime) : new Date(booking.end_datetime)
         
-        // Vérifier si ce booking est actif sur cette tranche
-        if (bookingStart < timeSlotEnd && bookingEnd > timeSlotStart) {
-          totalParticipants += booking.participants_count
-          totalSlotsUsed += Math.ceil(booking.participants_count / MAX_PLAYERS_PER_SLOT)
+        // Si le booking a des game_sessions, utiliser celles-ci (filtrer ACTIVE uniquement)
+        if (booking.game_sessions && booking.game_sessions.length > 0) {
+          for (const session of booking.game_sessions) {
+            // Ne prendre en compte que les sessions ACTIVE pour la grille Active
+            if (session.game_area !== 'ACTIVE') continue
+            
+            const sessionStart = new Date(session.start_datetime)
+            const sessionEnd = new Date(session.end_datetime)
+            
+            // Vérifier si cette session est active sur cette tranche
+            if (sessionStart < timeSlotEnd && sessionEnd > timeSlotStart) {
+              totalParticipants += booking.participants_count
+              totalSlotsUsed += Math.ceil(booking.participants_count / MAX_PLAYERS_PER_SLOT)
+            }
+          }
+        } else {
+          // Fallback pour anciens bookings sans game_sessions : utiliser game_start_datetime/end_datetime
+          const bookingStart = booking.game_start_datetime ? new Date(booking.game_start_datetime) : new Date(booking.start_datetime)
+          const bookingEnd = booking.game_end_datetime ? new Date(booking.game_end_datetime) : new Date(booking.end_datetime)
+          
+          // Vérifier si ce booking est actif sur cette tranche
+          if (bookingStart < timeSlotEnd && bookingEnd > timeSlotStart) {
+            totalParticipants += booking.participants_count
+            totalSlotsUsed += Math.ceil(booking.participants_count / MAX_PLAYERS_PER_SLOT)
+          }
         }
       }
 
@@ -305,10 +326,22 @@ export default function AdminPage() {
 
       // Trier les bookings par ordre d'arrivée (created_at) pour maintenir la stabilité des slots
       // Une réservation qui arrive en premier garde ses slots, les nouvelles se placent après
+      // IMPORTANT : Ne prendre en compte que les sessions ACTIVE (pas LASER)
       const relevantBookings = bookings
         .filter(b => {
           if (b.type !== 'GAME' && b.type !== 'EVENT') return false
-          // Les EVENT bloquent aussi le temps de jeu, même s'ils ont une salle
+          
+          // Si le booking a des game_sessions, vérifier s'il y a une session ACTIVE sur ce créneau
+          if (b.game_sessions && b.game_sessions.length > 0) {
+            return b.game_sessions.some(session => {
+              if (session.game_area !== 'ACTIVE') return false
+              const sessionStart = new Date(session.start_datetime)
+              const sessionEnd = new Date(session.end_datetime)
+              return sessionStart < timeSlotEnd && sessionEnd > timeSlotStart
+            })
+          }
+          
+          // Fallback pour anciens bookings sans game_sessions
           const bookingStart = b.game_start_datetime ? new Date(b.game_start_datetime) : new Date(b.start_datetime)
           const bookingEnd = b.game_end_datetime ? new Date(b.game_end_datetime) : new Date(b.end_datetime)
           return bookingStart < timeSlotEnd && bookingEnd > timeSlotStart
@@ -340,17 +373,70 @@ export default function AdminPage() {
     }
 
     // Pour chaque booking, créer ses segments
+    // IMPORTANT : Ne créer des segments que pour les sessions ACTIVE (pas LASER)
     for (const booking of bookings) {
       if (booking.type !== 'GAME' && booking.type !== 'EVENT') continue
 
-      // Pour les slots : GAME et EVENT (même avec salle, ils bloquent le temps de jeu)
-      if (booking.type === 'GAME' || booking.type === 'EVENT') {
-        // Utiliser les dates du jeu
+      // Si le booking a des game_sessions, utiliser celles-ci (filtrer ACTIVE uniquement)
+      if (booking.game_sessions && booking.game_sessions.length > 0) {
+        // Filtrer uniquement les sessions ACTIVE
+        const activeSessions = booking.game_sessions.filter(s => s.game_area === 'ACTIVE')
+        
+        for (const session of activeSessions) {
+          const gameStartTime = new Date(session.start_datetime)
+          const gameEndTime = new Date(session.end_datetime)
+
+          // Trouver les tranches de 15 minutes couvertes
+          // Découper par tranche de 15 min : un segment par tranche
+          for (let i = 0; i < timeSlotDates.length; i++) {
+            const timeSlotStart = timeSlotDates[i]
+            const timeSlotEnd = new Date(timeSlotStart)
+            timeSlotEnd.setMinutes(timeSlotEnd.getMinutes() + SLOT_DURATION)
+
+            // Vérifier si cette tranche est dans la plage du jeu
+            if (timeSlotStart < gameEndTime && timeSlotEnd > gameStartTime) {
+              // Calculer quels slots sont occupés pour cette tranche
+              const occupiedSlots = getOccupiedSlotsForTimeSlot(timeSlotStart)
+              const bookingSlotInfo = occupiedSlots.get(booking.id)
+
+              if (bookingSlotInfo) {
+                let { slotStart, slotEnd } = bookingSlotInfo
+                
+                // HARD BOUNDARY : Clamp slotEnd à 14 maximum (jamais de débordement)
+                if (slotEnd > TOTAL_SLOTS) {
+                  slotEnd = TOTAL_SLOTS
+                }
+                
+                // Découper par tranche de 15 min : un segment par tranche
+                const slotsKey = `${slotStart}-${slotEnd}`
+                
+                // Lookup OB pour cette tranche (O(1))
+                const timeKey = Math.floor(timeSlotStart.getTime() / (SLOT_DURATION * 60 * 1000)) * (SLOT_DURATION * 60 * 1000)
+                const obData = obByTimeKey.get(timeKey)
+                const isOverbooked = obData?.isOverbooked || false
+
+                // Créer un segment pour cette tranche de 15 min
+                segments.push({
+                  segmentId: `${booking.id}-${session.id}-${timeSlotStart.getTime()}-${timeSlotEnd.getTime()}-${slotsKey}`,
+                  bookingId: booking.id,
+                  booking,
+                  start: timeSlotStart,
+                  end: timeSlotEnd,
+                  slotStart,
+                  slotEnd,
+                  slotsKey,
+                  isOverbooked
+                })
+              }
+            }
+          }
+        }
+      } else {
+        // Fallback pour anciens bookings sans game_sessions : utiliser game_start_datetime/end_datetime
         const gameStartTime = booking.game_start_datetime ? new Date(booking.game_start_datetime) : new Date(booking.start_datetime)
         const gameEndTime = booking.game_end_datetime ? new Date(booking.game_end_datetime) : new Date(booking.end_datetime)
 
         // Trouver les tranches de 15 minutes couvertes
-        // Découper par tranche de 15 min : un segment par tranche
         for (let i = 0; i < timeSlotDates.length; i++) {
           const timeSlotStart = timeSlotDates[i]
           const timeSlotEnd = new Date(timeSlotStart)
@@ -434,7 +520,7 @@ export default function AdminPage() {
   const uiSegments = buildUISegments()
 
   // Ouvrir le modal de réservation
-  const openBookingModal = (hour?: number, minute?: number, booking?: BookingWithSlots, defaultType: 'GAME' | 'EVENT' = 'GAME') => {
+  const openBookingModal = (hour?: number, minute?: number, booking?: BookingWithSlots, defaultType: 'GAME' | 'EVENT' = 'GAME', defaultGameArea: 'ACTIVE' | 'LASER' = 'ACTIVE') => {
     if (booking) {
       setEditingBooking(booking)
       // Extraire l'heure de début de la réservation
@@ -442,11 +528,19 @@ export default function AdminPage() {
       setModalInitialHour(startTime.getHours())
       setModalInitialMinute(startTime.getMinutes())
       // Le type sera celui de la réservation existante
+      setModalDefaultBookingType(booking.type as 'GAME' | 'EVENT')
+      // Pour GAME, déterminer la zone depuis les sessions
+      if (booking.type === 'GAME' && booking.game_sessions && booking.game_sessions.length > 0) {
+        setModalDefaultGameArea(booking.game_sessions[0].game_area as 'ACTIVE' | 'LASER')
+      } else {
+        setModalDefaultGameArea('ACTIVE')
+      }
     } else {
       setEditingBooking(null)
       setModalInitialHour(hour ?? 10)
       setModalInitialMinute(minute ?? 0)
       setModalDefaultBookingType(defaultType) // Définir le type selon où on clique
+      setModalDefaultGameArea(defaultGameArea) // Définir la zone selon où on clique
     }
     setShowBookingModal(true)
   }
@@ -1207,6 +1301,137 @@ export default function AdminPage() {
     }
   }
 
+  // =====================================================
+  // FONCTIONS LASER
+  // =====================================================
+
+  // Hook pour les laser rooms
+  const { laserRooms, calculateVestsUsage, checkLaserRoomAvailability } = useLaserRooms(selectedBranchId)
+  
+  // Calculer le nombre de salles laser actives pour la branche sélectionnée
+  const TOTAL_LASER_ROOMS = laserRooms.filter(r => r.is_active).length
+
+  // Trouver la meilleure salle laser pour un booking
+  const findBestLaserRoom = (
+    participants: number,
+    startDateTime: Date,
+    endDateTime: Date,
+    excludeBookingId?: string,
+    targetBranchId?: string | null
+  ): { roomIds: string[]; requiresTwoRooms: boolean } | null => {
+    const branchIdToUse = targetBranchId || selectedBranchId
+    const targetBranch = branches.find(b => b.id === branchIdToUse)
+    const targetLaserRooms = targetBranch?.laserRooms?.filter(r => r.is_active) || []
+
+    if (targetLaserRooms.length === 0) return null
+
+    // Trier les salles par capacité décroissante
+    const sortedRooms = [...targetLaserRooms].sort((a, b) => {
+      if (a.capacity !== b.capacity) {
+        return b.capacity - a.capacity // Décroissant
+      }
+      return a.sort_order - b.sort_order
+    })
+
+    // Logique d'allocation selon nombre de participants
+    if (participants <= 15) {
+      // Proposer L1 par défaut (mais L2 possible)
+      const l1 = sortedRooms.find(r => r.slug === 'L1' || r.name.includes('L1'))
+      if (l1) {
+        // Vérifier disponibilité (sera fait de manière asynchrone dans BookingModal)
+        return { roomIds: [l1.id], requiresTwoRooms: false }
+      }
+      // Fallback : première salle disponible
+      if (sortedRooms.length > 0) {
+        return { roomIds: [sortedRooms[0].id], requiresTwoRooms: false }
+      }
+    } else if (participants > 15 && participants <= 20) {
+      // Proposer L2 par défaut (mais L1 possible)
+      const l2 = sortedRooms.find(r => r.slug === 'L2' || r.name.includes('L2'))
+      if (l2) {
+        return { roomIds: [l2.id], requiresTwoRooms: false }
+      }
+      // Fallback : L1 si L2 n'existe pas
+      const l1 = sortedRooms.find(r => r.slug === 'L1' || r.name.includes('L1'))
+      if (l1) {
+        return { roomIds: [l1.id], requiresTwoRooms: false }
+      }
+      // Fallback : première salle disponible
+      if (sortedRooms.length > 0) {
+        return { roomIds: [sortedRooms[0].id], requiresTwoRooms: false }
+      }
+    } else {
+      // participants > 20 : nécessite L1+L2 (2 salles en même temps)
+      const l1 = sortedRooms.find(r => r.slug === 'L1' || r.name.includes('L1'))
+      const l2 = sortedRooms.find(r => r.slug === 'L2' || r.name.includes('L2'))
+      
+      if (l1 && l2) {
+        return { roomIds: [l1.id, l2.id], requiresTwoRooms: true }
+      }
+      // Si seulement 1 salle disponible, retourner null (sera géré par popup dans BookingModal)
+      return null
+    }
+
+    return null
+  }
+
+  // Vérifier contrainte hard vests
+  const checkLaserVestsConstraint = async (
+    participants: number,
+    startDateTime: Date,
+    endDateTime: Date,
+    excludeBookingId?: string,
+    targetBranchId?: string | null
+  ): Promise<{ isViolated: boolean; currentUsage: number; maxVests: number; message: string }> => {
+    const branchIdToUse = targetBranchId || selectedBranchId
+    const targetBranch = branches.find(b => b.id === branchIdToUse)
+    const maxVests = targetBranch?.settings?.laser_total_vests || 0
+
+    if (maxVests === 0) {
+      // Si pas de contrainte configurée, autoriser
+      return { isViolated: false, currentUsage: 0, maxVests: 0, message: '' }
+    }
+
+    // Calculer l'utilisation actuelle sur ce créneau
+    const currentUsage = await calculateVestsUsage(startDateTime, endDateTime, excludeBookingId)
+    const totalWithNew = currentUsage + participants
+
+    const isViolated = totalWithNew > maxVests
+
+    return {
+      isViolated,
+      currentUsage,
+      maxVests,
+      message: isViolated
+        ? `Dépassement de la contrainte hard vests : ${totalWithNew} > ${maxVests} (REFUS)`
+        : ''
+    }
+  }
+
+  // Vérifier capacité soft d'une salle laser
+  const checkLaserRoomCapacity = (
+    roomId: string,
+    participants: number,
+    targetBranchId?: string | null
+  ): { isExceeded: boolean; roomCapacity: number; overcapBy: number } => {
+    const branchIdToUse = targetBranchId || selectedBranchId
+    const targetBranch = branches.find(b => b.id === branchIdToUse)
+    const room = targetBranch?.laserRooms?.find(r => r.id === roomId)
+
+    if (!room) {
+      return { isExceeded: false, roomCapacity: 0, overcapBy: 0 }
+    }
+
+    const isExceeded = participants > room.capacity
+    const overcapBy = isExceeded ? participants - room.capacity : 0
+
+    return {
+      isExceeded,
+      roomCapacity: room.capacity,
+      overcapBy
+    }
+  }
+
   // Vérifier si un créneau contient un segment pour GRID GAME (slots uniquement)
   const getSegmentForCellSlots = (hour: number, minute: number, slotIndex: number): UISegment | null => {
     const cellDate = new Date(selectedDate)
@@ -1230,9 +1455,68 @@ export default function AdminPage() {
     return null
   }
 
+  // Vérifier si un créneau contient un segment pour GRID LASER (laser rooms uniquement)
+  const getSegmentForCellLaser = (hour: number, minute: number, roomIndex: number): UISegment | null => {
+    const cellDate = new Date(selectedDate)
+    cellDate.setHours(hour, minute, 0, 0)
+    const cellDateEnd = new Date(cellDate)
+    cellDateEnd.setMinutes(cellDateEnd.getMinutes() + 15)
+    
+    const selectedBranch = branches.find(b => b.id === selectedBranchId)
+    const branchLaserRooms = selectedBranch?.laserRooms || []
+    
+    // Trier les laser rooms par sort_order
+    const sortedLaserRooms = [...branchLaserRooms]
+      .filter(r => r.is_active)
+      .sort((a, b) => a.sort_order - b.sort_order)
+    
+    if (roomIndex >= sortedLaserRooms.length) return null
+    
+    const targetRoom = sortedLaserRooms[roomIndex]
+    
+    // Chercher les bookings avec sessions LASER qui utilisent cette salle
+    for (let i = bookings.length - 1; i >= 0; i--) {
+      const booking = bookings[i]
+      
+      // Vérifier si le booking a des game_sessions LASER
+      if (booking.game_sessions && booking.game_sessions.length > 0) {
+        for (const session of booking.game_sessions) {
+          if (session.game_area !== 'LASER') continue
+          if (session.laser_room_id !== targetRoom.id) continue
+          
+          const sessionStart = new Date(session.start_datetime)
+          const sessionEnd = new Date(session.end_datetime)
+          
+          // Vérifier si ce créneau de 15 minutes chevauche la session
+          if (sessionStart < cellDateEnd && sessionEnd > cellDate) {
+            // Retourner un segment factice pour les laser rooms (pour compatibilité avec UISegment)
+            return {
+              segmentId: `${booking.id}-laser-${roomIndex}-${session.id}`,
+              bookingId: booking.id,
+              booking,
+              start: sessionStart,
+              end: sessionEnd,
+              slotStart: roomIndex,
+              slotEnd: roomIndex + 1,
+              slotsKey: `laser-${roomIndex}`,
+              isOverbooked: false // Laser n'a pas d'overbooking
+            }
+          }
+        }
+      }
+    }
+    
+    return null
+  }
+
   // Vérifier si un créneau contient un segment pour GRID ROOMS (rooms uniquement)
   const getSegmentForCellRooms = (hour: number, minute: number, roomIndex: number): UISegment | null => {
     const cellTime = hour * 60 + minute
+    const cellDate = new Date(selectedDate)
+    cellDate.setHours(hour, minute, 0, 0)
+    const cellDateEnd = new Date(cellDate)
+    cellDateEnd.setMinutes(cellDateEnd.getMinutes() + 15)
+    
     const selectedBranch = branches.find(b => b.id === selectedBranchId)
     const branchRooms = selectedBranch?.rooms || []
     
@@ -1252,13 +1536,17 @@ export default function AdminPage() {
       const bookingRoomIndex = sortedRooms.findIndex(r => r.id === booking.event_room_id)
       if (bookingRoomIndex !== roomIndex) continue
 
+      // Pour les événements, afficher la salle d'événement pendant toute sa durée
+      // IMPORTANT : La grille ROOMS affiche la réservation de la salle
+      // Les sessions ACTIVE apparaissent dans la grille ACTIVE, les sessions LASER dans la grille LASER
+      // On affiche la salle pendant toute sa durée (start_datetime à end_datetime) pour montrer qu'elle est réservée
       const startTime = new Date(booking.start_datetime)
       const endTime = new Date(booking.end_datetime)
       const bookingStartMinutes = startTime.getHours() * 60 + startTime.getMinutes()
       const bookingEndMinutes = endTime.getHours() * 60 + endTime.getMinutes()
       
       if (cellTime >= bookingStartMinutes && cellTime < bookingEndMinutes) {
-        // Retourner un segment factice pour les rooms (pour compatibilité)
+        // Retourner un segment pour la salle d'événement
         return {
           segmentId: `${booking.id}-room-${roomIndex}`,
           bookingId: booking.id,
@@ -1802,12 +2090,12 @@ export default function AdminPage() {
           )}
 
           {/* 3 Grilles séparées côte à côte */}
-          <div className="flex gap-0" style={{ width: '100%', minWidth: 0 }}>
+          <div className="flex gap-0" style={{ width: '100%', minWidth: 0, overflowX: 'auto' }}>
             {/* GRID GAME - Heure + S1-S14 */}
-            <div style={{ flex: '1 1 auto', minWidth: 0, borderRight: `2px solid ${isDark ? '#374151' : '#e5e7eb'}` }}>
+            <div style={{ flex: '1 1 auto', flexShrink: 0, minWidth: `calc(80px + ${TOTAL_SLOTS} * 30px)`, borderRight: `2px solid ${isDark ? '#374151' : '#e5e7eb'}` }}>
               {/* En-tête GRID GAME */}
               <div className={`grid ${isDark ? '' : ''}`} style={{
-                gridTemplateColumns: `80px repeat(${TOTAL_SLOTS}, 1fr)`,
+                gridTemplateColumns: `80px repeat(${TOTAL_SLOTS}, minmax(30px, 1fr))`,
                 borderBottom: `2px solid ${isDark ? '#374151' : '#e5e7eb'}`
               }}>
                 <div className={`p-3 text-center font-medium ${isDark ? 'text-gray-400 bg-gray-900' : 'text-gray-600 bg-gray-50'}`}>
@@ -1822,7 +2110,7 @@ export default function AdminPage() {
 
               {/* Corps GRID GAME */}
               <div className="grid" style={{
-                gridTemplateColumns: `80px repeat(${TOTAL_SLOTS}, 1fr)`,
+                gridTemplateColumns: `80px repeat(${TOTAL_SLOTS}, minmax(30px, 1fr))`,
                 gridTemplateRows: `repeat(${timeSlots.length}, 20px)`,
                 minWidth: 0
               }}>
@@ -1848,7 +2136,8 @@ export default function AdminPage() {
               return (
                 <div
                   key={`time-${timeIndex}`}
-                  className={`p-2 text-center text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
+                  onClick={() => openBookingModal(slot.hour, slot.minute, undefined, 'GAME', 'ACTIVE')}
+                  className={`p-2 text-center text-sm cursor-pointer ${isDark ? 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
                   style={{ 
                     gridColumn: '1', 
                     gridRow: timeIndex + 1,
@@ -1985,8 +2274,9 @@ export default function AdminPage() {
                           <div className={`${getTextSizeClass(displayTextSize)} ${getTextWeightClass(displayTextWeight)} leading-tight ${isDark ? 'text-white' : 'text-white'}`} style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
                             {(() => {
                               const contactData = getContactDisplayData(booking)
-                              return contactData.firstName || 'Sans nom'
-                            })()}{booking.participants_count}
+                              const name = contactData.firstName || 'Sans nom'
+                              return `${name}-${booking.participants_count}`
+                            })()}
                           </div>
                         )}
                       </div>
@@ -2060,11 +2350,194 @@ export default function AdminPage() {
               </div>
             </div>
 
+            {/* GRID LASER - Avec colonne Heure à droite */}
+            {laserRooms.length > 0 && (
+              <div style={{ flex: '1 1 auto', flexShrink: 0, minWidth: `calc(80px + ${TOTAL_LASER_ROOMS} * 30px)`, borderRight: `2px solid ${isDark ? '#374151' : '#e5e7eb'}` }}>
+                {/* En-tête GRID LASER */}
+                <div className={`grid ${isDark ? '' : ''}`} style={{
+                  gridTemplateColumns: `repeat(${TOTAL_LASER_ROOMS}, minmax(30px, 1fr)) 80px`,
+                  borderBottom: `2px solid ${isDark ? '#374151' : '#e5e7eb'}`,
+                  minWidth: 0
+                }}>
+                  {laserRooms
+                    .filter(r => r.is_active)
+                    .sort((a, b) => a.sort_order - b.sort_order)
+                    .map((room, i) => {
+                      const roomName = room.name || `L${i + 1}`
+                      return (
+                        <div key={`laser-room-${room.id}`} className={`p-3 text-center font-medium ${isDark ? 'text-purple-400 bg-gray-900 border-gray-700' : 'text-purple-600 bg-gray-50 border-gray-200'} ${i > 0 ? 'border-l' : ''}`}>
+                          {roomName}
+                        </div>
+                      )
+                    })}
+                  <div className={`p-3 text-center font-medium ${isDark ? 'text-gray-400 bg-gray-900 border-l' : 'text-gray-600 bg-gray-50 border-l'} ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                    Heure
+                  </div>
+                </div>
+
+                {/* Corps GRID LASER - Avec colonne Heure à droite */}
+                <div className="grid" style={{
+                  gridTemplateColumns: `repeat(${TOTAL_LASER_ROOMS}, minmax(30px, 1fr)) 80px`,
+                  gridTemplateRows: `repeat(${timeSlots.length}, 20px)`,
+                  minWidth: 0
+                }}>
+                  {/* Laser rooms - Afficher toutes les cases de 15 min comme les salles */}
+                  {timeSlots.map((slot, timeIndex) => {
+                    return (
+                      <Fragment key={`laser-row-${timeIndex}`}>
+                        {laserRooms
+                          .filter(r => r.is_active)
+                          .sort((a, b) => a.sort_order - b.sort_order)
+                          .map((room, roomIndex) => {
+                            // Chercher un segment qui contient ce créneau
+                            const laserSegment = getSegmentForCellLaser(slot.hour, slot.minute, roomIndex)
+                            const booking = laserSegment?.booking
+                            
+                            // Les sessions LASER peuvent venir de GAME ou EVENT
+                            // On affiche toutes les sessions LASER, peu importe le type de booking
+                            
+                            // Déterminer si cette cellule est le début d'un segment (top-left corner)
+                            const isSegmentTop = laserSegment && (
+                              timeIndex === 0 ||
+                              getSegmentForCellLaser(timeSlots[timeIndex - 1].hour, timeSlots[timeIndex - 1].minute, roomIndex)?.segmentId !== laserSegment.segmentId
+                            )
+                            const isSegmentStart = laserSegment && (
+                              roomIndex === 0 || 
+                              getSegmentForCellLaser(slot.hour, slot.minute, roomIndex - 1)?.segmentId !== laserSegment.segmentId
+                            )
+                            const isSegmentEnd = laserSegment && (
+                              roomIndex === TOTAL_LASER_ROOMS - 1 || 
+                              getSegmentForCellLaser(slot.hour, slot.minute, roomIndex + 1)?.segmentId !== laserSegment.segmentId
+                            )
+                            const isSegmentBottom = laserSegment && (
+                              timeIndex === timeSlots.length - 1 ||
+                              getSegmentForCellLaser(timeSlots[timeIndex + 1].hour, timeSlots[timeIndex + 1].minute, roomIndex)?.segmentId !== laserSegment.segmentId
+                            )
+                            
+                            // Si cette cellule fait partie d'un segment mais n'est pas le début, ne pas la rendre
+                            const isPartOfSegment = laserSegment && !(isSegmentStart && isSegmentTop)
+                            if (isPartOfSegment) return null
+                            
+                            const gridColumn = roomIndex + 1 // Colonne Laser (avant la colonne Heure)
+                            const gridRow = timeIndex + 1
+                            
+                            // Calculer les spans pour les segments
+                            let colSpan = 1
+                            let rowSpan = 1
+                            if (laserSegment) {
+                              colSpan = laserSegment.slotEnd - laserSegment.slotStart
+                              
+                              // rowSpan basé sur la durée du segment (même logique que les salles)
+                              const segmentStartMinutes = laserSegment.start.getHours() * 60 + laserSegment.start.getMinutes()
+                              const segmentEndMinutes = laserSegment.end.getHours() * 60 + laserSegment.end.getMinutes()
+                              const durationMinutes = segmentEndMinutes - segmentStartMinutes
+                              rowSpan = Math.ceil(durationMinutes / 15) // Cases de 15 minutes
+                              
+                              // S'assurer que rowSpan est au moins 1
+                              if (rowSpan < 1) rowSpan = 1
+                            }
+                            // Pour les cases vides, rowSpan = 1 (chaque case de 15 min est cliquable individuellement)
+                            
+                            // Bordures verticales : toujours afficher une séparation grise entre les salles laser
+                            // Toujours afficher une bordure grise entre les salles (séparation physique)
+                            // Même logique que les salles normales
+                            const borderLeftColor = (roomIndex === 0) 
+                              ? (laserSegment && booking ? (booking.color || '#a855f7') : (isDark ? '#374151' : '#e5e7eb'))
+                              : (isDark ? '#374151' : '#e5e7eb') // Toujours gris entre les salles
+                            const borderRightColor = (roomIndex === TOTAL_LASER_ROOMS - 1)
+                              ? (laserSegment && booking ? (booking.color || '#a855f7') : (isDark ? '#374151' : '#e5e7eb'))
+                              : (isDark ? '#374151' : '#e5e7eb') // Toujours gris entre les salles
+                            
+                            // Bordures horizontales : SALLES - lignes SEULEMENT à 0 et 30 (comme OB avant)
+                            // Utiliser la même logique que les salles : seulement borderTop, pas de borderBottom
+                            // Cela évite les lignes doubles et garantit que seules les lignes à 0 et 30 sont visibles
+                            const shouldShowTopBorder = (slot.minute === 0 || slot.minute === 30)
+                            
+                            // Formater l'heure pour l'affichage
+                            const laserBookingStartTime = booking ? (booking.game_start_datetime ? new Date(booking.game_start_datetime) : new Date(booking.start_datetime)) : null
+                            const laserDisplayTime = laserBookingStartTime ? formatTime(laserBookingStartTime) : ''
+                            
+                            // Vérifier que colSpan ne dépasse jamais TOTAL_LASER_ROOMS
+                            if (laserSegment && gridColumn + colSpan > TOTAL_LASER_ROOMS + 1) {
+                              colSpan = TOTAL_LASER_ROOMS + 1 - gridColumn
+                            }
+                            
+                            // Afficher les détails uniquement sur le premier segment du booking
+                            const isFirstSegmentOfBooking = laserSegment && (
+                              timeIndex === 0 || 
+                              getSegmentForCellLaser(timeSlots[timeIndex - 1].hour, timeSlots[timeIndex - 1].minute, roomIndex)?.bookingId !== laserSegment.bookingId
+                            )
+                            const showDetails = laserSegment && isSegmentStart && isSegmentTop && isFirstSegmentOfBooking
+                            
+                            return (
+                              <div
+                                key={`laser-cell-${timeIndex}-${roomIndex}`}
+                                onClick={() => booking ? openBookingModal(slot.hour, slot.minute, booking) : openBookingModal(slot.hour, slot.minute, undefined, 'GAME', 'LASER')}
+                                className={`cursor-pointer relative ${
+                                  booking
+                                    ? `flex items-center justify-center p-1 text-center`
+                                    : `${isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'}`
+                                }`}
+                                style={{
+                                  gridColumn: laserSegment ? `${gridColumn} / ${gridColumn + colSpan}` : gridColumn,
+                                  gridRow: laserSegment ? `${gridRow} / ${gridRow + rowSpan}` : gridRow,
+                                  backgroundColor: laserSegment && booking ? (booking.color || '#a855f7') : 'transparent',
+                                  // Afficher les bordures : SALLES - seulement borderTop à 0 et 30 (comme OB avant)
+                                  // Pas de borderBottom pour éviter les lignes doubles
+                                  borderTop: shouldShowTopBorder ? `2px solid ${(laserSegment && booking ? (booking.color || '#a855f7') : (isDark ? '#374151' : '#e5e7eb'))}` : 'none',
+                                  borderBottom: 'none', // Pas de borderBottom pour éviter les lignes doubles (comme les salles)
+                                  borderLeft: `2px solid ${borderLeftColor}`,
+                                  borderRight: `2px solid ${borderRightColor}`,
+                                }}
+                                title={booking ? (() => {
+                                  const contactData = getContactDisplayData(booking)
+                                  return `${contactData.firstName} ${contactData.lastName || ''}`.trim() || 'Sans nom'
+                                })() + ` - ${booking.participants_count} pers.` : ''}
+                              >
+                                {booking && showDetails && (
+                                  <div className={`text-xs font-semibold leading-tight ${isDark ? 'text-white' : 'text-white'}`} style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
+                                    {(() => {
+                                      const contactData = getContactDisplayData(booking)
+                                      const name = contactData.firstName || 'Sans nom'
+                                      return `${name}-${booking.participants_count}`
+                                    })()}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                      </Fragment>
+                    )
+                  })}
+                  
+                  {/* Colonne Heure pour LASER (à droite) */}
+                  {timeSlots.map((slot, timeIndex) => {
+                    const showBorder = (slot.minute === 0 || slot.minute === 30)
+                    return (
+                      <div
+                        key={`time-laser-${timeIndex}`}
+                        onClick={() => openBookingModal(slot.hour, slot.minute, undefined, 'GAME', 'LASER')}
+                        className={`p-2 text-center text-sm cursor-pointer ${isDark ? 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+                        style={{
+                          gridColumn: TOTAL_LASER_ROOMS + 1,
+                          gridRow: timeIndex + 1,
+                          borderTop: showBorder ? `2px solid ${isDark ? '#374151' : '#e5e7eb'}` : 'none',
+                          borderLeft: `2px solid ${isDark ? '#374151' : '#e5e7eb'}`,
+                        }}
+                      >
+                        {(slot.minute === 0 || slot.minute === 30) ? slot.label : ''}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* GRID ROOMS - Heure + Room A-D */}
-            <div style={{ flex: '0 0 auto', minWidth: 0 }}>
+            <div style={{ flex: '1 1 auto', flexShrink: 0, minWidth: `calc(80px + ${TOTAL_ROOMS} * 100px)` }}>
               {/* En-tête GRID ROOMS */}
               <div className={`grid ${isDark ? '' : ''}`} style={{
-                gridTemplateColumns: `80px repeat(${TOTAL_ROOMS}, 1fr)`,
+                gridTemplateColumns: `80px repeat(${TOTAL_ROOMS}, minmax(100px, 1fr))`,
                 borderBottom: `2px solid ${isDark ? '#374151' : '#e5e7eb'}`
               }}>
                 <div className={`p-3 text-center font-medium ${isDark ? 'text-gray-400 bg-gray-900' : 'text-gray-600 bg-gray-50'}`}>
@@ -2085,7 +2558,7 @@ export default function AdminPage() {
 
               {/* Corps GRID ROOMS */}
               <div className="grid" style={{
-                gridTemplateColumns: `80px repeat(${TOTAL_ROOMS}, 1fr)`,
+                gridTemplateColumns: `80px repeat(${TOTAL_ROOMS}, minmax(100px, 1fr))`,
                 gridTemplateRows: `repeat(${timeSlots.length}, 20px)`,
               }}>
                 {/* Colonne Heure pour ROOMS */}
@@ -2095,7 +2568,8 @@ export default function AdminPage() {
                   return (
                     <div
                       key={`time-room-${timeIndex}`}
-                      className={`p-2 text-center text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
+                      onClick={() => openBookingModal(slot.hour, slot.minute, undefined, 'EVENT')}
+                      className={`p-2 text-center text-sm cursor-pointer ${isDark ? 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
                       style={{
                         gridColumn: '1',
                         gridRow: timeIndex + 1,
@@ -2263,6 +2737,7 @@ export default function AdminPage() {
           editingBooking={editingBooking}
           isDark={isDark}
           defaultBookingType={modalDefaultBookingType}
+          defaultGameArea={modalDefaultGameArea}
           findBestAvailableRoom={findBestAvailableRoom}
           findRoomAvailability={findRoomAvailability}
           calculateOverbooking={calculateOverbooking}
@@ -2270,6 +2745,12 @@ export default function AdminPage() {
             index === self.findIndex(b => b.id === branch.id)
           )}
           selectedBranchId={selectedBranchId}
+          findBestLaserRoom={findBestLaserRoom}
+          checkLaserVestsConstraint={checkLaserVestsConstraint}
+          checkLaserRoomCapacity={checkLaserRoomCapacity}
+          laserRooms={laserRooms}
+          maxPlayersPerSlot={MAX_PLAYERS_PER_SLOT}
+          totalSlots={TOTAL_SLOTS}
         />
       )}
 
