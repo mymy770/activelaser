@@ -2105,7 +2105,9 @@ export default function AdminPage() {
           findBestAvailableRoom={findBestAvailableRoom}
           findRoomAvailability={findRoomAvailability}
           calculateOverbooking={calculateOverbooking}
-          branches={branches}
+          branches={branches.filter((branch, index, self) => 
+            index === self.findIndex(b => b.id === branch.id)
+          )}
           selectedBranchId={selectedBranchId}
         />
       )}

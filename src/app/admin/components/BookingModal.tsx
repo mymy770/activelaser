@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Loader2, Users, Clock, User, Phone, Mail, MessageSquare, Gamepad2, PartyPopper, Palette, Home, Calendar, ChevronLeft, ChevronRight, Trash2, Edit2, RefreshCw, AlertTriangle } from 'lucide-react'
+import { X, Loader2, Users, Clock, User, Phone, Mail, MessageSquare, Gamepad2, PartyPopper, Palette, Home, Calendar, ChevronLeft, ChevronRight, Trash2, Edit2, RefreshCw, AlertTriangle, ChevronDown, Building2 } from 'lucide-react'
 import type { CreateBookingData, BookingWithSlots } from '@/hooks/useBookings'
 import { ContactFieldAutocomplete } from './ContactFieldAutocomplete'
 import { useContacts } from '@/hooks/useContacts'
@@ -203,6 +203,20 @@ export function BookingModal({
     return new Date(date.getFullYear(), date.getMonth(), date.getDate())
   }
 
+  // Fermer le dropdown de branche quand on clique ailleurs
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (branchDropdownRef.current && !branchDropdownRef.current.contains(event.target as Node)) {
+        setShowBranchDropdown(false)
+      }
+    }
+
+    if (showBranchDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showBranchDropdown])
+
   // Reset le formulaire quand on ouvre/ferme ou charge une réservation à éditer
   useEffect(() => {
     // Ne réinitialiser que si le modal vient de s'ouvrir (passage de false à true)
@@ -217,6 +231,7 @@ export function BookingModal({
         setBookingBranchId(branchId)
       }
       setIsEditingBranch(false)
+      setShowBranchDropdown(false)
       
       if (editingBooking) {
         // Mode édition : pré-remplir avec les données de la réservation
