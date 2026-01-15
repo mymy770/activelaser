@@ -362,18 +362,26 @@ export default function ClientsPage() {
 
       {/* Filtres avancés */}
       {showAdvancedFilters && (
-        <div className="px-6 py-4 bg-gray-800/30 border-b border-gray-700">
+        <div className={`px-6 py-4 border-b ${
+          isDark ? 'bg-gray-800/30 border-gray-700' : 'bg-gray-50/50 border-gray-200'
+        }`}>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Statut */}
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Statut</label>
+              <label className={`block text-sm mb-2 ${
+                isDark ? 'text-gray-300' : 'text-gray-700'
+              }`}>Statut</label>
               <select
                 value={filterStatus}
                 onChange={(e) => {
                   setFilterStatus(e.target.value as any)
                   setPage(1)
                 }}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  isDark
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
               >
                 <option value="all">Tous</option>
                 <option value="active">Actifs</option>
@@ -383,14 +391,20 @@ export default function ClientsPage() {
 
             {/* Source */}
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Source</label>
+              <label className={`block text-sm mb-2 ${
+                isDark ? 'text-gray-300' : 'text-gray-700'
+              }`}>Source</label>
               <select
                 value={filterSource}
                 onChange={(e) => {
                   setFilterSource(e.target.value as any)
                   setPage(1)
                 }}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  isDark
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
               >
                 <option value="all">Toutes</option>
                 <option value="admin_agenda">Admin Agenda</option>
@@ -400,7 +414,9 @@ export default function ClientsPage() {
 
             {/* Date de début */}
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Date de début</label>
+              <label className={`block text-sm mb-2 ${
+                isDark ? 'text-gray-300' : 'text-gray-700'
+              }`}>Date de début</label>
               <input
                 type="date"
                 value={filterDateFrom}
@@ -408,13 +424,19 @@ export default function ClientsPage() {
                   setFilterDateFrom(e.target.value)
                   setPage(1)
                 }}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  isDark
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
               />
             </div>
 
             {/* Date de fin */}
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Date de fin</label>
+              <label className={`block text-sm mb-2 ${
+                isDark ? 'text-gray-300' : 'text-gray-700'
+              }`}>Date de fin</label>
               <input
                 type="date"
                 value={filterDateTo}
@@ -422,7 +444,11 @@ export default function ClientsPage() {
                   setFilterDateTo(e.target.value)
                   setPage(1)
                 }}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  isDark
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
               />
             </div>
           </div>
@@ -435,7 +461,11 @@ export default function ClientsPage() {
                 setFilterDateTo('')
                 setPage(1)
               }}
-              className="mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
+              className={`mt-4 px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                isDark
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+              }`}
             >
               <X className="w-4 h-4" />
               Réinitialiser les filtres
