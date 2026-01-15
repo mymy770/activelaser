@@ -640,8 +640,9 @@ export function BookingModal({
           setIsEditingContact(false)
           onClose()
         } else {
-          // Pour une édition, garder les données mais s'assurer que les champs sont gelés
+          // Pour une édition, fermer automatiquement le modal après sauvegarde
           setIsEditingContact(false)
+          onClose()
         }
       } else {
         setError('Erreur lors de la création de la réservation')
