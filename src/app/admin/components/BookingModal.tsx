@@ -232,6 +232,7 @@ export function BookingModal({
       } else {
         setBookingBranchId(branchId)
       }
+      // Pour les réservations existantes, geler la branche par défaut
       setIsEditingBranch(false)
       setShowBranchDropdown(false)
       
@@ -1074,26 +1075,44 @@ export function BookingModal({
               
               {/* Branche - au milieu avec espacement */}
               <div ref={branchDropdownRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowBranchDropdown(!showBranchDropdown)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors text-sm ${
-                    isDark
-                      ? 'bg-gray-800 hover:bg-gray-700 text-white'
-                      : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
-                  }`}
-                  title="Modifier la branche"
-                >
-                  <Building2 className={`w-4 h-4 ${
-                    isDark ? 'text-blue-400' : 'text-blue-600'
-                  }`} />
-                  <span>{branches.find(b => b.id === bookingBranchId)?.name || 'Branche'}</span>
-                  <ChevronDown className={`w-3 h-3 transition-transform ${
-                    isDark ? 'text-gray-400' : 'text-gray-600'
-                  } ${showBranchDropdown ? 'rotate-180' : ''}`} />
-                </button>
+                {editingBooking && !isEditingBranch ? (
+                  // Mode gelé pour réservation existante : afficher la branche avec bouton modification
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-1 rounded ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
+                      {branches.find(b => b.id === bookingBranchId)?.name || 'Branche'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingBranch(true)}
+                      className={`p-1 rounded ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
+                      title="Modifier la branche"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  // Mode édition ou nouvelle réservation : dropdown actif
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowBranchDropdown(!showBranchDropdown)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                        isDark
+                          ? 'bg-gray-800 hover:bg-gray-700 text-white'
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                      }`}
+                      title="Modifier la branche"
+                    >
+                      <Building2 className={`w-4 h-4 ${
+                        isDark ? 'text-blue-400' : 'text-blue-600'
+                      }`} />
+                      <span>{branches.find(b => b.id === bookingBranchId)?.name || 'Branche'}</span>
+                      <ChevronDown className={`w-3 h-3 transition-transform ${
+                        isDark ? 'text-gray-400' : 'text-gray-600'
+                      } ${showBranchDropdown ? 'rotate-180' : ''}`} />
+                    </button>
 
-                {showBranchDropdown && branches.length > 0 && (
+                    {showBranchDropdown && branches.length > 0 && (
                   <div className={`absolute top-full left-0 mt-2 w-56 rounded-lg shadow-xl z-50 overflow-hidden ${
                     isDark
                       ? 'bg-gray-800 border border-gray-700'
