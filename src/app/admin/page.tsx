@@ -117,7 +117,6 @@ export default function AdminPage() {
 
   // Utiliser les branches du hook principal (déjà appelé plus haut)
   const branches = branchesHook.branches
-  const selectedBranch = branchesHook.selectedBranch
   const refreshBranches = branchesHook.refresh
 
   // Filtrer les réservations pour l'agenda du jour sélectionné
