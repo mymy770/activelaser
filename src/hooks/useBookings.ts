@@ -359,11 +359,18 @@ export function useBookings(branchId: string | null, date?: string) {
 
       // CRM: Mettre à jour les relations booking_contacts si primary_contact_id a changé
       if (data.primary_contact_id !== undefined) {
+        // Récupérer l'ancien primary_contact_id pour vérifier s'il a changé
+        const oldPrimaryContactId = updatedBooking.primary_contact_id
+        
         // Supprimer toutes les anciennes relations pour cette réservation
-        await supabase
+        const { error: deleteError } = await supabase
           .from('booking_contacts')
           .delete()
           .eq('booking_id', id)
+
+        if (deleteError) {
+          console.error('Error deleting old booking_contacts:', deleteError)
+        }
 
         // Créer la nouvelle relation avec le nouveau contact (si fourni)
         if (data.primary_contact_id) {
@@ -377,7 +384,7 @@ export function useBookings(branchId: string | null, date?: string) {
             } as any)
 
           if (bookingContactError) {
-            console.error('Error updating booking_contacts:', bookingContactError)
+            console.error('Error inserting new booking_contacts:', bookingContactError)
             // Ne pas faire échouer la mise à jour si la relation échoue
           }
         }
