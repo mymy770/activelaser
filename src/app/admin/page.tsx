@@ -76,7 +76,7 @@ export default function AdminPage() {
         }
       }
     }
-  }, [selectedBranchId, showSettingsModal])
+  }, [selectedBranchId])
 
   // Fonction utilitaire pour formater une date en YYYY-MM-DD (sans conversion UTC)
   const formatDateToString = (date: Date): string => {
