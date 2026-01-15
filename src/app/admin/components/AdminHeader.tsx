@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 import type { AuthUser } from '@/hooks/useAuth'
 import type { Branch } from '@/lib/supabase/types'
 import { BranchSelector } from './BranchSelector'
+import { SettingsModal } from './SettingsModal'
 
 interface AdminHeaderProps {
   user: AuthUser
@@ -29,6 +30,7 @@ export function AdminHeader({
 }: AdminHeaderProps) {
   const pathname = usePathname()
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [mounted, setMounted] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -207,7 +209,7 @@ export function AdminHeader({
                   <button
                     onClick={() => {
                       setShowUserMenu(false)
-                      // TODO: Ouvrir les paramètres
+                      setShowSettingsModal(true)
                     }}
                     className={`w-full px-4 py-2 text-left flex items-center gap-2 transition-colors ${
                       theme === 'dark'
@@ -239,6 +241,15 @@ export function AdminHeader({
           </div>
         </div>
       </div>
+
+      {/* Modal Paramètres */}
+      {showSettingsModal && (
+        <SettingsModal
+          isOpen={showSettingsModal}
+          onClose={() => setShowSettingsModal(false)}
+          theme={theme}
+        />
+      )}
     </header>
   )
 }
