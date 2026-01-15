@@ -1079,6 +1079,7 @@ export function BookingModal({
                   </div>
                 </>
               )}
+              </div>
             </div>
           </div>
           <button
