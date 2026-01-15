@@ -343,6 +343,8 @@ export function useBookings(branchId: string | null, date?: string) {
       if (data.notes !== undefined) updateData.notes = data.notes
       // Couleur activée - la colonne existe dans la base de données
       if (data.color !== undefined) updateData.color = data.color
+      // CRM: Mettre à jour primary_contact_id si fourni
+      if (data.primary_contact_id !== undefined) updateData.primary_contact_id = data.primary_contact_id
       updateData.updated_at = new Date().toISOString()
 
       const { data: updatedBooking, error: bookingError } = await supabase
@@ -354,6 +356,32 @@ export function useBookings(branchId: string | null, date?: string) {
         .single<Booking>()
 
       if (bookingError) throw bookingError
+
+      // CRM: Mettre à jour les relations booking_contacts si primary_contact_id a changé
+      if (data.primary_contact_id !== undefined) {
+        // Supprimer toutes les anciennes relations pour cette réservation
+        await supabase
+          .from('booking_contacts')
+          .delete()
+          .eq('booking_id', id)
+
+        // Créer la nouvelle relation avec le nouveau contact (si fourni)
+        if (data.primary_contact_id) {
+          const { error: bookingContactError } = await supabase
+            .from('booking_contacts')
+            .insert({
+              booking_id: id,
+              contact_id: data.primary_contact_id,
+              is_primary: true,
+              role: null,
+            } as any)
+
+          if (bookingContactError) {
+            console.error('Error updating booking_contacts:', bookingContactError)
+            // Ne pas faire échouer la mise à jour si la relation échoue
+          }
+        }
+      }
 
       // Si des slots sont fournis, les recréer
       if (data.slots) {
