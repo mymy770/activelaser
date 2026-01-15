@@ -1058,11 +1058,17 @@ export function BookingModal({
                   value={bookingBranchId}
                   onChange={(e) => setBookingBranchId(e.target.value)}
                   onBlur={() => setIsEditingBranch(false)}
-                  className={`text-sm px-2 py-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                  className={`text-sm px-2 py-1 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white focus:bg-gray-700 focus:border-blue-500' 
+                      : 'bg-white border-gray-300 text-gray-900 focus:bg-white focus:border-blue-500'
+                  }`}
                   autoFocus
                 >
                   {branches.map(branch => (
-                    <option key={branch.id} value={branch.id}>{branch.name}</option>
+                    <option key={branch.id} value={branch.id} className={isDark ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}>
+                      {branch.name}
+                    </option>
                   ))}
                 </select>
               ) : (
