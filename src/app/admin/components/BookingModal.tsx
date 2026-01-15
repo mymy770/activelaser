@@ -708,7 +708,8 @@ export function BookingModal({
       const roomEndDate = new Date(localDate)
       roomEndDate.setHours(roomEndHour, roomEndMinute, 0, 0)
 
-      const roomAvailability = findRoomAvailability(parsedParticipants, roomStartDate, roomEndDate)
+      // Exclure le booking en cours de modification pour qu'il ne se bloque pas lui-même
+      const roomAvailability = findRoomAvailability(parsedParticipants, roomStartDate, roomEndDate, editingBooking?.id)
       
       if (roomAvailability.bestRoomId) {
         // Une salle avec capacité suffisante est disponible
