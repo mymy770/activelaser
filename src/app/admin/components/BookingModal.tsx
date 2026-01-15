@@ -441,21 +441,24 @@ export function BookingModal({
   }
 
   // Changer la couleur automatiquement selon le type (uniquement lors de la création)
-  // En mode édition, préserver la couleur de la réservation existante
+  // Changer la couleur automatiquement selon le type (création ET édition)
   useEffect(() => {
-    // Ne pas changer la couleur en mode édition - préserver celle de la réservation
-    if (editingBooking) {
-      return // Ne rien faire, la couleur est déjà chargée depuis editingBooking.color
-    }
-    
-    // En mode création uniquement : changer si c'est la couleur opposée
     const currentDefaultColor = bookingType === 'GAME' ? COLORS[0].value : COLORS[1].value
     const oppositeDefaultColor = bookingType === 'GAME' ? COLORS[1].value : COLORS[0].value
     
-    if (color === oppositeDefaultColor) {
-      setColor(currentDefaultColor)
+    // Changer automatiquement la couleur si :
+    // 1. La couleur actuelle est une des couleurs par défaut (bleu ou vert)
+    // 2. Elle correspond à la couleur opposée du type actuel
+    // Cela fonctionne en mode création ET édition
+    if (color === oppositeDefaultColor || color === currentDefaultColor) {
+      // Si c'est la couleur opposée, changer vers la couleur par défaut du type actuel
+      // Si c'est déjà la bonne couleur par défaut, ne rien faire
+      if (color === oppositeDefaultColor) {
+        setColor(currentDefaultColor)
+      }
     }
-  }, [bookingType, editingBooking])
+    // Si la couleur est personnalisée (rouge, orange, etc.), ne pas la changer automatiquement
+  }, [bookingType, color])
 
   // Pour les EVENT : synchroniser automatiquement l'heure de la salle avec l'heure du jeu - 15 minutes
   useEffect(() => {
