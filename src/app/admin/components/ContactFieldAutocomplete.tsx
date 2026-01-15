@@ -107,6 +107,11 @@ export function ContactFieldAutocomplete({
     return parts.length > 0 ? parts.join(' ') : contact.phone || 'Contact'
   }
 
+  // Déterminer la position du dropdown selon le champ
+  // Prénom et Téléphone : colonne gauche → dropdown aligné à gauche
+  // Nom et Email : colonne droite → dropdown aligné à droite pour éviter de sortir
+  const isLeftColumn = fieldType === 'firstName' || fieldType === 'phone'
+
   return (
     <div ref={containerRef} className="relative">
       {/* Input avec autocomplete */}
@@ -141,18 +146,21 @@ export function ContactFieldAutocomplete({
       {/* Résultats de recherche */}
       {showResults && searchResults.length > 0 && (
         <div
-          className={`absolute z-50 w-full mt-1 rounded-lg border shadow-lg max-h-64 overflow-y-auto ${
+          className={`absolute z-50 ${isLeftColumn ? 'left-0' : 'right-0'} mt-1 min-w-full w-max rounded-lg border shadow-lg max-h-64 overflow-y-auto ${
             isDark
               ? 'bg-gray-800 border-gray-700'
               : 'bg-white border-gray-300'
           }`}
+          style={{
+            maxWidth: 'min(calc(100vw - 2rem), 600px)',
+          }}
         >
           {searchResults.map((contact) => (
             <button
               key={contact.id}
               type="button"
               onClick={() => handleSelectContact(contact)}
-              className={`w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-b ${
+              className={`w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-b whitespace-nowrap ${
                 isDark
                   ? 'border-gray-700 text-gray-200'
                   : 'border-gray-200 text-gray-900'
@@ -164,41 +172,26 @@ export function ContactFieldAutocomplete({
                 }`}>
                   <User className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className={`font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     {getDisplayName(contact)}
                   </div>
-                  <div className="flex items-center gap-3 mt-1 text-sm">
-                    {contact.phone && (
-                      <div className={`flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                        <Phone className="w-3 h-3" />
-                        <span className="truncate">{contact.phone}</span>
-                      </div>
-                    )}
-                    {contact.email && (
-                      <div className={`flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                        <Mail className="w-3 h-3" />
-                        <span className="truncate">{contact.email}</span>
-                      </div>
-                    )}
-                  </div>
+                  {contact.phone && (
+                    <div className={`flex items-center gap-1 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      <Phone className="w-3 h-3 flex-shrink-0" />
+                      <span>{contact.phone}</span>
+                    </div>
+                  )}
+                  {contact.email && (
+                    <div className={`flex items-center gap-1 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      <Mail className="w-3 h-3 flex-shrink-0" />
+                      <span>{contact.email}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </button>
           ))}
-        </div>
-      )}
-
-      {/* Message "Aucun résultat" */}
-      {showResults && value.trim() && !isSearching && searchResults.length === 0 && (
-        <div
-          className={`absolute z-50 w-full mt-1 rounded-lg border shadow-lg p-4 text-center ${
-            isDark
-              ? 'bg-gray-800 border-gray-700 text-gray-400'
-              : 'bg-white border-gray-300 text-gray-600'
-          }`}
-        >
-          Aucun contact trouvé. Un nouveau contact sera créé à la validation.
         </div>
       )}
     </div>
