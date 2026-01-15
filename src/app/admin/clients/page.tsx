@@ -515,6 +515,9 @@ export default function ClientsPage() {
                     }`}>Email</th>
                     <th className={`px-4 py-3 text-left text-sm font-medium ${
                       isDark ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Notes</th>
+                    <th className={`px-4 py-3 text-left text-sm font-medium ${
+                      isDark ? 'text-gray-300' : 'text-gray-700'
                     }`}>Source</th>
                     <th className={`px-4 py-3 text-left text-sm font-medium ${
                       isDark ? 'text-gray-300' : 'text-gray-700'
@@ -560,6 +563,17 @@ export default function ClientsPage() {
                       <td className={`px-4 py-3 ${
                         isDark ? 'text-gray-300' : 'text-gray-700'
                       }`}>{contact.email || '-'}</td>
+                      <td className={`px-4 py-3 max-w-xs ${
+                        isDark ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
+                        {contact.notes_client ? (
+                          <div className="truncate" title={contact.notes_client}>
+                            {contact.notes_client}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 text-xs rounded-full ${
                           isDark
