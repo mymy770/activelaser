@@ -1934,14 +1934,16 @@ export function BookingModal({
           }}
           contact={selectedContact}
           branchId={branchId}
-          onSave={async (updatedContact: Contact) => {
+          onSave={async (updatedContact?: Contact) => {
             // Mettre à jour le contact et tous les champs avec les nouvelles données
-            setSelectedContact(updatedContact)
-            setFirstName(updatedContact.first_name || '')
-            setLastName(updatedContact.last_name || '')
-            setPhone(updatedContact.phone || '')
-            setEmail(updatedContact.email || '')
-            setNotes(updatedContact.notes_client || '')
+            if (updatedContact) {
+              setSelectedContact(updatedContact)
+              setFirstName(updatedContact.first_name || '')
+              setLastName(updatedContact.last_name || '')
+              setPhone(updatedContact.phone || '')
+              setEmail(updatedContact.email || '')
+              setNotes(updatedContact.notes_client || '')
+            }
             setShowClientModal(false)
             // Garder le mode édition activé pour permettre les modifications supplémentaires
             setIsEditingContact(true)
