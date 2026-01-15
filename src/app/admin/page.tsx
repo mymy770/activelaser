@@ -207,11 +207,16 @@ export default function AdminPage() {
     totalSlotsUsed: number // Nombre total de slots utilisés
   }
 
-  // Constantes configurables
-  const MAX_PLAYERS_PER_SLOT = 6 // TODO: Rendre configurable via settings si besoin
+  // Récupérer la branche sélectionnée (définie plus bas mais on en a besoin ici)
+  const branchForSettings = branches.find(b => b.id === selectedBranchId)
+  
+  // Constantes configurables - Lecture depuis branch_settings
+  const MAX_PLAYERS_PER_SLOT = branchForSettings?.settings?.max_players_per_slot || 6
   const SLOT_DURATION = 15 // minutes
-  const TOTAL_SLOTS = 14 // Défini ici pour être accessible dans buildUISegments()
-  const TOTAL_ROOMS = 4
+  const TOTAL_SLOTS = branchForSettings?.settings?.total_slots || 14 // Défini ici pour être accessible dans buildUISegments()
+  
+  // Calculer le nombre de salles actives pour la branche sélectionnée
+  const TOTAL_ROOMS = branchForSettings?.rooms?.filter(r => r.is_active).length || 0
 
   // Générer toutes les tranches de 15 minutes pour la journée (pour les calculs de segments)
   const timeSlotDates: Date[] = []
@@ -2038,8 +2043,8 @@ export default function AdminPage() {
                   Heure
                 </div>
                 {branchRooms
+                  .filter(r => r.is_active)
                   .sort((a, b) => a.sort_order - b.sort_order)
-                  .slice(0, TOTAL_ROOMS)
                   .map((room, i) => {
                     const roomName = room.name || `Salle ${i + 1}`
                     return (
@@ -2079,7 +2084,10 @@ export default function AdminPage() {
                 {timeSlots.map((slot, timeIndex) => {
                   return (
                     <Fragment key={`row-room-${timeIndex}`}>
-                      {Array.from({ length: TOTAL_ROOMS }, (_, roomIndex) => {
+                      {branchRooms
+                        .filter(r => r.is_active)
+                        .sort((a, b) => a.sort_order - b.sort_order)
+                        .map((room, roomIndex) => {
                         const segment = getSegmentForCellRooms(slot.hour, slot.minute, roomIndex)
                     const booking = segment?.booking
                     

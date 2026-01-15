@@ -842,10 +842,7 @@ export function BookingModal({
       setError('Le nombre de participants doit être au moins 1')
       return
     }
-    if (isOverCapacity) {
-      setError(`Capacité maximale dépassée (${TOTAL_CAPACITY} joueurs max)`)
-      return
-    }
+    // Plus de limitation de capacité : le système d'overbooking gère les dépassements
     if (parsedDuration < 15) {
       setError('La durée minimum est de 15 minutes')
       return
@@ -1436,7 +1433,6 @@ export function BookingModal({
                 <input
                   type="number"
                   min="1"
-                  max={TOTAL_CAPACITY}
                   value={participants}
                   onChange={(e) => setParticipants(e.target.value)}
                   className={`w-full px-2 py-2 rounded-lg border text-sm ${
@@ -1766,7 +1762,7 @@ export function BookingModal({
             <button
               type="submit"
               onClick={handleSubmit}
-              disabled={loading || isOverCapacity || parsedParticipants < 1}
+              disabled={loading || parsedParticipants < 1}
               className="px-6 py-2 rounded-lg text-white flex items-center gap-2 disabled:opacity-50"
               style={{ backgroundColor: color }}
             >

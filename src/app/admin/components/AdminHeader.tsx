@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { LogOut, User, Settings, ChevronDown, Sun, Moon, Users, Calendar } from 'lucide-react'
+import { LogOut, User, Settings, ChevronDown, Sun, Moon, Users, Calendar, Menu, X } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import type { AuthUser } from '@/hooks/useAuth'
 import type { Branch, EventRoom, BranchSettings } from '@/lib/supabase/types'
@@ -37,6 +38,7 @@ export function AdminHeader({
   const pathname = usePathname()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [mounted, setMounted] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -98,26 +100,24 @@ export function AdminHeader({
   }
 
   return (
-    <header className={`${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} border-b px-6 py-4`}>
+    <header className={`${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} border-b px-4 sm:px-6 py-4`}>
       <div className="flex items-center justify-between">
-        {/* Logo et titre */}
-        <div className="flex items-center gap-6">
-          <h1 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-            Active Games
-            <span className={`ml-2 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>Admin</span>
-          </h1>
-
-          {/* Sélecteur d'agence */}
-          <BranchSelector
-            branches={branches}
-            selectedBranch={selectedBranch}
-            onSelect={onBranchSelect}
-            theme={theme}
-          />
+        {/* Logo - À gauche */}
+        <div className="flex items-center min-w-0 flex-shrink-0">
+          <Link href="/admin" className="flex items-center">
+            <Image
+              src="/images/logo-activegames.png"
+              alt="Active Games"
+              width={142}
+              height={54}
+              className="h-14 w-auto object-contain"
+              priority
+            />
+          </Link>
         </div>
 
-        {/* Boutons Navigation - Agenda et CRM (au centre) */}
-        <div className="flex items-center gap-3 absolute left-1/2 transform -translate-x-1/2">
+        {/* Navigation - Agenda et CRM - Se rapproche du logo quand on réduit */}
+        <div className="hidden min-[900px]:flex items-center gap-3 flex-1 justify-center min-w-0">
           <Link
             href="/admin"
             className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
@@ -129,7 +129,7 @@ export function AdminHeader({
             }`}
           >
             <Calendar className="w-4 h-4" />
-            <span className="hidden sm:inline">Agenda</span>
+            <span>Agenda</span>
           </Link>
           <Link
             href="/admin/clients"
@@ -142,12 +142,32 @@ export function AdminHeader({
             }`}
           >
             <Users className="w-4 h-4" />
-            <span className="hidden sm:inline">CRM</span>
+            <span>CRM</span>
           </Link>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-3">
+        {/* Actions - À droite : Branch, Paramètres, Thème, Profil - Se rapprochent de l'Agenda quand on réduit */}
+        <div className="hidden min-[900px]:flex items-center gap-2 flex-shrink-0">
+          {/* Sélecteur d'agence */}
+          <BranchSelector
+            branches={branches}
+            selectedBranch={selectedBranch}
+            onSelect={onBranchSelect}
+            theme={theme}
+          />
+
+          {/* Bouton Paramètres */}
+          <button
+            onClick={() => setShowSettingsModal(true)}
+            className={`p-2 rounded-lg transition-colors ${
+              theme === 'dark'
+                ? 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+            }`}
+            title="Paramètres de la branche"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
 
           {/* Toggle thème */}
           <button
@@ -179,7 +199,7 @@ export function AdminHeader({
               <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                 <User className="w-4 h-4 text-white" />
               </div>
-              <div className="text-left hidden sm:block">
+              <div className="text-left hidden min-[900px]:block">
                 <div className={`text-sm font-medium ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
@@ -215,21 +235,6 @@ export function AdminHeader({
                   <button
                     onClick={() => {
                       setShowUserMenu(false)
-                      setShowSettingsModal(true)
-                    }}
-                    className={`w-full px-4 py-2 text-left flex items-center gap-2 transition-colors ${
-                      theme === 'dark'
-                        ? 'text-gray-300 hover:bg-gray-700'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Settings className="w-4 h-4" />
-                    Paramètres
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setShowUserMenu(false)
                       onSignOut()
                     }}
                     className={`w-full px-4 py-2 text-left flex items-center gap-2 transition-colors ${
@@ -246,7 +251,147 @@ export function AdminHeader({
             )}
           </div>
         </div>
+
+        {/* Menu Hamburger - Seulement quand il n'y a vraiment plus d'espace */}
+        <div className="min-[900px]:hidden">
+          <button
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className={`p-2 rounded-lg transition-colors ${
+              theme === 'dark'
+                ? 'text-gray-400 hover:text-white hover:bg-gray-800'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+          >
+            {showMobileMenu ? (
+              <X className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
+          </button>
+        </div>
       </div>
+
+      {/* Menu Mobile/Tablette - Visible quand hamburger est affiché */}
+      {showMobileMenu && (
+        <div className={`min-[900px]:hidden border-t ${
+          theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
+        }`}>
+          <div className="px-4 py-3 space-y-3">
+            {/* Sélecteur de branche mobile */}
+            <div className="pb-3 border-b border-gray-200 dark:border-gray-700">
+              <BranchSelector
+                branches={branches}
+                selectedBranch={selectedBranch}
+                onSelect={(branchId) => {
+                  onBranchSelect(branchId)
+                  setShowMobileMenu(false)
+                }}
+                theme={theme}
+              />
+            </div>
+
+            {/* Bouton Paramètres mobile */}
+            <button
+              onClick={() => {
+                setShowSettingsModal(true)
+                setShowMobileMenu(false)
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                theme === 'dark'
+                  ? 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+              }`}
+            >
+              <Settings className="w-4 h-4" />
+              <span>Paramètres</span>
+            </button>
+
+            {/* Navigation mobile */}
+            <div className="space-y-2">
+              <Link
+                href="/admin"
+                onClick={() => setShowMobileMenu(false)}
+                className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                  pathname === '/admin'
+                    ? 'bg-blue-600 text-white'
+                    : theme === 'dark' 
+                      ? 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+              >
+                <Calendar className="w-4 h-4" />
+                <span>Agenda</span>
+              </Link>
+              <Link
+                href="/admin/clients"
+                onClick={() => setShowMobileMenu(false)}
+                className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                  pathname === '/admin/clients'
+                    ? 'bg-blue-600 text-white'
+                    : theme === 'dark' 
+                      ? 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span>CRM</span>
+              </Link>
+            </div>
+
+            {/* Utilisateur mobile */}
+            <div className={`pt-3 border-t ${
+              theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+            }`}>
+              <div className={`px-4 py-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                <div className="text-sm font-medium">
+                  {user.profile?.full_name || user.email}
+                </div>
+                <div className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {user.email}
+                </div>
+                {getRoleBadge()}
+              </div>
+              <button
+                onClick={() => {
+                  setShowMobileMenu(false)
+                  onToggleTheme()
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                  theme === 'dark'
+                    ? 'text-gray-300 hover:bg-gray-700'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {theme === 'light' ? (
+                  <>
+                    <Moon className="w-4 h-4" />
+                    <span>Mode sombre</span>
+                  </>
+                ) : (
+                  <>
+                    <Sun className="w-4 h-4" />
+                    <span>Mode clair</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setShowMobileMenu(false)
+                  onSignOut()
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                  theme === 'dark'
+                    ? 'text-red-400 hover:bg-gray-700'
+                    : 'text-red-600 hover:bg-gray-100'
+                }`}
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Déconnexion</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Paramètres */}
       {showSettingsModal && selectedBranch && (

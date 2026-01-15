@@ -27,6 +27,7 @@ export function SettingsModal({
   const [roomCapacities, setRoomCapacities] = useState<Record<string, number>>({})
   const [roomNames, setRoomNames] = useState<Record<string, string>>({})
   const [playersPerSlot, setPlayersPerSlot] = useState<number>(6)
+  const [totalSlots, setTotalSlots] = useState<number>(14)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -50,14 +51,18 @@ export function SettingsModal({
     }
   }, [rooms])
 
-  // Initialiser la capacité par slot
+  // Initialiser les paramètres depuis les settings de la branche
   useEffect(() => {
     if (settings) {
-      // Pour l'instant, on utilise une valeur par défaut car players_per_slot n'existe pas encore dans branch_settings
-      // On pourrait l'ajouter plus tard ou utiliser max_concurrent_players / TOTAL_SLOTS
-      setPlayersPerSlot(6) // Valeur par défaut
+      // Utiliser max_players_per_slot depuis branch_settings, ou valeur par défaut
+      setPlayersPerSlot(settings.max_players_per_slot || 6)
+      // Utiliser total_slots depuis branch_settings, ou valeur par défaut
+      setTotalSlots(settings.total_slots || 14)
+    } else {
+      setPlayersPerSlot(6) // Valeur par défaut si pas de settings
+      setTotalSlots(14) // Valeur par défaut si pas de settings
     }
-  }, [settings])
+  }, [settings, branchId]) // Recharger quand branchId change pour avoir les bons paramètres
 
   // Charger les paramètres d'affichage depuis localStorage
   useEffect(() => {
@@ -118,21 +123,20 @@ export function SettingsModal({
         }
       }
 
-      // Mettre à jour la capacité par slot dans branch_settings
-      // Note: On pourrait ajouter un champ players_per_slot dans branch_settings
-      // Pour l'instant, on utilise max_concurrent_players comme approximation
-      if (settings) {
-        const totalSlots = 14 // TOTAL_SLOTS
-        const maxConcurrentPlayers = playersPerSlot * totalSlots
+      // Mettre à jour les paramètres de slots dans branch_settings
+      const maxConcurrentPlayers = playersPerSlot * totalSlots
 
-        const { error: settingsError } = await supabase
-          .from('branch_settings')
-          // @ts-expect-error - Type assertion nécessaire pour contourner le problème de typage Supabase
-          .update({ max_concurrent_players: maxConcurrentPlayers })
-          .eq('branch_id', branchId)
+      const { error: settingsError } = await supabase
+        .from('branch_settings')
+        // @ts-expect-error - Type assertion nécessaire pour contourner le problème de typage Supabase
+        .update({ 
+          total_slots: totalSlots,
+          max_players_per_slot: playersPerSlot,
+          max_concurrent_players: maxConcurrentPlayers
+        })
+        .eq('branch_id', branchId)
 
-        if (settingsError) throw settingsError
-      }
+      if (settingsError) throw settingsError
 
       // Sauvegarder les paramètres d'affichage dans localStorage
       if (branchId) {
@@ -278,38 +282,75 @@ export function SettingsModal({
             <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               Configuration des slots
             </h3>
-            <div
-              className={`flex items-center justify-between p-4 rounded-lg ${
-                isDark ? 'bg-gray-700/50' : 'bg-gray-50'
-              }`}
-            >
-              <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Personnes par slot
-              </label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={playersPerSlot}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value) || 1
-                    setPlayersPerSlot(value)
-                  }}
-                  className={`w-24 px-3 py-2 rounded-lg border ${
-                    isDark
-                      ? 'bg-gray-800 border-gray-600 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                />
-                <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  personnes
-                </span>
+            <div className="space-y-4">
+              {/* Nombre total de slots */}
+              <div
+                className={`flex items-center justify-between p-4 rounded-lg ${
+                  isDark ? 'bg-gray-700/50' : 'bg-gray-50'
+                }`}
+              >
+                <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Nombre total de slots
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min="1"
+                    max="30"
+                    value={totalSlots}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1
+                      setTotalSlots(value)
+                    }}
+                    className={`w-24 px-3 py-2 rounded-lg border ${
+                      isDark
+                        ? 'bg-gray-800 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  />
+                  <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    slots
+                  </span>
+                </div>
               </div>
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                Nombre total de slots disponibles pour les réservations.
+              </p>
+
+              {/* Personnes par slot */}
+              <div
+                className={`flex items-center justify-between p-4 rounded-lg ${
+                  isDark ? 'bg-gray-700/50' : 'bg-gray-50'
+                }`}
+              >
+                <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Personnes par slot
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={playersPerSlot}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1
+                      setPlayersPerSlot(value)
+                    }}
+                    className={`w-24 px-3 py-2 rounded-lg border ${
+                      isDark
+                        ? 'bg-gray-800 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  />
+                  <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    personnes
+                  </span>
+                </div>
+              </div>
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                Nombre de personnes pouvant occuper un slot de jeu simultanément.
+              </p>
             </div>
-            <p className={`mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              Nombre de personnes pouvant occuper un slot de jeu simultanément.
-            </p>
           </div>
 
           {/* Configuration de l'affichage du texte */}

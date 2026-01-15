@@ -42,6 +42,8 @@ export interface Database {
           id: string
           branch_id: string | null
           max_concurrent_players: number
+          total_slots: number | null
+          max_players_per_slot: number | null
           slot_duration_minutes: number
           game_duration_minutes: number
           event_total_duration_minutes: number
