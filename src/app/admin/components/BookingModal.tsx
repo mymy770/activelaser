@@ -1117,11 +1117,6 @@ export function BookingModal({
                         }`}
                       >
                         <div className="font-medium">{branch.name}</div>
-                        {branch.name_en && (
-                          <div className={`text-xs ${
-                            isDark ? 'text-gray-400' : 'text-gray-600'
-                          }`}>{branch.name_en}</div>
-                        )}
                       </button>
                     ))}
                   </div>
