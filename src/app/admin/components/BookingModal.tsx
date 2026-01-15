@@ -1375,7 +1375,7 @@ export function BookingModal({
                     onChange={(e) => setHour(parseInt(e.target.value))}
                     className={`admin-time-select flex-1 px-2 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 ${
                       isDark
-                        ? 'bg-gray-700 border-gray-600 text-white focus:bg-gray-700 hover:bg-gray-700'
+                        ? 'bg-gray-800 border-gray-600 text-white focus:bg-gray-800 hover:bg-gray-800'
                         : 'bg-white border-gray-300 text-gray-900 focus:bg-white hover:bg-white'
                     }`}
                   >
@@ -1388,7 +1388,7 @@ export function BookingModal({
                     onChange={(e) => setMinute(parseInt(e.target.value))}
                     className={`admin-time-select flex-1 px-2 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 ${
                       isDark
-                        ? 'bg-gray-700 border-gray-600 text-white focus:bg-gray-700 hover:bg-gray-700'
+                        ? 'bg-gray-800 border-gray-600 text-white focus:bg-gray-800 hover:bg-gray-800'
                         : 'bg-white border-gray-300 text-gray-900 focus:bg-white hover:bg-white'
                     }`}
                   >
@@ -1474,7 +1474,7 @@ export function BookingModal({
                       onChange={(e) => setRoomStartHour(parseInt(e.target.value))}
                       className={`admin-time-select flex-1 px-2 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 ${
                         isDark
-                          ? 'bg-gray-700 border-gray-600 text-white focus:bg-gray-700 hover:bg-gray-700'
+                          ? 'bg-gray-800 border-gray-600 text-white focus:bg-gray-800 hover:bg-gray-800'
                           : 'bg-white border-gray-300 text-gray-900 focus:bg-white hover:bg-white'
                       }`}
                     >
@@ -1487,7 +1487,7 @@ export function BookingModal({
                       onChange={(e) => setRoomStartMinute(parseInt(e.target.value))}
                       className={`admin-time-select flex-1 px-2 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 ${
                         isDark
-                          ? 'bg-gray-700 border-gray-600 text-white focus:bg-gray-700 hover:bg-gray-700'
+                          ? 'bg-gray-800 border-gray-600 text-white focus:bg-gray-800 hover:bg-gray-800'
                           : 'bg-white border-gray-300 text-gray-900 focus:bg-white hover:bg-white'
                       }`}
                     >

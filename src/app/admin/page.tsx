@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useBookings, type BookingWithSlots, type CreateBookingData } from '@/hooks/useBookings'
 import { BookingModal } from './components/BookingModal'
 import { AdminHeader } from './components/AdminHeader'
+import { ConfirmationModal } from './components/ConfirmationModal'
 import { useBranches } from '@/hooks/useBranches'
 import { useAuth } from '@/hooks/useAuth'
 import type { Profile, UserBranch } from '@/lib/supabase/types'
@@ -66,6 +67,21 @@ export default function AdminPage() {
   const [displayTextSize, setDisplayTextSize] = useState<'xs' | 'sm' | 'base' | 'lg'>('sm')
   const [displayTextWeight, setDisplayTextWeight] = useState<'normal' | 'semibold' | 'bold'>('bold')
   const [displayTextAlign, setDisplayTextAlign] = useState<'left' | 'center' | 'right'>('left')
+  
+  // Modal de confirmation
+  const [confirmationModal, setConfirmationModal] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    type?: 'warning' | 'info' | 'success'
+    onConfirm: () => void
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'warning',
+    onConfirm: () => {},
+  })
 
   // Charger les paramètres d'affichage depuis localStorage (doit être avant les autres hooks)
   useEffect(() => {
@@ -459,21 +475,33 @@ export default function AdminPage() {
   }
 
   // Supprimer toutes les réservations (remettre le système à zéro)
-  const handleDeleteAllBookings = async () => {
-    const confirmed = window.confirm(
-      '⚠️ ATTENTION : Cette action va supprimer TOUTES les réservations (jeux et événements) de cette branche. Cette action est irréversible.\n\nÊtes-vous sûr de vouloir continuer ?'
-    )
-    
-    if (!confirmed) return
-
-    const success = await deleteAllBookings()
-    if (success) {
-      // Le rafraîchissement se fait automatiquement dans deleteAllBookings
-      // Plus besoin de refreshAllBookings car on utilise maintenant un seul hook
-      alert('Toutes les réservations ont été supprimées. Le système est maintenant à zéro.')
-    } else {
-      alert('Erreur lors de la suppression de toutes les réservations.')
-    }
+  const handleDeleteAllBookings = () => {
+    setConfirmationModal({
+      isOpen: true,
+      title: '⚠️ ATTENTION',
+      message: 'Cette action va supprimer TOUTES les réservations (jeux et événements) de cette branche. Cette action est irréversible.\n\nÊtes-vous sûr de vouloir continuer ?',
+      type: 'warning',
+      onConfirm: async () => {
+        const success = await deleteAllBookings()
+        if (success) {
+          setConfirmationModal({
+            isOpen: true,
+            title: 'Succès',
+            message: 'Toutes les réservations ont été supprimées. Le système est maintenant à zéro.',
+            type: 'success',
+            onConfirm: () => {},
+          })
+        } else {
+          setConfirmationModal({
+            isOpen: true,
+            title: 'Erreur',
+            message: 'Erreur lors de la suppression de toutes les réservations.',
+            type: 'warning',
+            onConfirm: () => {},
+          })
+        }
+      },
+    })
   }
 
   // Charger les données utilisateur
@@ -2244,6 +2272,17 @@ export default function AdminPage() {
           selectedBranchId={selectedBranchId}
         />
       )}
+
+      {/* Modal de confirmation */}
+      <ConfirmationModal
+        isOpen={confirmationModal.isOpen}
+        onClose={() => setConfirmationModal({ ...confirmationModal, isOpen: false })}
+        onConfirm={confirmationModal.onConfirm}
+        title={confirmationModal.title}
+        message={confirmationModal.message}
+        type={confirmationModal.type}
+        isDark={theme === 'dark'}
+      />
     </div>
   )
 }

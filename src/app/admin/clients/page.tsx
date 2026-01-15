@@ -9,6 +9,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { AdminHeader } from '../components/AdminHeader'
 import { ClientModal } from './components/ClientModal'
 import { MergeContactsModal } from './components/MergeContactsModal'
+import { ConfirmationModal } from '../components/ConfirmationModal'
+import { CustomSelect } from '../components/CustomSelect'
 import { createClient } from '@/lib/supabase/client'
 import type { Contact } from '@/lib/supabase/types'
 
@@ -37,11 +39,24 @@ export default function ClientsPage() {
   const [duplicatesToMerge, setDuplicatesToMerge] = useState<Contact[]>([])
   const [showMergeModal, setShowMergeModal] = useState(false)
   
+  // Modal de confirmation
+  const [confirmationModal, setConfirmationModal] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    type?: 'warning' | 'info' | 'success'
+    onConfirm: () => void
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'warning',
+    onConfirm: () => {},
+  })
+  
   // Filtres avancés
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'archived'>('all')
   const [filterSource, setFilterSource] = useState<'all' | 'admin_agenda' | 'public_booking'>('all')
-  const [filterDateFrom, setFilterDateFrom] = useState<string>('')
-  const [filterDateTo, setFilterDateTo] = useState<string>('')
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
 
   const pageSize = 20
@@ -58,8 +73,6 @@ export default function ClientsPage() {
         includeArchived: filterStatus === 'all' ? includeArchived : filterStatus === 'archived',
         status: filterStatus === 'all' ? undefined : filterStatus,
         source: filterSource === 'all' ? undefined : filterSource,
-        dateFrom: filterDateFrom || undefined,
-        dateTo: filterDateTo || undefined,
         page,
         pageSize,
       })
@@ -90,7 +103,7 @@ export default function ClientsPage() {
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, includeArchived, page, selectedBranch?.id, sortField, sortDirection, filterStatus, filterSource, filterDateFrom, filterDateTo])
+  }, [searchQuery, includeArchived, page, selectedBranch?.id, sortField, sortDirection, filterStatus, filterSource])
 
   useEffect(() => {
     if (selectedBranch?.id) {
@@ -99,13 +112,19 @@ export default function ClientsPage() {
   }, [performSearch, selectedBranch?.id])
 
   // Gérer l'archivage
-  const handleArchive = async (contact: Contact) => {
-    if (!confirm(`Archiver le contact ${contact.first_name} ${contact.last_name || ''} ?`)) return
-
-    const success = await archiveContact(contact.id)
-    if (success) {
-      await performSearch()
-    }
+  const handleArchive = (contact: Contact) => {
+    setConfirmationModal({
+      isOpen: true,
+      title: 'Archiver le contact',
+      message: `Êtes-vous sûr de vouloir archiver le contact ${contact.first_name} ${contact.last_name || ''} ?`,
+      type: 'warning',
+      onConfirm: async () => {
+        const success = await archiveContact(contact.id)
+        if (success) {
+          await performSearch()
+        }
+      },
+    })
   }
 
   // Gérer la restauration
@@ -273,7 +292,15 @@ export default function ClientsPage() {
                   setDuplicatesToMerge(duplicates)
                   setShowMergeModal(true)
                 } else {
-                  alert('Aucun doublon trouvé dans les contacts affichés.')
+                  setConfirmationModal({
+                    isOpen: true,
+                    title: 'Aucun doublon',
+                    message: 'Aucun doublon trouvé dans les contacts affichés.',
+                    type: 'info',
+                    onConfirm: () => {
+                      setConfirmationModal({ ...confirmationModal, isOpen: false })
+                    },
+                  })
                 }
               }}
               disabled={contacts.length < 2}
@@ -366,28 +393,26 @@ export default function ClientsPage() {
         <div className={`px-6 py-4 border-b ${
           isDark ? 'bg-gray-800/30 border-gray-700' : 'bg-gray-50/50 border-gray-200'
         }`}>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Statut */}
             <div>
               <label className={`block text-sm mb-2 ${
                 isDark ? 'text-gray-300' : 'text-gray-700'
               }`}>Statut</label>
-              <select
+              <CustomSelect
                 value={filterStatus}
-                onChange={(e) => {
-                  setFilterStatus(e.target.value as any)
+                onChange={(value) => {
+                  setFilterStatus(value as any)
                   setPage(1)
                 }}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  isDark
-                    ? 'bg-gray-700 border-gray-600 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-              >
-                <option value="all">Tous</option>
-                <option value="active">Actifs</option>
-                <option value="archived">Archivés</option>
-              </select>
+                options={[
+                  { value: 'all', label: 'Tous' },
+                  { value: 'active', label: 'Actifs' },
+                  { value: 'archived', label: 'Archivés' },
+                ]}
+                placeholder="Sélectionner un statut"
+                isDark={isDark}
+              />
             </div>
 
             {/* Source */}
@@ -395,71 +420,27 @@ export default function ClientsPage() {
               <label className={`block text-sm mb-2 ${
                 isDark ? 'text-gray-300' : 'text-gray-700'
               }`}>Source</label>
-              <select
+              <CustomSelect
                 value={filterSource}
-                onChange={(e) => {
-                  setFilterSource(e.target.value as any)
+                onChange={(value) => {
+                  setFilterSource(value as any)
                   setPage(1)
                 }}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  isDark
-                    ? 'bg-gray-700 border-gray-600 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-              >
-                <option value="all">Toutes</option>
-                <option value="admin_agenda">Admin Agenda</option>
-                <option value="public_booking">Réservation publique</option>
-              </select>
-            </div>
-
-            {/* Date de début */}
-            <div>
-              <label className={`block text-sm mb-2 ${
-                isDark ? 'text-gray-300' : 'text-gray-700'
-              }`}>Date de début</label>
-              <input
-                type="date"
-                value={filterDateFrom}
-                onChange={(e) => {
-                  setFilterDateFrom(e.target.value)
-                  setPage(1)
-                }}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  isDark
-                    ? 'bg-gray-700 border-gray-600 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-              />
-            </div>
-
-            {/* Date de fin */}
-            <div>
-              <label className={`block text-sm mb-2 ${
-                isDark ? 'text-gray-300' : 'text-gray-700'
-              }`}>Date de fin</label>
-              <input
-                type="date"
-                value={filterDateTo}
-                onChange={(e) => {
-                  setFilterDateTo(e.target.value)
-                  setPage(1)
-                }}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  isDark
-                    ? 'bg-gray-700 border-gray-600 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
+                options={[
+                  { value: 'all', label: 'Toutes' },
+                  { value: 'admin_agenda', label: 'Admin Agenda' },
+                  { value: 'public_booking', label: 'Réservation publique' },
+                ]}
+                placeholder="Sélectionner une source"
+                isDark={isDark}
               />
             </div>
           </div>
-          {(filterStatus !== 'all' || filterSource !== 'all' || filterDateFrom || filterDateTo) && (
+          {(filterStatus !== 'all' || filterSource !== 'all') && (
             <button
               onClick={() => {
                 setFilterStatus('all')
                 setFilterSource('all')
-                setFilterDateFrom('')
-                setFilterDateTo('')
                 setPage(1)
               }}
               className={`mt-4 px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
@@ -952,6 +933,17 @@ export default function ClientsPage() {
           isDark={isDark}
         />
       )}
+
+      {/* Modal de confirmation */}
+      <ConfirmationModal
+        isOpen={confirmationModal.isOpen}
+        onClose={() => setConfirmationModal({ ...confirmationModal, isOpen: false })}
+        onConfirm={confirmationModal.onConfirm}
+        title={confirmationModal.title}
+        message={confirmationModal.message}
+        type={confirmationModal.type}
+        isDark={isDark}
+      />
     </div>
   )
 }
