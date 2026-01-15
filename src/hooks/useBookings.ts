@@ -347,6 +347,13 @@ export function useBookings(branchId: string | null, date?: string) {
       if (data.primary_contact_id !== undefined) updateData.primary_contact_id = data.primary_contact_id
       updateData.updated_at = new Date().toISOString()
 
+      // Récupérer l'ancien booking pour comparer primary_contact_id
+      const { data: oldBooking } = await supabase
+        .from('bookings')
+        .select('primary_contact_id')
+        .eq('id', id)
+        .single<{ primary_contact_id: string | null }>()
+
       const { data: updatedBooking, error: bookingError } = await supabase
         .from('bookings')
         // @ts-expect-error - Type assertion nécessaire pour contourner le problème de typage Supabase
@@ -358,10 +365,11 @@ export function useBookings(branchId: string | null, date?: string) {
       if (bookingError) throw bookingError
 
       // CRM: Mettre à jour les relations booking_contacts si primary_contact_id a changé
-      if (data.primary_contact_id !== undefined) {
-        // Récupérer l'ancien primary_contact_id pour vérifier s'il a changé
-        const oldPrimaryContactId = updatedBooking.primary_contact_id
-        
+      const newPrimaryContactId = data.primary_contact_id !== undefined ? data.primary_contact_id : updatedBooking.primary_contact_id
+      const oldPrimaryContactId = oldBooking?.primary_contact_id || null
+      
+      // Si le primary_contact_id a changé, mettre à jour les relations
+      if (newPrimaryContactId !== oldPrimaryContactId) {
         // Supprimer toutes les anciennes relations pour cette réservation
         const { error: deleteError } = await supabase
           .from('booking_contacts')
@@ -373,12 +381,12 @@ export function useBookings(branchId: string | null, date?: string) {
         }
 
         // Créer la nouvelle relation avec le nouveau contact (si fourni)
-        if (data.primary_contact_id) {
+        if (newPrimaryContactId) {
           const { error: bookingContactError } = await supabase
             .from('booking_contacts')
             .insert({
               booking_id: id,
-              contact_id: data.primary_contact_id,
+              contact_id: newPrimaryContactId,
               is_primary: true,
               role: null,
             } as any)
