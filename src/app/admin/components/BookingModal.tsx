@@ -299,6 +299,8 @@ export function BookingModal({
             if (contact) {
               setSelectedContact(contact)
               setIsEditingContact(false) // Les champs doivent être gelés pour une réservation existante
+              // Charger les notes du contact (notes_client fait partie du contact)
+              setNotes(contact.notes_client || '')
               // Ne pas écraser les champs si le contact existe (on garde les snapshot)
               // Mais on peut les pré-remplir avec les infos du contact si les snapshot sont vides
               if (!editingBooking.customer_first_name && contact.first_name) {
