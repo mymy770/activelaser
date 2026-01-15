@@ -2069,21 +2069,6 @@ export default function AdminPage() {
         </div>
       </main>
 
-      {/* Modal de paramètres */}
-      {selectedBranchId && (
-        <SettingsModal
-          isOpen={showSettingsModal}
-          onClose={() => setShowSettingsModal(false)}
-          branchId={selectedBranchId}
-          rooms={branchRooms}
-          settings={branchSettings}
-          onUpdate={async () => {
-            await refreshBranches()
-            await refreshAllBookings()
-          }}
-          isDark={isDark}
-        />
-      )}
 
       {/* Modal de réservation */}
       {selectedBranchId && (
