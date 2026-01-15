@@ -1852,7 +1852,8 @@ export default function AdminPage() {
                   const timeKey = Math.floor(slotDate.getTime() / (SLOT_DURATION * 60 * 1000)) * (SLOT_DURATION * 60 * 1000)
                   const obData = obByTimeKey.get(timeKey)
                   
-                  const showBorder = (slot.minute === 0 || slot.minute === 30)
+                  // OB : afficher les lignes toutes les 15 min (comme les slots)
+                  const showBorder = true // Toujours afficher les lignes pour OB
                   
                   return (
                     <div
@@ -1917,6 +1918,7 @@ export default function AdminPage() {
               }}>
                 {/* Colonne Heure pour ROOMS */}
                 {timeSlots.map((slot, timeIndex) => {
+                  // SALLES : lignes seulement à 0 et 30 (comme OB avant)
                   const showBorder = (slot.minute === 0 || slot.minute === 30)
                   return (
                     <div
@@ -2006,8 +2008,8 @@ export default function AdminPage() {
                       ? (segment && booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb'))
                       : (isDark ? '#374151' : '#e5e7eb') // Toujours gris entre les salles
                     
-                    // Bordures horizontales : vérifier si on doit afficher même sur les créneaux 15/45
-                    // Si la réservation du dessus ou du dessous est différente, afficher la bordure
+                    // Bordures horizontales : SALLES - lignes seulement à 0 et 30 (comme OB avant)
+                    // Ne pas afficher les lignes de 15 min, seulement à 0 et 30
                     const shouldShowTopBorder = (slot.minute === 0 || slot.minute === 30) || isDifferentBookingTop
                     const shouldShowBottomBorder = (slot.minute === 0 || slot.minute === 30) || isDifferentBookingBottom
                     
