@@ -2095,7 +2095,7 @@ export default function AdminPage() {
           }}
           onSubmit={handleSubmitBooking}
           onDelete={handleDeleteBooking}
-          branchId={selectedBranchId}
+          branchId={selectedBranchId || ''}
           selectedDate={selectedDate}
           initialHour={modalInitialHour}
           initialMinute={modalInitialMinute}
@@ -2105,6 +2105,8 @@ export default function AdminPage() {
           findBestAvailableRoom={findBestAvailableRoom}
           findRoomAvailability={findRoomAvailability}
           calculateOverbooking={calculateOverbooking}
+          branches={branches}
+          selectedBranchId={selectedBranchId}
         />
       )}
     </div>
