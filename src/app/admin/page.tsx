@@ -27,10 +27,13 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [userData, setUserData] = useState<UserData | null>(null)
   // Utiliser useBranches pour partager la branche sélectionnée avec le CRM
-  const { branches: branchesFromHook, selectedBranch: selectedBranchFromHook, selectedBranchId: selectedBranchIdFromHook, selectBranch: selectBranchFromHook } = useBranches()
-  
-  // Garder selectedBranchId local pour compatibilité avec le code existant, mais synchronisé avec useBranches
-  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(selectedBranchIdFromHook)
+  const branchesHook = useBranches()
+  const selectedBranchId = branchesHook.selectedBranchId
+  const setSelectedBranchId = (branchId: string | null) => {
+    if (branchId) {
+      branchesHook.selectBranch(branchId)
+    }
+  }
   const [theme, setTheme] = useState<Theme>('dark')
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date()
