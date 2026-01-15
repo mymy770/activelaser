@@ -2009,20 +2009,9 @@ export default function AdminPage() {
                       : (isDark ? '#374151' : '#e5e7eb') // Toujours gris entre les salles
                     
                     // Bordures horizontales : SALLES - lignes SEULEMENT à 0 et 30 (comme OB avant)
-                    // Ne jamais afficher les lignes de 15 min
-                    // Pour les cellules vides : bordures seulement à 0 et 30
-                    // Pour les cellules avec réservation : bordures seulement au début (0 ou 30) et à la fin (0 ou 30)
-                    const isSlotAtHalfHour = (slot.minute === 0 || slot.minute === 30)
-                    
-                    // Top border : seulement si c'est à 0 ou 30
-                    const shouldShowTopBorder = isSlotAtHalfHour
-                    
-                    // Bottom border : seulement si c'est à 0 ou 30 ET que c'est soit une cellule vide, soit la fin d'un segment
-                    const isLastSlotOfSegment = segment && (
-                      timeIndex === timeSlots.length - 1 ||
-                      getSegmentForCellRooms(timeSlots[timeIndex + 1].hour, timeSlots[timeIndex + 1].minute, roomIndex)?.segmentId !== segment.segmentId
-                    )
-                    const shouldShowBottomBorder = isSlotAtHalfHour && (!segment || isLastSlotOfSegment)
+                    // Utiliser la même logique que OB : seulement borderTop, pas de borderBottom
+                    // Cela évite les lignes doubles et garantit que seules les lignes à 0 et 30 sont visibles
+                    const shouldShowTopBorder = (slot.minute === 0 || slot.minute === 30)
                     
                     // Formater l'heure pour l'affichage
                     const roomBookingStartTime = booking ? new Date(booking.start_datetime) : null
@@ -2041,9 +2030,10 @@ export default function AdminPage() {
                           gridColumn: segment ? `${gridColumn} / ${gridColumn + colSpan}` : gridColumn,
                           gridRow: segment ? `${gridRow} / ${gridRow + rowSpan}` : gridRow,
                           backgroundColor: segment && booking ? (booking.color || '#22c55e') : 'transparent',
-                          // Afficher les bordures : SALLES - seulement à 0 et 30 (pas de lignes de 15 min)
+                          // Afficher les bordures : SALLES - seulement borderTop à 0 et 30 (comme OB avant)
+                          // Pas de borderBottom pour éviter les lignes doubles
                           borderTop: shouldShowTopBorder ? `2px solid ${(segment && booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb'))}` : 'none',
-                          borderBottom: shouldShowBottomBorder ? `2px solid ${(segment && booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb'))}` : 'none',
+                          borderBottom: 'none',
                           borderLeft: `2px solid ${borderLeftColor}`,
                           borderRight: `2px solid ${borderRightColor}`,
                         }}
