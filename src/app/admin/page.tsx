@@ -1316,6 +1316,8 @@ export default function AdminPage() {
                           setCalendarMonth(bookingDate.getMonth())
                           setCalendarYear(bookingDate.getFullYear())
                           setAgendaSearchQuery('')
+                          // Ouvrir le modal de la réservation
+                          openBookingModal(undefined, undefined, booking)
                         }}
                         className={`w-full text-left px-3 py-2 ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors`}
                       >
