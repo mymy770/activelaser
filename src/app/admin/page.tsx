@@ -528,15 +528,9 @@ export default function AdminPage() {
           role: profile?.role || 'agent'
         })
 
-        if (branches.length > 0) {
-          // Sélectionner Rishon LeZion par défaut si disponible
-          const rishonBranch = branches.find(
-            b => b.slug === 'rishon-lezion' || 
-                 b.name.toLowerCase().includes('rishon') ||
-                 b.name.toLowerCase().includes('rly')
-          )
-          setSelectedBranchId(rishonBranch?.id || branches[0].id)
-        }
+        // NE PAS forcer la sélection de branche ici
+        // useBranches gère déjà la sélection initiale (Rishon LeZion par défaut au premier chargement)
+        // et la persistance via localStorage pour conserver la branche entre les pages
       } catch (error) {
         console.error('Error loading user data:', error)
       } finally {
