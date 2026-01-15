@@ -406,24 +406,20 @@ export function BookingModal({
     setCalendarYear(calendarYear + 1)
   }
 
-  // Changer la couleur par défaut quand on change de type (uniquement lors de la création)
-  // Changer la couleur automatiquement selon le type (création ET édition)
+  // Changer la couleur automatiquement selon le type (uniquement lors de la création)
+  // En mode édition, préserver la couleur de la réservation existante
   useEffect(() => {
+    // Ne pas changer la couleur en mode édition - préserver celle de la réservation
+    if (editingBooking) {
+      return // Ne rien faire, la couleur est déjà chargée depuis editingBooking.color
+    }
+    
+    // En mode création uniquement : changer si c'est la couleur opposée
     const currentDefaultColor = bookingType === 'GAME' ? COLORS[0].value : COLORS[1].value
     const oppositeDefaultColor = bookingType === 'GAME' ? COLORS[1].value : COLORS[0].value
     
-    // Si la couleur actuelle est la couleur par défaut de l'autre type, on la change
-    // En mode édition, on change seulement si c'est une couleur par défaut
-    if (editingBooking) {
-      // En mode édition : changer seulement si c'est une couleur par défaut
-      if (color === oppositeDefaultColor || color === COLORS[0].value || color === COLORS[1].value) {
-        setColor(currentDefaultColor)
-      }
-    } else {
-      // En mode création : changer si c'est la couleur opposée
-      if (color === oppositeDefaultColor) {
-        setColor(currentDefaultColor)
-      }
+    if (color === oppositeDefaultColor) {
+      setColor(currentDefaultColor)
     }
   }, [bookingType, editingBooking])
 
