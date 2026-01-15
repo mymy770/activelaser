@@ -2008,10 +2008,10 @@ export default function AdminPage() {
                       ? (segment && booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb'))
                       : (isDark ? '#374151' : '#e5e7eb') // Toujours gris entre les salles
                     
-                    // Bordures horizontales : SALLES - lignes seulement à 0 et 30 (comme OB avant)
-                    // Ne pas afficher les lignes de 15 min, seulement à 0 et 30
-                    const shouldShowTopBorder = (slot.minute === 0 || slot.minute === 30) || isDifferentBookingTop
-                    const shouldShowBottomBorder = (slot.minute === 0 || slot.minute === 30) || isDifferentBookingBottom
+                    // Bordures horizontales : SALLES - lignes SEULEMENT à 0 et 30 (comme OB avant)
+                    // Ne jamais afficher les lignes de 15 min, même entre réservations différentes
+                    const shouldShowTopBorder = (slot.minute === 0 || slot.minute === 30)
+                    const shouldShowBottomBorder = (slot.minute === 0 || slot.minute === 30)
                     
                     // Formater l'heure pour l'affichage
                     const roomBookingStartTime = booking ? new Date(booking.start_datetime) : null
@@ -2030,9 +2030,9 @@ export default function AdminPage() {
                           gridColumn: segment ? `${gridColumn} / ${gridColumn + colSpan}` : gridColumn,
                           gridRow: segment ? `${gridRow} / ${gridRow + rowSpan}` : gridRow,
                           backgroundColor: segment && booking ? (booking.color || '#22c55e') : 'transparent',
-                          // Afficher les bordures : toujours sur 0 et 30, ou si réservation différente adjacente
-                          borderTop: shouldShowTopBorder ? `2px solid ${isDifferentBookingTop ? (isDark ? '#374151' : '#e5e7eb') : (segment && booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb'))}` : 'none',
-                          borderBottom: shouldShowBottomBorder ? `2px solid ${isDifferentBookingBottom ? (isDark ? '#374151' : '#e5e7eb') : (segment && booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb'))}` : 'none',
+                          // Afficher les bordures : SALLES - seulement à 0 et 30 (pas de lignes de 15 min)
+                          borderTop: shouldShowTopBorder ? `2px solid ${(segment && booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb'))}` : 'none',
+                          borderBottom: shouldShowBottomBorder ? `2px solid ${(segment && booking ? (booking.color || (isDark ? '#4ade80' : '#16a34a')) : (isDark ? '#374151' : '#e5e7eb'))}` : 'none',
                           borderLeft: `2px solid ${borderLeftColor}`,
                           borderRight: `2px solid ${borderRightColor}`,
                         }}
