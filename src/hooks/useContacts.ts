@@ -91,6 +91,7 @@ export function useContacts(branchId: string | null) {
       if (params.query && params.query.trim().length > 0) {
         const searchQuery = params.query.trim()
         // Utiliser or() avec la syntaxe correcte pour Supabase
+        // Format: field.ilike.%value%,field2.ilike.%value%
         query = query.or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`)
       }
 
@@ -100,11 +101,18 @@ export function useContacts(branchId: string | null) {
       // Pagination
       query = query.range(from, to)
 
-      const { data, error: searchError, count } = await query
+      const result = await query.returns<Contact[]>()
+      const { data, error: searchError, count } = result
 
       if (searchError) {
-        console.error('Supabase search error:', searchError)
-        throw new Error(searchError.message || 'Erreur lors de la recherche')
+        console.error('Supabase search error details:', {
+          message: searchError.message,
+          details: searchError.details,
+          hint: searchError.hint,
+          code: searchError.code,
+          fullError: searchError,
+        })
+        throw searchError
       }
 
       const contactsList = data || []
