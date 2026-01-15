@@ -918,7 +918,7 @@ export default function ClientsPage() {
           onClose={handleCloseClientModal}
           contact={editingContact}
           branchId={selectedBranch.id}
-          onSave={performSearch}
+          onSave={() => performSearch()}
           isDark={isDark}
         />
       )}
