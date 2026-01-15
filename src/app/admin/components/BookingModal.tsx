@@ -1448,19 +1448,27 @@ export function BookingModal({
             <textarea
               value={notes}
               onChange={(e) => {
-                setNotes(e.target.value)
-                // Auto-resize jusqu'à 5 lignes max
-                const textarea = e.target as HTMLTextAreaElement
-                textarea.style.height = 'auto'
-                const maxHeight = 5 * 24 // 5 lignes environ (24px par ligne)
-                const newHeight = Math.min(textarea.scrollHeight, maxHeight)
-                textarea.style.height = `${newHeight}px`
+                if (!areFieldsFrozen) {
+                  setNotes(e.target.value)
+                  // Auto-resize jusqu'à 5 lignes max
+                  const textarea = e.target as HTMLTextAreaElement
+                  textarea.style.height = 'auto'
+                  const maxHeight = 5 * 24 // 5 lignes environ (24px par ligne)
+                  const newHeight = Math.min(textarea.scrollHeight, maxHeight)
+                  textarea.style.height = `${newHeight}px`
+                }
               }}
               rows={2}
+              disabled={areFieldsFrozen}
+              readOnly={areFieldsFrozen}
               className={`w-full px-3 py-2 rounded-lg border resize-none text-sm overflow-y-auto ${
-                isDark
-                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500'
-                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                areFieldsFrozen
+                  ? isDark
+                    ? 'bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed'
+                    : 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+                  : isDark
+                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500'
+                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
               }`}
               placeholder="Notes additionnelles..."
               style={{ minHeight: '48px', maxHeight: '120px' }}
