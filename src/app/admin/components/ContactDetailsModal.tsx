@@ -65,7 +65,7 @@ export function ContactDetailsModal({
     if (contactData) {
       setContact(contactData)
 
-      // Charger les réservations liées - 2 méthodes pour couvrir tous les cas
+      // Charger les réservations liées - 3 méthodes pour couvrir tous les cas
       let bookings: any[] = []
       const bookingIds = new Set<string>()
       
@@ -93,6 +93,20 @@ export function ContactDetailsModal({
         })
       }
       
+      // Méthode 3: Via numéro de téléphone (fallback pour anciennes réservations)
+      if (contactData.phone) {
+        const { data: phoneBookingsData } = await supabase
+          .from('bookings')
+          .select('id')
+          .eq('customer_phone', contactData.phone)
+
+        if (phoneBookingsData) {
+          phoneBookingsData.forEach((b: any) => {
+            if (b.id) bookingIds.add(b.id)
+          })
+        }
+      }
+      
       // Charger tous les bookings trouvés
       if (bookingIds.size > 0) {
         const { data: bookingsData } = await supabase
@@ -100,8 +114,6 @@ export function ContactDetailsModal({
           .select(`
             id,
             booking_type,
-            booking_date,
-            start_time,
             start_datetime,
             participants_count,
             status,
@@ -123,8 +135,8 @@ export function ContactDetailsModal({
 
       // Trier par date décroissante
       bookings.sort((a: any, b: any) => 
-        new Date(b.start_datetime || b.booking_date).getTime() - 
-        new Date(a.start_datetime || a.booking_date).getTime()
+        new Date(b.start_datetime).getTime() - 
+        new Date(a.start_datetime).getTime()
       )
 
       setLinkedBookings(bookings)
@@ -135,7 +147,7 @@ export function ContactDetailsModal({
       const eventCount = bookings.filter((b: any) => b.booking_type === 'EVENT').length
       const totalParticipants = bookings.reduce((sum: number, b: any) => sum + (b.participants_count || 0), 0)
       const upcomingCount = bookings.filter((b: any) => 
-        new Date(b.start_datetime || b.booking_date) >= now && b.status !== 'CANCELLED'
+        new Date(b.start_datetime) >= now && b.status !== 'CANCELLED'
       ).length
       const lastBooking = bookings.find((b: any) => b.status !== 'CANCELLED')
 
@@ -145,7 +157,7 @@ export function ContactDetailsModal({
         eventBookings: eventCount,
         totalParticipants,
         upcomingBookings: upcomingCount,
-        lastActivity: lastBooking ? (lastBooking.start_datetime || lastBooking.booking_date) : null,
+        lastActivity: lastBooking ? lastBooking.start_datetime : null,
       })
     }
 
@@ -330,7 +342,7 @@ export function ContactDetailsModal({
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {linkedBookings.map((booking) => {
-                  const bookingDate = new Date(booking.start_datetime || booking.booking_date)
+                  const bookingDate = new Date(booking.start_datetime)
                   const isPast = bookingDate < new Date()
                   
                   // Déterminer le type de jeu pour les GAME
@@ -395,7 +407,7 @@ export function ContactDetailsModal({
                                 day: 'numeric',
                                 month: 'short',
                                 year: 'numeric'
-                              })} à {booking.start_time?.slice(0, 5) || ''}
+                              })} à {bookingDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                             </div>
                           </div>
                         </div>
