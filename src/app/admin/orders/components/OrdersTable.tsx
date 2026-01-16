@@ -154,7 +154,7 @@ export function OrdersTable({ orders, isDark, onConfirm, onCancel, onViewOrder, 
   return (
     <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} overflow-hidden`}>
       {/* Header */}
-      <div className={`grid grid-cols-12 gap-3 px-4 py-3 border-b ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-gray-50'} text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'} uppercase tracking-wider`}>
+      <div className={`grid grid-cols-10 gap-3 px-4 py-3 border-b ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-gray-50'} text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'} uppercase tracking-wider`}>
         <div className="col-span-1 cursor-pointer hover:text-blue-500" onClick={() => handleSort('type')}>
           Type<SortIcon field="type" />
         </div>
@@ -177,7 +177,6 @@ export function OrdersTable({ orders, isDark, onConfirm, onCancel, onViewOrder, 
           Pers.<SortIcon field="participants" />
         </div>
         <div className="col-span-2">Référence</div>
-        <div className="col-span-2">Source</div>
       </div>
 
       {/* Rows */}
@@ -190,7 +189,7 @@ export function OrdersTable({ orders, isDark, onConfirm, onCancel, onViewOrder, 
           return (
             <div 
               key={order.id}
-              className={`grid grid-cols-12 gap-3 px-4 py-3 items-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer ${
+              className={`grid grid-cols-10 gap-3 px-4 py-3 items-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer ${
                 order.status === 'pending' ? 'bg-red-50/30 dark:bg-red-900/10' : ''
               }`}
               onClick={() => onViewOrder(order)}
@@ -268,16 +267,6 @@ export function OrdersTable({ orders, isDark, onConfirm, onCancel, onViewOrder, 
                 </div>
               </div>
 
-              {/* Source */}
-              <div className="col-span-2">
-                <span className={`inline-flex items-center px-2 py-1 rounded text-xs ${
-                  order.source === 'admin_agenda'
-                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                    : 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
-                }`}>
-                  {order.source === 'admin_agenda' ? 'Admin' : 'Site'}
-                </span>
-              </div>
             </div>
           )
         })}

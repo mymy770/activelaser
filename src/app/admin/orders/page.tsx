@@ -45,7 +45,6 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
   const [typeFilter, setTypeFilter] = useState<'all' | 'GAME' | 'EVENT'>('all')
   const [gameAreaFilter, setGameAreaFilter] = useState<'all' | GameArea>('all')
-  const [sourceFilter, setSourceFilter] = useState<'all' | 'admin_agenda' | 'website'>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [theme, setTheme] = useState<Theme>('light')
   const [selectedOrder, setSelectedOrder] = useState<OrderWithRelations | null>(null)
@@ -104,11 +103,6 @@ export default function OrdersPage() {
     
     // Filtre par zone de jeu (ACTIVE/LASER)
     if (gameAreaFilter !== 'all' && order.game_area !== gameAreaFilter) {
-      return false
-    }
-    
-    // Filtre par source (Admin/Site)
-    if (sourceFilter !== 'all' && order.source !== sourceFilter) {
       return false
     }
     
@@ -435,42 +429,6 @@ export default function OrdersPage() {
             </div>
           )}
           
-          {/* Séparateur */}
-          <div className={`h-6 w-px mx-1 ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`} />
-          
-          {/* Source (Admin/Site) */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setSourceFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                sourceFilter === 'all' 
-                  ? 'bg-blue-600 text-white' 
-                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Toutes sources
-            </button>
-            <button
-              onClick={() => setSourceFilter('admin_agenda')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                sourceFilter === 'admin_agenda' 
-                  ? 'bg-orange-600 text-white' 
-                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Admin
-            </button>
-            <button
-              onClick={() => setSourceFilter('website')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                sourceFilter === 'website' 
-                  ? 'bg-teal-600 text-white' 
-                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Site web
-            </button>
-          </div>
         </div>
 
         {/* Orders List */}

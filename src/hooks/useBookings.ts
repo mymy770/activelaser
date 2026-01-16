@@ -367,7 +367,6 @@ export function useBookings(branchId: string | null, date?: string) {
         branch_id: data.branch_id,
         booking_id: newBooking.id,
         contact_id: data.primary_contact_id || null,
-        source: 'admin_agenda',
         status: 'auto_confirmed',
         order_type: data.type, // 'GAME' ou 'EVENT'
         game_area: newSessions.length > 0 ? newSessions[0].game_area : 'ACTIVE',
