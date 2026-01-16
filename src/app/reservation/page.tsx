@@ -8,11 +8,12 @@ import { MapPin, Calendar, Clock, ChevronRight, ChevronLeft, Check, Users, Gamep
 import { getTranslations, getDirection, Locale, defaultLocale } from '@/i18n'
 import { Header, Footer } from '@/components'
 
-type BookingStep = 1 | 2 | 3 | 4 | 5 | 6
+type BookingStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
 
 interface BookingData {
   branch: string | null
   type: 'game' | 'event' | null
+  gameArea: 'ACTIVE' | 'LASER' | 'MIX' | null // Type de jeu
   players: number | null
   date: string | null
   time: string | null
@@ -35,6 +36,7 @@ export default function ReservationPage() {
   const [bookingData, setBookingData] = useState<BookingData>({
     branch: null,
     type: null,
+    gameArea: null,
     players: null,
     date: null,
     time: null,
@@ -173,15 +175,19 @@ export default function ReservationPage() {
 
   const handleDateSelect = (date: string) => {
     setBookingData({ ...bookingData, date })
-    setTimeout(() => setStep(4), 300)
+    setTimeout(() => setStep(5), 300) // Étape 5 = nombre de joueurs
   }
 
   const handleTimeSelect = (time: string) => {
     setBookingData({ ...bookingData, time })
+    setTimeout(() => setStep(7), 300) // Étape 7 = contact
   }
 
   const handleNext = () => {
-    if (step < 5) {
+    // Skip step 5 (players) if already filled, go to step 6 (time)
+    if (step === 4 && bookingData.players) {
+      setStep(6 as BookingStep)
+    } else if (step < 7) {
       setStep((step + 1) as BookingStep)
     }
   }
@@ -223,11 +229,22 @@ export default function ReservationPage() {
         return
       }
       
-      // Déterminer le game_area en fonction du type
+        // Utiliser le gameArea sélectionné par l'utilisateur
       let gameArea: 'ACTIVE' | 'LASER' | null = null
-      if (bookingData.type === 'game') {
-        // Par défaut ACTIVE, mais on pourrait ajouter un choix dans le formulaire
-        gameArea = 'ACTIVE'
+      if (bookingData.type === 'game' && bookingData.gameArea) {
+        if (bookingData.gameArea === 'MIX') {
+          // Si "Mix", on envoie ACTIVE par défaut (l'admin pourra ajuster)
+          gameArea = 'ACTIVE'
+        } else {
+          gameArea = bookingData.gameArea
+        }
+      } else if (bookingData.type === 'event' && bookingData.gameArea) {
+        // Pour les events aussi
+        if (bookingData.gameArea === 'MIX') {
+          gameArea = 'ACTIVE'
+        } else {
+          gameArea = bookingData.gameArea
+        }
       }
       
       // Appeler la nouvelle API orders
@@ -263,7 +280,7 @@ export default function ReservationPage() {
         setReservationNumber(refNumber)
         setOrderStatus(result.order.status)
         setOrderMessage(result.order.message)
-        setStep(6)
+        setStep(8)
       } else {
         console.error('Error saving order:', result.error)
         alert('Erreur lors de la sauvegarde de la réservation. Veuillez réessayer.')
@@ -320,7 +337,7 @@ export default function ReservationPage() {
 
         {/* Progress Steps */}
         <div className="flex justify-center items-center mb-12 gap-4">
-          {[1, 2, 3, 4, 5].map((s) => (
+          {[1, 2, 3, 4, 5, 6, 7].map((s) => (
             <div key={s} className="flex items-center">
               <div
                 className={`w-12 h-12 rounded-full flex items-center justify-center font-bold transition-all duration-300 ${
@@ -557,8 +574,81 @@ export default function ReservationPage() {
             </motion.div>
           )}
 
-          {/* Step 3: Select Date */}
+          {/* Step 3: Select Game Type */}
           {step === 3 && (
+            <motion.div
+              key="step3"
+              initial={{ opacity: 0, x: isRTL ? 50 : -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: isRTL ? -50 : 50 }}
+              className="bg-dark-100/50 backdrop-blur-sm rounded-2xl p-8 border border-primary/30"
+            >
+              <div className="text-center mb-8">
+                <Gamepad2 className="w-16 h-16 text-primary mx-auto mb-4" />
+                <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'Orbitron, sans-serif' }}>
+                  Type de jeu
+                </h2>
+                <p className="text-gray-400">Choisissez votre activité</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Active Games */}
+                <motion.button
+                  onClick={() => handleGameAreaSelect('ACTIVE')}
+                  className={`border-2 rounded-xl p-6 text-center transition-all duration-300 ${
+                    bookingData.gameArea === 'ACTIVE'
+                      ? 'bg-dark-200 border-blue-500/70 shadow-[0_0_20px_rgba(59,130,246,0.3)]'
+                      : 'bg-dark-200/50 border-primary/30 hover:border-blue-500/70 hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]'
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Gamepad2 className="w-12 h-12 mx-auto mb-3 text-blue-500" />
+                  <h3 className="text-xl font-bold mb-2">Active Games</h3>
+                  <p className="text-gray-400 text-sm">Jeux interactifs et challenges</p>
+                </motion.button>
+
+                {/* Laser */}
+                <motion.button
+                  onClick={() => handleGameAreaSelect('LASER')}
+                  className={`border-2 rounded-xl p-6 text-center transition-all duration-300 ${
+                    bookingData.gameArea === 'LASER'
+                      ? 'bg-dark-200 border-cyan-500/70 shadow-[0_0_20px_rgba(6,182,212,0.3)]'
+                      : 'bg-dark-200/50 border-primary/30 hover:border-cyan-500/70 hover:shadow-[0_0_20px_rgba(6,182,212,0.3)]'
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <svg className="w-12 h-12 mx-auto mb-3 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <h3 className="text-xl font-bold mb-2">Laser City</h3>
+                  <p className="text-gray-400 text-sm">Labyrinthe laser</p>
+                </motion.button>
+
+                {/* Mix */}
+                <motion.button
+                  onClick={() => handleGameAreaSelect('MIX')}
+                  className={`border-2 rounded-xl p-6 text-center transition-all duration-300 ${
+                    bookingData.gameArea === 'MIX'
+                      ? 'bg-dark-200 border-purple-500/70 shadow-[0_0_20px_rgba(168,85,247,0.3)]'
+                      : 'bg-dark-200/50 border-primary/30 hover:border-purple-500/70 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]'
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <svg className="w-12 h-12 mx-auto mb-3 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                  <h3 className="text-xl font-bold mb-2">Sur mesure</h3>
+                  <p className="text-gray-400 text-sm">Mix Active + Laser</p>
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 4: Select Date */}
+          {step === 4 && (
             <motion.div
               key="step3"
               initial={{ opacity: 0, x: isRTL ? 50 : -50 }}
@@ -729,10 +819,49 @@ export default function ReservationPage() {
             </motion.div>
           )}
 
-          {/* Step 4: Select Time */}
-          {step === 4 && (
+          {/* Step 5: Select Players */}
+          {step === 5 && (
             <motion.div
-              key="step4"
+              key="step5"
+              initial={{ opacity: 0, x: isRTL ? 50 : -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: isRTL ? -50 : 50 }}
+              className="bg-dark-100/50 backdrop-blur-sm rounded-2xl p-8 border border-primary/30"
+            >
+              <div className="text-center mb-8">
+                <Users className="w-16 h-16 text-primary mx-auto mb-4" />
+                <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'Orbitron, sans-serif' }}>
+                  Nombre de participants
+                </h2>
+                <p className="text-gray-400">Combien serez-vous ?</p>
+              </div>
+              
+              <div className="max-w-md mx-auto">
+                <input
+                  type="number"
+                  min={bookingData.type === 'event' ? 15 : 1}
+                  value={bookingData.players || ''}
+                  onChange={(e) => setBookingData({ ...bookingData, players: parseInt(e.target.value) || null })}
+                  className="w-full px-4 py-3 bg-dark-200/50 border border-primary/30 rounded-lg text-white text-center text-2xl"
+                  placeholder={bookingData.type === 'event' ? "Min. 15" : "Min. 1"}
+                />
+                
+                {bookingData.players && bookingData.players >= (bookingData.type === 'event' ? 15 : 1) && (
+                  <button
+                    onClick={() => handlePlayersSelect(bookingData.players!)}
+                    className="w-full mt-4 glow-button py-3"
+                  >
+                    Continuer
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 6: Select Time */}
+          {step === 6 && (
+            <motion.div
+              key="step6"
               initial={{ opacity: 0, x: isRTL ? 50 : -50 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: isRTL ? -50 : 50 }}
@@ -788,10 +917,10 @@ export default function ReservationPage() {
             </motion.div>
           )}
 
-          {/* Step 5: Contact Information */}
-          {step === 5 && (
+          {/* Step 7: Contact Information */}
+          {step === 7 && (
             <motion.div
-              key="step5"
+              key="step7"
               initial={{ opacity: 0, x: isRTL ? 50 : -50 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: isRTL ? -50 : 50 }}
@@ -1109,10 +1238,10 @@ export default function ReservationPage() {
             </motion.div>
           )}
 
-          {/* Step 6: Confirmation */}
-          {step === 6 && reservationNumber && (
+          {/* Step 8: Confirmation */}
+          {step === 8 && reservationNumber && (
             <motion.div
-              key="step6"
+              key="step8"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className={`bg-dark-100/50 backdrop-blur-sm rounded-2xl p-8 border-2 shadow-[0_0_30px_rgba(0,240,255,0.3)] ${
@@ -1272,7 +1401,7 @@ export default function ReservationPage() {
         </AnimatePresence>
 
         {/* Navigation Buttons */}
-        {step !== 6 && (
+        {step !== 8 && (
         <div className="flex justify-between mt-8">
           <button
             onClick={handlePrevious}
