@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef } from 'react'
 import { 
   Clock, 
   CheckCircle, 
@@ -29,7 +29,7 @@ interface OrdersTableProps {
   onViewClient: (contactId: string) => void
 }
 
-// Composant Dropdown pour les filtres
+// Composant Dropdown pour les filtres (position fixed pour éviter overflow)
 function FilterDropdown({ 
   label, 
   options, 
@@ -44,15 +44,24 @@ function FilterDropdown({
   isDark: boolean
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [position, setPosition] = useState({ top: 0, left: 0 })
+  const buttonRef = React.useRef<HTMLButtonElement>(null)
   const selectedOption = options.find(o => o.value === value)
+  
+  const handleOpen = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      setPosition({ top: rect.bottom + 4, left: rect.left })
+    }
+    setIsOpen(!isOpen)
+  }
   
   return (
     <div className="relative">
       <button
-        onClick={(e) => {
-          e.stopPropagation()
-          setIsOpen(!isOpen)
-        }}
+        ref={buttonRef}
+        onClick={handleOpen}
         className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${
           value !== 'all' 
             ? 'text-blue-500' 
@@ -70,10 +79,13 @@ function FilterDropdown({
       
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-          <div className={`absolute top-full left-0 mt-1 z-20 rounded-lg shadow-lg border min-w-[120px] ${
-            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div 
+            className={`fixed z-50 rounded-lg shadow-lg border min-w-[140px] ${
+              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            }`}
+            style={{ top: position.top, left: position.left }}
+          >
             {options.map((option) => (
               <button
                 key={option.value}
@@ -100,9 +112,12 @@ function FilterDropdown({
   )
 }
 
+const ITEMS_PER_PAGE = 50
+
 export function OrdersTable({ orders, isDark, onConfirm, onCancel, onViewOrder, onViewClient }: OrdersTableProps) {
   const [sortField, setSortField] = useState<SortField>('created')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [currentPage, setCurrentPage] = useState(1)
   
   // Filtres
   const [typeFilter, setTypeFilter] = useState<string>('all')
@@ -163,6 +178,18 @@ export function OrdersTable({ orders, isDark, onConfirm, onCancel, onViewOrder, 
       return sortDirection === 'asc' ? comparison : -comparison
     })
   }, [filteredOrders, sortField, sortDirection])
+
+  // Pagination
+  const totalPages = Math.ceil(sortedOrders.length / ITEMS_PER_PAGE)
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE
+    return sortedOrders.slice(start, start + ITEMS_PER_PAGE)
+  }, [sortedOrders, currentPage])
+
+  // Reset page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [typeFilter, statusFilter, gameAreaFilter, sourceFilter])
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return null
@@ -360,14 +387,14 @@ export function OrdersTable({ orders, isDark, onConfirm, onCancel, onViewOrder, 
         </div>
       )}
 
-      {/* Rows */}
-      <div className="divide-y divide-gray-200 dark:divide-gray-700">
-        {sortedOrders.length === 0 ? (
+      {/* Rows - hauteur minimale */}
+      <div className="divide-y divide-gray-200 dark:divide-gray-700 min-h-[300px]">
+        {paginatedOrders.length === 0 ? (
           <div className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             Aucune commande ne correspond aux filtres
           </div>
         ) : (
-          sortedOrders.map((order) => {
+          paginatedOrders.map((order) => {
             const statusDisplay = getStatusDisplay(order.status)
             const StatusIcon = statusDisplay.icon
             const GameIcon = getGameIcon(order.order_type, order.game_area)
@@ -481,6 +508,56 @@ export function OrdersTable({ orders, isDark, onConfirm, onCancel, onViewOrder, 
           })
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className={`flex items-center justify-between px-4 py-3 border-t ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-gray-50'}`}>
+          <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            Page {currentPage} sur {totalPages} ({sortedOrders.length} commandes)
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className={`px-3 py-1 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
+                isDark ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+              }`}
+            >
+              ««
+            </button>
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className={`px-3 py-1 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
+                isDark ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+              }`}
+            >
+              «
+            </button>
+            <span className={`px-3 py-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {currentPage}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-1 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
+                isDark ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+              }`}
+            >
+              »
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-1 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
+                isDark ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+              }`}
+            >
+              »»
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

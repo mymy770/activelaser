@@ -66,114 +66,106 @@ export function ContactDetailsModal({
     if (contactData) {
       setContact(contactData)
 
-      // Charger les réservations liées - 3 méthodes pour couvrir tous les cas
-      let bookings: any[] = []
-      const bookingIds = new Set<string>()
+      // Charger les ORDERS liées au contact (pas les bookings)
+      // Les orders contiennent TOUTES les commandes, y compris annulées
+      let orders: any[] = []
       
-      // Méthode 1: Via booking_contacts (relation explicite)
-      const { data: bookingContactsData, error: bcError } = await supabase
-        .from('booking_contacts')
-        .select('booking_id')
+      // Méthode 1: Via contact_id directement
+      const { data: contactOrders, error: contactOrdersError } = await supabase
+        .from('orders')
+        .select(`
+          id,
+          order_type,
+          status,
+          requested_date,
+          requested_time,
+          participants_count,
+          game_area,
+          request_reference,
+          source,
+          created_at,
+          booking:bookings(id, reference_code, start_datetime, status)
+        `)
         .eq('contact_id', contactId)
+        .order('created_at', { ascending: false })
 
-      if (bcError) {
-        console.error('Error fetching booking_contacts:', bcError)
+      if (contactOrdersError) {
+        console.error('Error fetching orders by contact_id:', contactOrdersError)
       }
-      if (bookingContactsData) {
-        console.log('booking_contacts found:', bookingContactsData.length)
-        bookingContactsData.forEach((bc: any) => {
-          if (bc.booking_id) bookingIds.add(bc.booking_id)
-        })
+      if (contactOrders) {
+        orders = contactOrders
       }
       
-      // Méthode 2: Via primary_contact_id (relation directe)
-      const { data: directBookingsData, error: directError } = await supabase
-        .from('bookings')
-        .select('id')
-        .eq('primary_contact_id', contactId)
-
-      if (directError) {
-        console.error('Error fetching bookings by primary_contact_id:', directError)
-      }
-      if (directBookingsData) {
-        console.log('bookings by primary_contact_id found:', directBookingsData.length)
-        directBookingsData.forEach((b: any) => {
-          if (b.id) bookingIds.add(b.id)
-        })
-      }
-      
-      // Méthode 3: Via numéro de téléphone (fallback pour anciennes réservations)
-      if (contactData.phone) {
-        const { data: phoneBookingsData, error: phoneError } = await supabase
-          .from('bookings')
-          .select('id')
+      // Méthode 2: Via téléphone (fallback pour anciennes commandes sans contact_id)
+      if (contactData.phone && orders.length === 0) {
+        const { data: phoneOrders, error: phoneOrdersError } = await supabase
+          .from('orders')
+          .select(`
+            id,
+            order_type,
+            status,
+            requested_date,
+            requested_time,
+            participants_count,
+            game_area,
+            request_reference,
+            source,
+            created_at,
+            booking:bookings(id, reference_code, start_datetime, status)
+          `)
           .eq('customer_phone', contactData.phone)
+          .order('created_at', { ascending: false })
 
-        if (phoneError) {
-          console.error('Error fetching bookings by phone:', phoneError)
+        if (phoneOrdersError) {
+          console.error('Error fetching orders by phone:', phoneOrdersError)
         }
-        if (phoneBookingsData) {
-          console.log('bookings by phone found:', phoneBookingsData.length)
-          phoneBookingsData.forEach((b: any) => {
-            if (b.id) bookingIds.add(b.id)
+        if (phoneOrders) {
+          // Fusionner et dédupliquer
+          const existingIds = new Set(orders.map(o => o.id))
+          phoneOrders.forEach(o => {
+            if (!existingIds.has(o.id)) {
+              orders.push(o)
+            }
           })
         }
       }
-      
-      console.log('Total unique booking IDs found:', bookingIds.size)
-      
-      // Charger tous les bookings trouvés
-      if (bookingIds.size > 0) {
-        const { data: bookingsData, error: bookingsError } = await supabase
-          .from('bookings')
-          .select(`
-            id,
-            type,
-            start_datetime,
-            participants_count,
-            status,
-            reference_code,
-            game_sessions (
-              id,
-              game_area
-            )
-          `)
-          .in('id', Array.from(bookingIds))
 
-        if (bookingsError) {
-          console.error('Error fetching bookings:', bookingsError)
-        }
-        if (bookingsData) {
-          console.log('Bookings loaded:', bookingsData.length)
-          bookings = bookingsData
-        }
-      }
+      // Transformer les orders pour l'affichage (format similaire aux anciens bookings)
+      const linkedItems = orders.map((order: any) => ({
+        id: order.id,
+        type: order.order_type,
+        status: order.status === 'cancelled' ? 'CANCELLED' : 
+                order.status === 'pending' ? 'PENDING' : 'CONFIRMED',
+        start_datetime: order.booking?.start_datetime || `${order.requested_date}T${order.requested_time}`,
+        participants_count: order.participants_count,
+        reference_code: order.booking?.reference_code || order.request_reference,
+        game_area: order.game_area,
+        source: order.source,
+        isOrder: true, // Flag pour identifier que c'est une order
+        booking_id: order.booking?.id || null
+      }))
 
-      // Trier par date décroissante
-      bookings.sort((a: any, b: any) => 
-        new Date(b.start_datetime).getTime() - 
-        new Date(a.start_datetime).getTime()
-      )
+      setLinkedBookings(linkedItems)
 
-      setLinkedBookings(bookings)
-
-      // Calculer les statistiques
+      // Calculer les statistiques basées sur les orders
       const now = new Date()
-      const gameCount = bookings.filter((b: any) => b.type === 'GAME').length
-      const eventCount = bookings.filter((b: any) => b.type === 'EVENT').length
-      const totalParticipants = bookings.reduce((sum: number, b: any) => sum + (b.participants_count || 0), 0)
-      const upcomingCount = bookings.filter((b: any) => 
+      const gameCount = linkedItems.filter((b: any) => b.type === 'GAME').length
+      const eventCount = linkedItems.filter((b: any) => b.type === 'EVENT').length
+      const totalParticipants = linkedItems
+        .filter((b: any) => b.status !== 'CANCELLED')
+        .reduce((sum: number, b: any) => sum + (b.participants_count || 0), 0)
+      const upcomingCount = linkedItems.filter((b: any) => 
         new Date(b.start_datetime) >= now && b.status !== 'CANCELLED'
       ).length
-      const lastBooking = bookings.find((b: any) => b.status !== 'CANCELLED')
+      const lastItem = linkedItems.find((b: any) => b.status !== 'CANCELLED')
 
       setContactStats({
-        totalBookings: bookings.length,
+        totalBookings: linkedItems.length,
         gameBookings: gameCount,
         eventBookings: eventCount,
         totalParticipants,
         upcomingBookings: upcomingCount,
-        lastActivity: lastBooking ? lastBooking.start_datetime : null,
+        lastActivity: lastItem ? lastItem.start_datetime : null,
       })
     }
 
@@ -360,78 +352,87 @@ export function ContactDetailsModal({
                 {linkedBookings.map((booking) => {
                   const bookingDate = new Date(booking.start_datetime)
                   const isPast = bookingDate < new Date()
+                  const isCancelled = booking.status === 'CANCELLED'
+                  const isPending = booking.status === 'PENDING'
                   
-                  // Déterminer le type de jeu pour les GAME
-                  let gameIcon = null
-                  if (booking.type === 'GAME') {
-                    const sessions = booking.game_sessions || []
-                    if (Array.isArray(sessions) && sessions.length > 0) {
-                      const gameAreas = sessions
-                        .map((s: any) => {
-                          return (typeof s === 'object' && s !== null) ? s.game_area : s
-                        })
-                        .filter(Boolean)
-                      
-                      const hasActive = gameAreas.includes('ACTIVE')
-                      const hasLaser = gameAreas.includes('LASER')
-                      
-                      if (hasActive && !hasLaser) {
-                        gameIcon = <Zap className="w-5 h-5 flex-shrink-0 text-blue-400" />
-                      } else if (hasLaser && !hasActive) {
-                        gameIcon = <Target className="w-5 h-5 flex-shrink-0 text-purple-400" />
-                      } else {
-                        gameIcon = <Gamepad2 className="w-5 h-5 flex-shrink-0 text-blue-400" />
-                      }
-                    } else {
-                      gameIcon = <Gamepad2 className="w-5 h-5 flex-shrink-0 text-blue-400" />
-                    }
+                  // Déterminer l'icône selon le type et la zone
+                  let icon = null
+                  if (booking.type === 'EVENT') {
+                    icon = <PartyPopper className="w-5 h-5 flex-shrink-0 text-green-400" />
+                  } else if (booking.game_area === 'LASER') {
+                    icon = <Target className="w-5 h-5 flex-shrink-0 text-purple-400" />
+                  } else {
+                    icon = <Zap className="w-5 h-5 flex-shrink-0 text-blue-400" />
                   }
                   
                   return (
                     <div
                       key={booking.id}
                       onClick={() => {
-                        const bookingDateStr = bookingDate.toISOString().split('T')[0]
-                        router.push(`/admin?date=${bookingDateStr}&booking=${booking.id}`)
-                        onClose()
+                        // Si la commande a un booking, aller vers l'agenda
+                        if (booking.booking_id) {
+                          const bookingDateStr = bookingDate.toISOString().split('T')[0]
+                          router.push(`/admin?date=${bookingDateStr}&booking=${booking.booking_id}`)
+                          onClose()
+                        }
                       }}
-                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                        isPast
+                      className={`p-3 rounded-lg border transition-colors ${
+                        booking.booking_id ? 'cursor-pointer' : 'cursor-default'
+                      } ${
+                        isCancelled
                           ? isDark
-                            ? 'bg-gray-700/50 border-gray-600 hover:bg-gray-700'
-                            : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
-                          : 'bg-blue-600/10 border-blue-600/30 hover:bg-blue-600/20'
+                            ? 'bg-red-900/20 border-red-800/50 opacity-60'
+                            : 'bg-red-50 border-red-200 opacity-60'
+                          : isPast
+                            ? isDark
+                              ? 'bg-gray-700/50 border-gray-600 hover:bg-gray-700'
+                              : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+                            : 'bg-blue-600/10 border-blue-600/30 hover:bg-blue-600/20'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          {booking.type === 'EVENT' ? (
-                            <PartyPopper className="w-5 h-5 flex-shrink-0 text-green-400" />
-                          ) : (
-                            gameIcon || <Gamepad2 className="w-5 h-5 flex-shrink-0 text-blue-400" />
-                          )}
+                          {icon}
                           <div className="flex-1 min-w-0">
                             <div className={`font-medium truncate ${
                               isDark ? 'text-white' : 'text-gray-900'
                             }`}>
                               {booking.reference_code || 'N/A'} - {booking.participants_count || 0} pers.
                             </div>
-                            <div className={`text-sm ${
+                            <div className={`text-sm flex items-center gap-2 ${
                               isDark ? 'text-gray-400' : 'text-gray-600'
                             }`}>
-                              {bookingDate.toLocaleDateString('fr-FR', {
-                                day: 'numeric',
-                                month: 'short',
-                                year: 'numeric'
-                              })} à {bookingDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                              <span>
+                                {bookingDate.toLocaleDateString('fr-FR', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric'
+                                })} à {bookingDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              {booking.source && (
+                                <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                  booking.source === 'admin_agenda'
+                                    ? 'bg-orange-500/20 text-orange-400'
+                                    : 'bg-teal-500/20 text-teal-400'
+                                }`}>
+                                  {booking.source === 'admin_agenda' ? 'Admin' : 'Site'}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
-                        {booking.status === 'CANCELLED' && (
-                          <span className="px-2 py-1 text-xs rounded bg-red-500/20 text-red-400">
-                            Annulé
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {isCancelled && (
+                            <span className="px-2 py-1 text-xs rounded bg-red-500/20 text-red-400">
+                              Annulé
+                            </span>
+                          )}
+                          {isPending && (
+                            <span className="px-2 py-1 text-xs rounded bg-yellow-500/20 text-yellow-400">
+                              En attente
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )

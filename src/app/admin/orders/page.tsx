@@ -203,6 +203,32 @@ export default function OrdersPage() {
     router.push(`/admin/clients?contact=${contactId}`)
   }
 
+  // Recréer une réservation annulée
+  const handleRecreate = async (orderId: string) => {
+    if (confirm('Voulez-vous recréer cette réservation ? Une nouvelle réservation sera créée avec les mêmes informations.')) {
+      try {
+        const response = await fetch(`/api/orders/${orderId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'recreate' })
+        })
+        
+        const data = await response.json()
+        if (data.success) {
+          alert('Réservation recréée avec succès !')
+          closeOrderModal()
+          // Rafraîchir la liste
+          window.location.reload()
+        } else {
+          alert(`Erreur: ${data.error}`)
+        }
+      } catch (err) {
+        console.error('Error recreating order:', err)
+        alert('Erreur lors de la recréation')
+      }
+    }
+  }
+
   const isDark = theme === 'dark'
 
   if (authLoading || branchesLoading || !user) {
@@ -313,6 +339,7 @@ export default function OrdersPage() {
           onClose={closeOrderModal}
           onConfirm={handleConfirm}
           onCancel={handleCancel}
+          onRecreate={handleRecreate}
           onGoToAgenda={handleGoToAgenda}
           onGoToClient={handleViewClient}
           isDark={isDark}

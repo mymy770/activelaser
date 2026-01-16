@@ -16,7 +16,8 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Zap
+  Zap,
+  RefreshCw
 } from 'lucide-react'
 import type { OrderWithRelations } from '@/lib/supabase/types'
 
@@ -25,6 +26,7 @@ interface OrderDetailModalProps {
   onClose: () => void
   onConfirm: (orderId: string) => void
   onCancel: (orderId: string) => void
+  onRecreate?: (orderId: string) => void
   onGoToAgenda: (date: string, bookingId?: string) => void
   onGoToClient: (contactId: string) => void
   isDark: boolean
@@ -35,6 +37,7 @@ export function OrderDetailModal({
   onClose,
   onConfirm,
   onCancel,
+  onRecreate,
   onGoToAgenda,
   onGoToClient,
   isDark,
@@ -288,21 +291,43 @@ export function OrderDetailModal({
               
               {/* Bouton vers Agenda - grisé si annulé */}
               {order.status === 'cancelled' || !order.booking_id ? (
-                <div
-                  className={`w-full mb-3 flex items-center gap-3 p-3 rounded-xl cursor-not-allowed ${
-                    isDark 
-                      ? 'bg-gray-700/50 text-gray-500' 
-                      : 'bg-gray-100 text-gray-400'
-                  }`}
-                >
-                  <Calendar className="w-5 h-5" />
-                  <div className="text-left flex-1">
-                    <p className="font-medium">Voir dans l'agenda</p>
-                    <p className={`text-xs ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
-                      Réservation annulée ou supprimée
-                    </p>
+                <>
+                  <div
+                    className={`w-full mb-3 flex items-center gap-3 p-3 rounded-xl cursor-not-allowed ${
+                      isDark 
+                        ? 'bg-gray-700/50 text-gray-500' 
+                        : 'bg-gray-100 text-gray-400'
+                    }`}
+                  >
+                    <Calendar className="w-5 h-5" />
+                    <div className="text-left flex-1">
+                      <p className="font-medium">Voir dans l'agenda</p>
+                      <p className={`text-xs ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                        Réservation annulée ou supprimée
+                      </p>
+                    </div>
                   </div>
-                </div>
+                  
+                  {/* Bouton Recréer - seulement si annulé */}
+                  {order.status === 'cancelled' && onRecreate && (
+                    <button
+                      onClick={() => onRecreate(order.id)}
+                      className={`w-full mb-3 flex items-center gap-3 p-3 rounded-xl transition-colors ${
+                        isDark 
+                          ? 'bg-green-600/20 hover:bg-green-600/30 text-green-400' 
+                          : 'bg-green-50 hover:bg-green-100 text-green-600'
+                      }`}
+                    >
+                      <RefreshCw className="w-5 h-5" />
+                      <div className="text-left flex-1">
+                        <p className="font-medium">Recréer la réservation</p>
+                        <p className={`text-xs ${isDark ? 'text-green-400/70' : 'text-green-500/70'}`}>
+                          Réactiver cette commande
+                        </p>
+                      </div>
+                    </button>
+                  )}
+                </>
               ) : (
                 <button
                   onClick={() => onGoToAgenda(order.requested_date, order.booking?.id)}
