@@ -1256,7 +1256,8 @@ export function BookingModal({
                 allocatedRoomIds = allocation.roomIds
               } else {
                 // AUCUNE SALLE DISPONIBLE : BLOQUER LA CRÉATION
-                setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${formatTime(sessionStart)}. Les salles sont pleines ou ont une capacité insuffisante. Veuillez choisir un autre créneau ou réduire le nombre de participants.`)
+                const timeStr = `${String(sessionStart.getHours()).padStart(2, '0')}:${String(sessionStart.getMinutes()).padStart(2, '0')}`
+                setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${timeStr}. Les salles sont pleines ou ont une capacité insuffisante. Veuillez choisir un autre créneau ou réduire le nombre de participants.`)
                 return
               }
             }
@@ -1313,7 +1314,8 @@ export function BookingModal({
                   allocatedRoomIds = allocation.roomIds
                 } else {
                   // AUCUNE SALLE DISPONIBLE : BLOQUER LA CRÉATION
-                  setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${formatTime(sessionStart)}. Les salles sont pleines ou ont une capacité insuffisante. Veuillez choisir un autre créneau ou réduire le nombre de participants.`)
+                  const timeStr = `${String(sessionStart.getHours()).padStart(2, '0')}:${String(sessionStart.getMinutes()).padStart(2, '0')}`
+                  setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${timeStr}. Les salles sont pleines ou ont une capacité insuffisante. Veuillez choisir un autre créneau ou réduire le nombre de participants.`)
                   return
                 }
               }
@@ -1373,7 +1375,8 @@ export function BookingModal({
                   laserRoomId = allocation.roomIds[0]
                 } else {
                   // AUCUNE SALLE DISPONIBLE : BLOQUER LA CRÉATION
-                  setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${formatTime(sessionStart)}. Les salles sont pleines ou ont une capacité insuffisante. Veuillez choisir un autre créneau ou réduire le nombre de participants.`)
+                  const timeStr = `${String(sessionStart.getHours()).padStart(2, '0')}:${String(sessionStart.getMinutes()).padStart(2, '0')}`
+                  setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${timeStr}. Les salles sont pleines ou ont une capacité insuffisante. Veuillez choisir un autre créneau ou réduire le nombre de participants.`)
                   return
                 }
               }
@@ -1417,7 +1420,8 @@ export function BookingModal({
                     laserRoomId = allocation.roomIds[0]
                   } else {
                     // AUCUNE SALLE DISPONIBLE : BLOQUER LA CRÉATION
-                    setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${formatTime(sessionStart)}. Les salles sont pleines ou ont une capacité insuffisante. Veuillez choisir un autre créneau ou réduire le nombre de participants.`)
+                    const timeStr = `${String(sessionStart.getHours()).padStart(2, '0')}:${String(sessionStart.getMinutes()).padStart(2, '0')}`
+                  setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${timeStr}. Les salles sont pleines ou ont une capacité insuffisante. Veuillez choisir un autre créneau ou réduire le nombre de participants.`)
                     return
                   }
                 }
