@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MapPin, Calendar, Clock, ChevronRight, ChevronLeft, Check, Users, Gamepad2, User, Phone, Mail, MessageSquare, FileText, ExternalLink, X, Home, Cake, Download } from 'lucide-react'
+import { MapPin, Calendar, Clock, ChevronRight, ChevronLeft, Check, Users, Gamepad2, User, Phone, Mail, MessageSquare, FileText, ExternalLink, X, Home, Cake, Download, Target, Zap } from 'lucide-react'
 import { getTranslations, getDirection, Locale, defaultLocale } from '@/i18n'
 import { Header, Footer } from '@/components'
 
@@ -156,10 +156,17 @@ export default function ReservationPage() {
     setBookingData({ 
       ...bookingData, 
       type, 
+      gameArea: null, // Reset game area
       players: null, // Reset players when changing type
       eventType: type === 'event' ? null : null,
       eventAge: null,
     })
+    setTimeout(() => setStep(3), 300) // Étape 3 = choix type de jeu
+  }
+  
+  const handleGameAreaSelect = (gameArea: 'ACTIVE' | 'LASER' | 'MIX') => {
+    setBookingData({ ...bookingData, gameArea })
+    setTimeout(() => setStep(4), 300) // Étape 4 = date
   }
 
   const handlePlayersChange = (players: number | null) => {
@@ -169,7 +176,7 @@ export default function ReservationPage() {
   const handleContinueToDate = () => {
     const minPlayers = bookingData.type === 'event' ? 15 : 1
     if (bookingData.type && bookingData.players && bookingData.players >= minPlayers) {
-      setTimeout(() => setStep(3), 300)
+      setTimeout(() => setStep(4), 300) // Étape 4 = date
     }
   }
 
@@ -619,9 +626,7 @@ export default function ReservationPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <svg className="w-12 h-12 mx-auto mb-3 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
+                  <Target className="w-12 h-12 mx-auto mb-3 text-cyan-500" />
                   <h3 className="text-xl font-bold mb-2">Laser City</h3>
                   <p className="text-gray-400 text-sm">Labyrinthe laser</p>
                 </motion.button>
@@ -637,9 +642,7 @@ export default function ReservationPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <svg className="w-12 h-12 mx-auto mb-3 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                  </svg>
+                  <Zap className="w-12 h-12 mx-auto mb-3 text-purple-500" />
                   <h3 className="text-xl font-bold mb-2">Sur mesure</h3>
                   <p className="text-gray-400 text-sm">Mix Active + Laser</p>
                 </motion.button>

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { 
   Clock, 
   CheckCircle, 
@@ -11,19 +12,69 @@ import {
   Gamepad2,
   Target,
   Cake,
-  User
+  User,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react'
 import Link from 'next/link'
 import type { OrderWithRelations, OrderStatus } from '@/lib/supabase/types'
+
+type SortField = 'date' | 'time' | 'client' | 'status' | 'participants' | 'type'
+type SortDirection = 'asc' | 'desc'
 
 interface OrdersTableProps {
   orders: OrderWithRelations[]
   isDark: boolean
   onConfirm: (orderId: string) => void
   onCancel: (orderId: string) => void
+  onViewOrder: (order: OrderWithRelations) => void
+  onViewClient: (contactId: string) => void
 }
 
-export function OrdersTable({ orders, isDark, onConfirm, onCancel }: OrdersTableProps) {
+export function OrdersTable({ orders, isDark, onConfirm, onCancel, onViewOrder, onViewClient }: OrdersTableProps) {
+  const [sortField, setSortField] = useState<SortField>('date')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('desc')
+    }
+  }
+
+  const sortedOrders = [...orders].sort((a, b) => {
+    let comparison = 0
+    switch (sortField) {
+      case 'date':
+        comparison = new Date(a.requested_date).getTime() - new Date(b.requested_date).getTime()
+        break
+      case 'time':
+        comparison = a.requested_time.localeCompare(b.requested_time)
+        break
+      case 'client':
+        comparison = (a.customer_first_name || '').localeCompare(b.customer_first_name || '')
+        break
+      case 'status':
+        comparison = a.status.localeCompare(b.status)
+        break
+      case 'participants':
+        comparison = a.participants_count - b.participants_count
+        break
+      case 'type':
+        comparison = a.order_type.localeCompare(b.order_type)
+        break
+    }
+    return sortDirection === 'asc' ? comparison : -comparison
+  })
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return null
+    return sortDirection === 'asc' 
+      ? <ChevronUp className="w-3 h-3 inline ml-1" />
+      : <ChevronDown className="w-3 h-3 inline ml-1" />
+  }
   
   // Formater la date
   const formatDate = (date: string) => {
@@ -99,22 +150,32 @@ export function OrdersTable({ orders, isDark, onConfirm, onCancel }: OrdersTable
   return (
     <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} overflow-hidden`}>
       {/* Header */}
-      <div className={`grid grid-cols-12 gap-4 px-4 py-3 border-b ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-gray-50'} text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'} uppercase tracking-wider`}>
-        <div className="col-span-1">Type</div>
-        <div className="col-span-1">Statut</div>
-        <div className="col-span-2">Client</div>
-        <div className="col-span-1">Contact</div>
-        <div className="col-span-1">Date</div>
-        <div className="col-span-1">Heure</div>
-        <div className="col-span-1">Pers.</div>
+      <div className={`grid grid-cols-10 gap-4 px-4 py-3 border-b ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-gray-50'} text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'} uppercase tracking-wider`}>
+        <div className="col-span-1 cursor-pointer hover:text-blue-500" onClick={() => handleSort('type')}>
+          Type<SortIcon field="type" />
+        </div>
+        <div className="col-span-1 cursor-pointer hover:text-blue-500" onClick={() => handleSort('status')}>
+          Statut<SortIcon field="status" />
+        </div>
+        <div className="col-span-2 cursor-pointer hover:text-blue-500" onClick={() => handleSort('client')}>
+          Client<SortIcon field="client" />
+        </div>
+        <div className="col-span-1 cursor-pointer hover:text-blue-500" onClick={() => handleSort('date')}>
+          Date<SortIcon field="date" />
+        </div>
+        <div className="col-span-1 cursor-pointer hover:text-blue-500" onClick={() => handleSort('time')}>
+          Heure<SortIcon field="time" />
+        </div>
+        <div className="col-span-1 cursor-pointer hover:text-blue-500" onClick={() => handleSort('participants')}>
+          Pers.<SortIcon field="participants" />
+        </div>
         <div className="col-span-2">Référence</div>
         <div className="col-span-1">Source</div>
-        <div className="col-span-1 text-right">Actions</div>
       </div>
 
       {/* Rows */}
       <div className="divide-y divide-gray-200 dark:divide-gray-700">
-        {orders.map((order) => {
+        {sortedOrders.map((order) => {
           const statusDisplay = getStatusDisplay(order.status)
           const StatusIcon = statusDisplay.icon
           const GameIcon = getGameIcon(order.order_type, order.game_area)
@@ -122,9 +183,10 @@ export function OrdersTable({ orders, isDark, onConfirm, onCancel }: OrdersTable
           return (
             <div 
               key={order.id}
-              className={`grid grid-cols-12 gap-4 px-4 py-3 items-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+              className={`grid grid-cols-10 gap-4 px-4 py-3 items-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer ${
                 order.status === 'pending' ? 'bg-red-50/30 dark:bg-red-900/10' : ''
               }`}
+              onClick={() => onViewOrder(order)}
             >
               {/* Type */}
               <div className="col-span-1 flex items-center">
@@ -146,21 +208,21 @@ export function OrdersTable({ orders, isDark, onConfirm, onCancel }: OrdersTable
               </div>
 
               {/* Client */}
-              <div className="col-span-2">
-                <Link
-                  href={`/admin/clients${order.contact_id ? `?contact=${order.contact_id}` : ''}`}
-                  className={`font-medium hover:underline ${isDark ? 'text-white' : 'text-gray-900'}`}
-                >
-                  {order.customer_first_name} {order.customer_last_name}
-                </Link>
-              </div>
-
-              {/* Contact */}
-              <div className="col-span-1 text-xs">
-                <a href={`tel:${order.customer_phone}`} className="flex items-center gap-1 text-blue-600 hover:underline">
-                  <Phone className="w-3 h-3" />
-                  <span className="hidden xl:inline">{order.customer_phone.slice(-4)}</span>
-                </a>
+              <div 
+                className="col-span-2"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (order.contact_id) {
+                    onViewClient(order.contact_id)
+                  }
+                }}
+              >
+                <span className={`font-medium hover:underline cursor-pointer ${
+                  order.contact_id ? (isDark ? 'text-blue-400' : 'text-blue-600') : (isDark ? 'text-gray-400' : 'text-gray-600')
+                }`}>
+                  {order.customer_first_name} {order.customer_last_name || ''}
+                </span>
+                <div className="text-xs text-gray-500 mt-0.5">{order.customer_phone}</div>
               </div>
 
               {/* Date */}
@@ -193,48 +255,6 @@ export function OrdersTable({ orders, isDark, onConfirm, onCancel }: OrdersTable
                 }`}>
                   Site
                 </span>
-              </div>
-
-              {/* Actions */}
-              <div className="col-span-1 flex items-center justify-end gap-1">
-                {order.status === 'pending' && (
-                  <>
-                    <button
-                      onClick={() => onConfirm(order.id)}
-                      className="p-1.5 bg-green-100 text-green-700 hover:bg-green-200 rounded text-xs font-medium"
-                      title="Confirmer"
-                    >
-                      ✓
-                    </button>
-                    <button
-                      onClick={() => onCancel(order.id)}
-                      className="p-1.5 bg-red-100 text-red-700 hover:bg-red-200 rounded text-xs font-medium"
-                      title="Annuler"
-                    >
-                      ✕
-                    </button>
-                  </>
-                )}
-                
-                {(order.status === 'auto_confirmed' || order.status === 'manually_confirmed') && order.booking && (
-                  <Link
-                    href={`/admin?booking=${order.booking.id}`}
-                    className="p-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded"
-                    title="Voir réservation"
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                  </Link>
-                )}
-                
-                {order.contact && (
-                  <Link
-                    href={`/admin/clients?contact=${order.contact.id}`}
-                    className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded"
-                    title="Fiche client"
-                  >
-                    <User className="w-3 h-3" />
-                  </Link>
-                )}
               </div>
             </div>
           )
