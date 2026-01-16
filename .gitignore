@@ -1,6 +1,5 @@
 .next
 node_modules
-.env
-.env.local
 *.log
 data/
+# Note: .env.local est inclus dans ce dépôt pour faciliter le démarrage
