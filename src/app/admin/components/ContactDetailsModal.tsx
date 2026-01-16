@@ -124,11 +124,11 @@ export function ContactDetailsModal({
       
       // Charger tous les bookings trouvés
       if (bookingIds.size > 0) {
-        const { data: bookingsData } = await supabase
+        const { data: bookingsData, error: bookingsError } = await supabase
           .from('bookings')
           .select(`
             id,
-            booking_type,
+            type,
             start_datetime,
             participants_count,
             status,
@@ -140,11 +140,12 @@ export function ContactDetailsModal({
           `)
           .in('id', Array.from(bookingIds))
 
+        if (bookingsError) {
+          console.error('Error fetching bookings:', bookingsError)
+        }
         if (bookingsData) {
-          bookings = bookingsData.map((b: any) => ({
-            ...b,
-            type: b.booking_type
-          }))
+          console.log('Bookings loaded:', bookingsData.length)
+          bookings = bookingsData
         }
       }
 
