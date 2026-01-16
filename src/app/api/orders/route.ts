@@ -260,17 +260,24 @@ async function checkAvailability(
   const endDateTime = new Date(startDateTime.getTime() + totalGameDuration * 60000)
   const maxPlayers = settings.max_concurrent_players || 80
   
-  // Compter les joueurs sur ce créneau
+  // Compter les joueurs sur ce créneau (exclure les bookings annulés)
   const { data: overlappingSlots } = await supabase
     .from('booking_slots')
-    .select('participants_count')
+    .select(`
+      participants_count,
+      booking:bookings!inner(id, status)
+    `)
     .eq('branch_id', branchId)
+    .neq('booking.status', 'CANCELLED')
     .lt('slot_start', endDateTime.toISOString())
     .gt('slot_end', startDateTime.toISOString())
   
   const currentPlayers = overlappingSlots?.reduce((sum, s) => sum + s.participants_count, 0) || 0
   
+  console.log(`[checkAvailability] ACTIVE check: ${currentPlayers} current + ${participantsCount} requested vs ${maxPlayers} max`)
+  
   if (currentPlayers + participantsCount > maxPlayers) {
+    console.log(`[checkAvailability] OVERBOOKING detected! Returning pending.`)
     return { available: false, reason: 'overbooking', details: `Only ${maxPlayers - currentPlayers} spots available` }
   }
   
