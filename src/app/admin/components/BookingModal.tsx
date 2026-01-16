@@ -1508,7 +1508,6 @@ export function BookingModal({
         game_sessions: game_sessions.length > 0 ? game_sessions : []
       }
 
-      console.log('Submitting booking:', bookingData)
       const success = await onSubmit(bookingData)
 
       if (success) {

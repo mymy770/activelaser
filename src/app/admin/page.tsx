@@ -1724,18 +1724,6 @@ export default function AdminPage() {
     // Trier les segments par bookingId pour un affichage stable
     segments.sort((a, b) => a.bookingId.localeCompare(b.bookingId))
     
-    // Debug temporaire : afficher tous les segments détectés
-    if (segments.length > 0 && process.env.NODE_ENV === 'development') {
-      console.log(`[LASER DEBUG] Cell ${hour}:${minute}, Room ${roomIndex}, Segments found:`, segments.map(s => ({
-        bookingId: s.bookingId,
-        participants: s.booking.participants_count,
-        start: s.start.toISOString(),
-        end: s.end.toISOString(),
-        slotStart: s.slotStart,
-        slotEnd: s.slotEnd
-      })))
-    }
-    
     return segments
   }
 

@@ -189,14 +189,6 @@ export function SettingsModal({
         const newCapacity = roomCapacities[room.id] !== undefined ? roomCapacities[room.id] : room.capacity
         // Si roomNames[room.id] existe (même vide), on l'utilise, sinon on garde le nom actuel
         const newName = roomNames[room.id] !== undefined ? roomNames[room.id] : room.name
-        
-        console.log(`Updating room ${room.id}:`, {
-          oldName: room.name,
-          newName: newName,
-          oldCapacity: room.capacity,
-          newCapacity: newCapacity,
-          roomNamesState: roomNames[room.id]
-        })
 
         const { error: roomError } = await supabase
           .from('event_rooms')
@@ -381,11 +373,9 @@ export function SettingsModal({
                       type="text"
                       value={roomNames[room.id] !== undefined ? roomNames[room.id] : (room.name || `Salle ${index + 1}`)}
                       onChange={(e) => {
-                        const newValue = e.target.value
-                        console.log(`Changing room ${room.id} name to:`, newValue)
                         setRoomNames({
                           ...roomNames,
-                          [room.id]: newValue,
+                          [room.id]: e.target.value,
                         })
                       }}
                       placeholder={`Salle ${index + 1}`}

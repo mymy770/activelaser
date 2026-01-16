@@ -82,14 +82,12 @@ export function useBookings(branchId: string | null, date?: string) {
       if (date) {
         const startOfDay = `${date}T00:00:00.000Z`
         const endOfDay = `${date}T23:59:59.999Z`
-        console.log('Fetching bookings for date range:', { startOfDay, endOfDay, branchId })
         query = query
           .gte('start_datetime', startOfDay)
           .lte('start_datetime', endOfDay)
       }
 
       const { data: bookingsData, error: bookingsError } = await query.returns<Booking[]>()
-      console.log('Bookings fetched:', bookingsData?.length || 0, bookingsData)
 
       if (bookingsError) throw bookingsError
 
@@ -220,18 +218,6 @@ export function useBookings(branchId: string | null, date?: string) {
     setError(null)
 
     try {
-      // Log des données pour debug
-      console.log('Creating booking with data:', {
-        branch_id: data.branch_id,
-        type: data.type,
-        start_datetime: data.start_datetime,
-        end_datetime: data.end_datetime,
-        participants_count: data.participants_count,
-        customer_first_name: data.customer_first_name,
-        customer_last_name: data.customer_last_name,
-        customer_phone: data.customer_phone,
-      })
-
       // Créer le booking
       const insertData: Record<string, unknown> = {
         branch_id: data.branch_id,

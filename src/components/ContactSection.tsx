@@ -33,8 +33,7 @@ export default function ContactSection({ translations }: ContactSectionProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // Form submission will be handled later
-    console.log('Form submitted:', formData)
+    // TODO: Implement form submission
   }
 
   return (
