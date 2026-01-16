@@ -24,14 +24,22 @@ import {
 } from 'lucide-react'
 import { useOrders } from '@/hooks/useOrders'
 import { useBranches } from '@/hooks/useBranches'
+import { useAuth } from '@/hooks/useAuth'
+import { AdminHeader } from '../components/AdminHeader'
+import { createClient } from '@/lib/supabase/client'
 import type { OrderWithRelations, OrderStatus } from '@/lib/supabase/types'
+
+type Theme = 'light' | 'dark'
 
 export default function OrdersPage() {
   const router = useRouter()
-  const { branches, loading: branchesLoading } = useBranches()
-  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null)
+  const { user, loading: authLoading, signOut } = useAuth()
+  const branchesHook = useBranches()
+  const selectedBranchId = branchesHook.selectedBranchId
+  const branches = branchesHook.branches
+  const branchesLoading = branchesHook.loading
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
-  const [isDark, setIsDark] = useState(true)
+  const [theme, setTheme] = useState<Theme>('light')
   
   const { 
     orders, 
@@ -44,12 +52,34 @@ export default function OrdersPage() {
     refresh 
   } = useOrders(selectedBranchId)
 
-  // Sélectionner la première branche par défaut
+  // Charger le thème depuis localStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('admin-theme') as Theme | null
+    if (savedTheme) {
+      setTheme(savedTheme)
+    }
+  }, [])
+
+  // Toggle thème
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light'
+    setTheme(newTheme)
+    localStorage.setItem('admin-theme', newTheme)
+  }
+
+  // Rediriger si pas authentifié
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login')
+    }
+  }, [user, authLoading, router])
+
+  // Sélectionner la première branche par défaut si aucune n'est sélectionnée
   useEffect(() => {
     if (branches.length > 0 && !selectedBranchId) {
-      setSelectedBranchId(branches[0].id)
+      branchesHook.selectBranch(branches[0].id)
     }
-  }, [branches, selectedBranchId])
+  }, [branches, selectedBranchId, branchesHook])
 
   // Filtrer les commandes par statut
   const filteredOrders = statusFilter === 'all' 
@@ -136,79 +166,30 @@ export default function OrdersPage() {
     }
   }
 
-  if (branchesLoading) {
+  const isDark = theme === 'dark'
+
+  if (authLoading || branchesLoading || !user) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
       </div>
     )
   }
 
+  const selectedBranch = branches.find(b => b.id === selectedBranchId) || null
+
   return (
     <div className={`min-h-screen ${isDark ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
       {/* Header */}
-      <header className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-b px-6 py-4`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <ShoppingCart className="w-6 h-6 text-cyan-500" />
-            <h1 className="text-xl font-bold">Commandes en ligne</h1>
-            {pendingCount > 0 && (
-              <span className="bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded-full">
-                {pendingCount} en attente
-              </span>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-4">
-            {/* Sélecteur de branche */}
-            <select
-              value={selectedBranchId || ''}
-              onChange={(e) => setSelectedBranchId(e.target.value)}
-              className={`px-3 py-2 rounded-lg border ${
-                isDark 
-                  ? 'bg-gray-700 border-gray-600 text-white' 
-                  : 'bg-white border-gray-300 text-gray-900'
-              }`}
-            >
-              {branches.map(branch => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))}
-            </select>
-            
-            {/* Bouton refresh */}
-            <button
-              onClick={() => refresh()}
-              className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
-            >
-              <RefreshCw className="w-5 h-5" />
-            </button>
-            
-            {/* Navigation */}
-            <nav className="flex items-center gap-2">
-              <Link 
-                href="/admin" 
-                className={`px-3 py-2 rounded-lg ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
-              >
-                Agenda
-              </Link>
-              <Link 
-                href="/admin/clients" 
-                className={`px-3 py-2 rounded-lg ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
-              >
-                Clients
-              </Link>
-              <Link 
-                href="/admin/orders" 
-                className={`px-3 py-2 rounded-lg bg-cyan-500/20 text-cyan-400`}
-              >
-                Commandes
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <AdminHeader
+        user={user}
+        branches={branches}
+        selectedBranch={selectedBranch}
+        onBranchSelect={(branchId) => branchesHook.selectBranch(branchId)}
+        onSignOut={signOut}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
 
       <main className="p-6">
         {/* Stats Cards */}

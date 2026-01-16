@@ -2,12 +2,13 @@
 
 import { useState, useEffect, Fragment } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, Plus, LogOut, User, ChevronDown, Sun, Moon, ChevronLeft, ChevronRight, Calendar, Users, PartyPopper, Gamepad2, Search, Trash2, Settings } from 'lucide-react'
+import { Loader2, Plus, LogOut, User, ChevronDown, Sun, Moon, ChevronLeft, ChevronRight, Calendar, Users, PartyPopper, Gamepad2, Search, Trash2, Settings, Sliders } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useBookings, type BookingWithSlots, type CreateBookingData } from '@/hooks/useBookings'
 import { BookingModal } from './components/BookingModal'
 import { AdminHeader } from './components/AdminHeader'
 import { ConfirmationModal } from './components/ConfirmationModal'
+import { SettingsModal } from './components/SettingsModal'
 import { useBranches } from '@/hooks/useBranches'
 import { useAuth } from '@/hooks/useAuth'
 import { useLaserRooms } from '@/hooks/useLaserRooms'
@@ -36,7 +37,7 @@ export default function AdminPage() {
       branchesHook.selectBranch(branchId)
     }
   }
-  const [theme, setTheme] = useState<Theme>('dark')
+  const [theme, setTheme] = useState<Theme>('light')
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -79,6 +80,7 @@ export default function AdminPage() {
   
   // État pour gérer les dimensions des grilles
   const [showGridSettingsModal, setShowGridSettingsModal] = useState(false)
+  const [showBranchSettingsModal, setShowBranchSettingsModal] = useState(false)
   const [gridWidths, setGridWidths] = useState({
     active: 100,  // Pourcentage par défaut
     laser: 100,
@@ -1942,12 +1944,6 @@ export default function AdminPage() {
           theme={theme}
           onToggleTheme={toggleTheme}
           rooms={branchRooms}
-          branchSettings={branchSettings}
-          onSettingsUpdate={async () => {
-            // Rafraîchir les données de la branche après mise à jour des paramètres
-            await refreshBranches()
-            await refreshAllBookings()
-          }}
         />
       )}
 
@@ -2104,9 +2100,22 @@ export default function AdminPage() {
 
         {/* Navigation de date */}
         <div className="flex items-center justify-between mb-6 gap-4">
-          {/* GAUCHE : Bouton Paramètres + Boutons de rétractation */}
+          {/* GAUCHE : Boutons Paramètres + Boutons de rétractation */}
           <div className="flex gap-2">
-            {/* Bouton Paramètres */}
+            {/* Bouton Paramètres de la branche */}
+            <button
+              onClick={() => setShowBranchSettingsModal(true)}
+              className={`p-2 rounded-lg transition-colors ${
+                isDark
+                  ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+              title="Paramètres de la branche"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+            
+            {/* Bouton Paramètres de la grille */}
             <button
               onClick={() => setShowGridSettingsModal(true)}
               className={`p-2 rounded-lg transition-colors ${
@@ -2114,12 +2123,9 @@ export default function AdminPage() {
                   ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
-              title="Paramètres de la grille"
+              title="Paramètres d'affichage de la grille"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
+              <Sliders className="w-5 h-5" />
             </button>
             
             <button
@@ -3178,6 +3184,24 @@ export default function AdminPage() {
           </div>
         </div>
         </>
+      )}
+
+      {/* Modal Paramètres de la branche */}
+      {showBranchSettingsModal && selectedBranchId && (
+        <SettingsModal
+          isOpen={showBranchSettingsModal}
+          onClose={() => setShowBranchSettingsModal(false)}
+          branchId={selectedBranchId}
+          rooms={branchRooms}
+          settings={branchSettings}
+          onUpdate={async () => {
+            // Rafraîchir les données de la branche après mise à jour des paramètres
+            await refreshBranches()
+            await refreshAllBookings()
+            setShowBranchSettingsModal(false)
+          }}
+          isDark={isDark}
+        />
       )}
 
       {/* Modal de réservation */}

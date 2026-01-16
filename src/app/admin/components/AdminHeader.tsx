@@ -1,14 +1,13 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { LogOut, User, Settings, ChevronDown, Sun, Moon, Users, Calendar, Menu, X, ShoppingCart } from 'lucide-react'
+import { LogOut, User, ChevronDown, Sun, Moon, Users, Calendar, Menu, X, ShoppingCart } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import type { AuthUser } from '@/hooks/useAuth'
-import type { Branch, EventRoom, BranchSettings } from '@/lib/supabase/types'
+import type { Branch } from '@/lib/supabase/types'
 import { BranchSelector } from './BranchSelector'
-import { SettingsModal } from './SettingsModal'
 import { usePendingOrdersCount } from '@/hooks/useOrders'
 
 interface AdminHeaderProps {
@@ -19,9 +18,6 @@ interface AdminHeaderProps {
   onSignOut: () => void
   theme: 'light' | 'dark'
   onToggleTheme: () => void
-  rooms?: EventRoom[]
-  branchSettings?: BranchSettings | null
-  onSettingsUpdate?: () => Promise<void>
 }
 
 export function AdminHeader({
@@ -32,13 +28,9 @@ export function AdminHeader({
   onSignOut,
   theme,
   onToggleTheme,
-  rooms = [],
-  branchSettings = null,
-  onSettingsUpdate = async () => {},
 }: AdminHeaderProps) {
   const pathname = usePathname()
   const [showUserMenu, setShowUserMenu] = useState(false)
-  const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [mounted, setMounted] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -178,7 +170,7 @@ export function AdminHeader({
           </Link>
         </div>
 
-        {/* Actions - À droite : Branch, Paramètres, Thème, Profil - Se rapprochent de l'Agenda quand on réduit */}
+        {/* Actions - À droite : Branch, Thème, Profil - Se rapprochent de l'Agenda quand on réduit */}
         <div className="hidden min-[900px]:flex items-center gap-2 flex-shrink-0">
           {/* Sélecteur d'agence */}
           <BranchSelector
@@ -187,19 +179,6 @@ export function AdminHeader({
             onSelect={onBranchSelect}
             theme={theme}
           />
-
-          {/* Bouton Paramètres */}
-          <button
-            onClick={() => setShowSettingsModal(true)}
-            className={`p-2 rounded-lg transition-colors ${
-              theme === 'dark'
-                ? 'bg-gray-800 hover:bg-gray-700 text-gray-300'
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-            }`}
-            title="Paramètres de la branche"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
 
           {/* Toggle thème */}
           <button
@@ -322,22 +301,6 @@ export function AdminHeader({
               />
             </div>
 
-            {/* Bouton Paramètres mobile */}
-            <button
-              onClick={() => {
-                setShowSettingsModal(true)
-                setShowMobileMenu(false)
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
-                theme === 'dark'
-                  ? 'bg-gray-800 hover:bg-gray-700 text-gray-300'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-              }`}
-            >
-              <Settings className="w-4 h-4" />
-              <span>Paramètres</span>
-            </button>
-
             {/* Navigation mobile */}
             <div className="space-y-2">
               <Link
@@ -442,19 +405,6 @@ export function AdminHeader({
             </div>
           </div>
         </div>
-      )}
-
-      {/* Modal Paramètres */}
-      {showSettingsModal && selectedBranch && (
-        <SettingsModal
-          isOpen={showSettingsModal}
-          onClose={() => setShowSettingsModal(false)}
-          branchId={selectedBranch.id}
-          rooms={rooms}
-          settings={branchSettings}
-          onUpdate={onSettingsUpdate}
-          isDark={theme === 'dark'}
-        />
       )}
     </header>
   )
