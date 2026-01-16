@@ -577,6 +577,17 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const limit = parseInt(searchParams.get('limit') || '100')
     
+    // Synchroniser les commandes orphelines (booking supprimé mais status pas mis à jour)
+    // Cela corrige les commandes dont le booking a été supprimé avant la mise en place de la synchro
+    await supabase
+      .from('orders')
+      .update({ 
+        status: 'cancelled', 
+        updated_at: new Date().toISOString() 
+      })
+      .is('booking_id', null)
+      .in('status', ['auto_confirmed', 'manually_confirmed'])
+    
     let query = supabase
       .from('orders')
       .select(`
