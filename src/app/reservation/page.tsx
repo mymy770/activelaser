@@ -263,17 +263,13 @@ export default function ReservationPage() {
       
         // Utiliser le gameArea sélectionné par l'utilisateur
       let gameArea: 'ACTIVE' | 'LASER' | null = null
+      let customerNotes = bookingData.specialRequest || ''
+      
       if (bookingData.type === 'game' && bookingData.gameArea) {
         if (bookingData.gameArea === 'MIX') {
-          // Si "Mix", on envoie ACTIVE par défaut (l'admin pourra ajuster)
+          // Si "Mix", on envoie ACTIVE par défaut et on note la demande
           gameArea = 'ACTIVE'
-        } else {
-          gameArea = bookingData.gameArea
-        }
-      } else if (bookingData.type === 'event' && bookingData.gameArea) {
-        // Pour les events aussi
-        if (bookingData.gameArea === 'MIX') {
-          gameArea = 'ACTIVE'
+          customerNotes = `[DEMANDE MIX Active + Laser] ${customerNotes}`.trim()
         } else {
           gameArea = bookingData.gameArea
         }
@@ -295,7 +291,7 @@ export default function ReservationPage() {
           customer_last_name: bookingData.lastName || '',
           customer_phone: bookingData.phone,
           customer_email: bookingData.email || null,
-          customer_notes: bookingData.specialRequest || null,
+          customer_notes: customerNotes || null,
           game_area: gameArea,
           number_of_games: bookingData.numberOfGames,
           event_type: bookingData.eventType || null,
@@ -844,7 +840,7 @@ export default function ReservationPage() {
           {/* Step 4: Select Date */}
           {step === 4 && (
             <motion.div
-              key="step3"
+              key="step4"
               initial={{ opacity: 0, x: isRTL ? 50 : -50 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: isRTL ? -50 : 50 }}
@@ -1016,7 +1012,7 @@ export default function ReservationPage() {
           {/* Step 5: Select Time */}
           {step === 5 && (
             <motion.div
-              key="step6"
+              key="step5"
               initial={{ opacity: 0, x: isRTL ? 50 : -50 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: isRTL ? -50 : 50 }}
@@ -1075,7 +1071,7 @@ export default function ReservationPage() {
           {/* Step 6: Contact Information */}
           {step === 6 && (
             <motion.div
-              key="step7"
+              key="step6"
               initial={{ opacity: 0, x: isRTL ? 50 : -50 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: isRTL ? -50 : 50 }}
@@ -1396,7 +1392,7 @@ export default function ReservationPage() {
           {/* Step 7: Confirmation */}
           {step === 7 && reservationNumber && (
             <motion.div
-              key="step8"
+              key="step7"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className={`bg-dark-100/50 backdrop-blur-sm rounded-2xl p-8 border-2 shadow-[0_0_30px_rgba(0,240,255,0.3)] ${
@@ -1484,6 +1480,22 @@ export default function ReservationPage() {
                         <span className="text-gray-400">{translations.booking?.type?.players?.label || 'Players:'}</span>
                         <span className="font-bold text-white">{bookingData.players}</span>
                       </div>
+                    )}
+                    {bookingData.type === 'game' && bookingData.gameArea && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Type de jeu:</span>
+                          <span className="font-bold text-white">
+                            {bookingData.gameArea === 'ACTIVE' && 'Active Games'}
+                            {bookingData.gameArea === 'LASER' && 'Laser City'}
+                            {bookingData.gameArea === 'MIX' && 'Mix Active + Laser'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Nombre de parties:</span>
+                          <span className="font-bold text-white">{bookingData.numberOfGames}</span>
+                        </div>
+                      </>
                     )}
                     <div className="flex justify-between">
                       <span className="text-gray-400">{translations.booking?.summary?.date || 'Date:'}</span>
