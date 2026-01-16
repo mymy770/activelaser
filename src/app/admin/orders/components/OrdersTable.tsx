@@ -232,14 +232,18 @@ export function OrdersTable({ orders, isDark, onConfirm, onCancel, onViewOrder, 
                 <div className="text-xs text-gray-500 mt-0.5">{order.customer_phone}</div>
               </div>
 
-              {/* Date - utilise booking.booking_date si disponible pour avoir la date à jour */}
+              {/* Date - utilise booking.start_datetime si disponible pour avoir la date à jour */}
               <div className={`col-span-1 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                {formatDate(order.booking?.booking_date || order.requested_date)}
+                {order.booking?.start_datetime 
+                  ? formatDate(order.booking.start_datetime.split('T')[0])
+                  : formatDate(order.requested_date)}
               </div>
 
-              {/* Heure - utilise booking.start_time si disponible */}
+              {/* Heure - utilise booking.start_datetime si disponible */}
               <div className={`col-span-1 text-sm font-mono ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                {order.booking?.start_time ? formatTime(order.booking.start_time) : formatTime(order.requested_time)}
+                {order.booking?.start_datetime 
+                  ? new Date(order.booking.start_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+                  : formatTime(order.requested_time)}
               </div>
 
               {/* Date création */}
