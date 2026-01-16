@@ -369,16 +369,18 @@ export function ContactDetailsModal({
                     <div
                       key={booking.id}
                       onClick={() => {
-                        // Si la commande a un booking, aller vers l'agenda
-                        if (booking.booking_id) {
+                        // Si la commande a un booking actif, aller vers l'agenda
+                        if (booking.booking_id && !isCancelled) {
                           const bookingDateStr = bookingDate.toISOString().split('T')[0]
                           router.push(`/admin?date=${bookingDateStr}&booking=${booking.booking_id}`)
                           onClose()
+                        } else {
+                          // Sinon, aller vers la page commandes avec cette commande sélectionnée
+                          router.push(`/admin/orders?order=${booking.id}`)
+                          onClose()
                         }
                       }}
-                      className={`p-3 rounded-lg border transition-colors ${
-                        booking.booking_id ? 'cursor-pointer' : 'cursor-default'
-                      } ${
+                      className={`p-3 rounded-lg border transition-colors cursor-pointer ${
                         isCancelled
                           ? isDark
                             ? 'bg-red-900/20 border-red-800/50 opacity-60'

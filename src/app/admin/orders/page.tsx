@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { 
   ShoppingCart, 
@@ -35,6 +35,7 @@ type Theme = 'light' | 'dark'
 
 export default function OrdersPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, loading: authLoading, signOut } = useAuth()
   const branchesHook = useBranches()
   const selectedBranchId = branchesHook.selectedBranchId
@@ -91,6 +92,19 @@ export default function OrdersPage() {
       branchesHook.selectBranch(branches[0].id)
     }
   }, [branches, selectedBranchId, branchesHook])
+
+  // Gérer le paramètre order dans l'URL pour ouvrir une commande spécifique
+  useEffect(() => {
+    const orderId = searchParams?.get('order')
+    if (orderId && orders.length > 0) {
+      const order = orders.find(o => o.id === orderId)
+      if (order) {
+        setSelectedOrder(order)
+        // Nettoyer l'URL
+        router.replace('/admin/orders')
+      }
+    }
+  }, [searchParams, orders, router])
 
   // Filtrer les commandes par recherche et statut rapide
   const filteredOrders = orders.filter(order => {
