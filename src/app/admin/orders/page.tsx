@@ -29,6 +29,8 @@ import { useBranches } from '@/hooks/useBranches'
 import { useAuth } from '@/hooks/useAuth'
 import { AdminHeader } from '../components/AdminHeader'
 import { OrdersTable } from './components/OrdersTable'
+import { OrderDetailModal } from './components/OrderDetailModal'
+import { ClientDetailModal } from './components/ClientDetailModal'
 import { createClient } from '@/lib/supabase/client'
 import type { OrderWithRelations, OrderStatus, GameArea } from '@/lib/supabase/types'
 
@@ -48,7 +50,6 @@ export default function OrdersPage() {
   const [theme, setTheme] = useState<Theme>('light')
   const [selectedOrder, setSelectedOrder] = useState<OrderWithRelations | null>(null)
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null)
-  const [contactDetails, setContactDetails] = useState<any | null>(null)
   
   const { 
     orders, 
@@ -206,16 +207,8 @@ export default function OrdersPage() {
     setSelectedOrder(order)
   }
 
-  const handleViewClient = async (contactId: string) => {
+  const handleViewClient = (contactId: string) => {
     setSelectedContactId(contactId)
-    // Charger les détails du contact
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('contacts')
-      .select('*')
-      .eq('id', contactId)
-      .single()
-    setContactDetails(data)
   }
 
   const closeOrderModal = () => {
@@ -224,7 +217,20 @@ export default function OrdersPage() {
 
   const closeClientModal = () => {
     setSelectedContactId(null)
-    setContactDetails(null)
+  }
+
+  // Navigation vers l'agenda avec la date et booking
+  const handleGoToAgenda = (date: string, bookingId?: string) => {
+    if (bookingId) {
+      router.push(`/admin?date=${date}&booking=${bookingId}`)
+    } else {
+      router.push(`/admin?date=${date}`)
+    }
+  }
+
+  // Navigation vers le CRM
+  const handleGoToCRM = (contactId: string) => {
+    router.push(`/admin/clients?contact=${contactId}`)
   }
 
   const isDark = theme === 'dark'
@@ -452,186 +458,25 @@ export default function OrdersPage() {
 
       {/* Modal Détail Commande */}
       {selectedOrder && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={closeOrderModal}>
-          <div 
-            className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Détails de la commande
-              </h2>
-              <button onClick={closeOrderModal} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
-                <XCircle className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className={`p-3 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                <p className="text-sm text-gray-500">Référence</p>
-                <p className={`font-mono font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {selectedOrder.booking?.reference_code || selectedOrder.request_reference}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Client</p>
-                  <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {selectedOrder.customer_first_name} {selectedOrder.customer_last_name || ''}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Téléphone</p>
-                  <a href={`tel:${selectedOrder.customer_phone}`} className="text-blue-600 hover:underline">
-                    {selectedOrder.customer_phone}
-                  </a>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Date</p>
-                  <p className={isDark ? 'text-white' : 'text-gray-900'}>
-                    {new Date(selectedOrder.requested_date).toLocaleDateString('fr-FR')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Heure</p>
-                  <p className={isDark ? 'text-white' : 'text-gray-900'}>
-                    {selectedOrder.requested_time.slice(0, 5)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Type</p>
-                  <p className={isDark ? 'text-white' : 'text-gray-900'}>
-                    {selectedOrder.order_type === 'EVENT' ? 'Événement' : 'Partie'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Zone de jeu</p>
-                  <p className={isDark ? 'text-white' : 'text-gray-900'}>
-                    {selectedOrder.game_area === 'LASER' ? 'Laser City' : 'Active Games'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Participants</p>
-                  <p className={isDark ? 'text-white' : 'text-gray-900'}>{selectedOrder.participants_count}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Statut</p>
-                  <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
-                    selectedOrder.status === 'pending' ? 'bg-red-100 text-red-700' :
-                    selectedOrder.status === 'cancelled' ? 'bg-gray-100 text-gray-700' :
-                    'bg-green-100 text-green-700'
-                  }`}>
-                    {selectedOrder.status === 'pending' ? 'En attente' :
-                     selectedOrder.status === 'cancelled' ? 'Annulé' : 'Confirmé'}
-                  </span>
-                </div>
-              </div>
-
-              {selectedOrder.customer_notes && (
-                <div>
-                  <p className="text-sm text-gray-500">Notes</p>
-                  <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} text-sm`}>
-                    {selectedOrder.customer_notes}
-                  </p>
-                </div>
-              )}
-
-              {selectedOrder.pending_reason && (
-                <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                  <p className="text-sm text-red-600 dark:text-red-400 font-medium">Raison de mise en attente</p>
-                  <p className="text-sm text-red-700 dark:text-red-300">{selectedOrder.pending_details || selectedOrder.pending_reason}</p>
-                </div>
-              )}
-
-              {/* Actions */}
-              {selectedOrder.status === 'pending' && (
-                <div className="flex gap-2 pt-4 border-t">
-                  <button
-                    onClick={() => { handleConfirm(selectedOrder.id); closeOrderModal(); }}
-                    className="flex-1 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                  >
-                    Confirmer
-                  </button>
-                  <button
-                    onClick={() => { handleCancel(selectedOrder.id); closeOrderModal(); }}
-                    className="flex-1 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                  >
-                    Annuler
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <OrderDetailModal
+          order={selectedOrder}
+          onClose={closeOrderModal}
+          onConfirm={handleConfirm}
+          onCancel={handleCancel}
+          onGoToAgenda={handleGoToAgenda}
+          onGoToClient={handleGoToCRM}
+          isDark={isDark}
+        />
       )}
 
       {/* Modal Fiche Client */}
-      {selectedContactId && contactDetails && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={closeClientModal}>
-          <div 
-            className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Fiche client
-              </h2>
-              <button onClick={closeClientModal} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
-                <XCircle className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="text-center pb-4 border-b">
-                <div className={`w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl font-bold ${isDark ? 'bg-blue-900 text-blue-300' : 'bg-blue-100 text-blue-600'}`}>
-                  {contactDetails.first_name?.[0]}{contactDetails.last_name?.[0] || ''}
-                </div>
-                <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {contactDetails.first_name} {contactDetails.last_name || ''}
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3">
-                <div className="flex items-center gap-3">
-                  <Phone className="w-4 h-4 text-gray-400" />
-                  <a href={`tel:${contactDetails.phone}`} className="text-blue-600 hover:underline">
-                    {contactDetails.phone}
-                  </a>
-                </div>
-                {contactDetails.email && (
-                  <div className="flex items-center gap-3">
-                    <Mail className="w-4 h-4 text-gray-400" />
-                    <a href={`mailto:${contactDetails.email}`} className="text-blue-600 hover:underline">
-                      {contactDetails.email}
-                    </a>
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-4 border-t">
-                <button
-                  onClick={() => {
-                    router.push(`/admin/clients?contact=${selectedContactId}`)
-                    closeClientModal()
-                  }}
-                  className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Voir fiche complète
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {selectedContactId && (
+        <ClientDetailModal
+          contactId={selectedContactId}
+          onClose={closeClientModal}
+          onGoToCRM={handleGoToCRM}
+          isDark={isDark}
+        />
       )}
     </div>
   )
