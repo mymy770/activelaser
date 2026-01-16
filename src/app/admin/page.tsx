@@ -1362,7 +1362,8 @@ export default function AdminPage() {
     startDateTime: Date,
     endDateTime: Date,
     excludeBookingId?: string,
-    targetBranchId?: string | null
+    targetBranchId?: string | null,
+    allocationMode: 'auto' | 'petit' | 'grand' | 'maxi' = 'auto'
   ): Promise<{ roomIds: string[]; requiresTwoRooms: boolean } | null> => {
     const branchIdToUse = targetBranchId || selectedBranchId
     const targetBranch = branches.find(b => b.id === branchIdToUse)
@@ -1405,7 +1406,36 @@ export default function AdminPage() {
       return room.capacity - currentParticipants
     }
     
-    // Logique d'allocation basée sur la capacité restante
+    // ALLOCATION MANUELLE : Forcer une salle spécifique si mode != 'auto'
+    if (allocationMode !== 'auto') {
+      const smallRoom = sortedRoomsByCapacity[0] // Plus petite capacité
+      const largeRoom = sortedRoomsByCapacity[sortedRoomsByCapacity.length - 1] // Plus grande capacité
+      
+      let forcedRoomIds: string[] = []
+      
+      if (allocationMode === 'petit') {
+        forcedRoomIds = [smallRoom.id]
+      } else if (allocationMode === 'grand') {
+        forcedRoomIds = [largeRoom.id]
+      } else if (allocationMode === 'maxi') {
+        forcedRoomIds = targetLaserRooms.map(r => r.id)
+      }
+      
+      // Vérifier capacité restante
+      const totalRemaining = forcedRoomIds.reduce((sum, id) => sum + getRoomRemainingCapacity(id), 0)
+      
+      if (totalRemaining >= participants) {
+        return { 
+          roomIds: forcedRoomIds, 
+          requiresTwoRooms: forcedRoomIds.length > 1 
+        }
+      } else {
+        // Capacité insuffisante
+        return null
+      }
+    }
+    
+    // Logique d'allocation AUTOMATIQUE basée sur la capacité restante
     // TOUJOURS vérifier la capacité restante, pas juste si vide
     
     // Si le groupe nécessite toutes les salles combinées

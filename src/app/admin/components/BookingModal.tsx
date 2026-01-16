@@ -33,7 +33,7 @@ interface BookingModalProps {
   branches?: Array<{ id: string; name: string; slug: string }> // Liste des branches pour permettre le changement
   selectedBranchId?: string | null // ID de la branche sélectionnée
   // Fonctions Laser
-  findBestLaserRoom?: (participants: number, startDateTime: Date, endDateTime: Date, excludeBookingId?: string, targetBranchId?: string | null) => Promise<{ roomIds: string[]; requiresTwoRooms: boolean } | null>
+  findBestLaserRoom?: (participants: number, startDateTime: Date, endDateTime: Date, excludeBookingId?: string, targetBranchId?: string | null, allocationMode?: 'auto' | 'petit' | 'grand' | 'maxi') => Promise<{ roomIds: string[]; requiresTwoRooms: boolean } | null>
   checkLaserVestsConstraint?: (participants: number, startDateTime: Date, endDateTime: Date, excludeBookingId?: string, targetBranchId?: string | null) => Promise<{ isViolated: boolean; needsSpareVests: boolean; currentUsage: number; maxVests: number; spareVests: number; totalVests: number; message: string }>
   checkLaserRoomCapacity?: (roomId: string, participants: number, targetBranchId?: string | null) => { isExceeded: boolean; roomCapacity: number; overcapBy: number }
   laserRooms?: LaserRoom[] // Liste des laser rooms de la branche
@@ -533,6 +533,31 @@ export function BookingModal({
             setGameDurations(durations)
             setGamePauses(pauses)
             setLaserRoomIds(roomIds)
+            
+            // Détecter le mode d'allocation LASER si c'est un jeu LASER
+            if (firstSession.game_area === 'LASER' && roomIds.length > 0 && laserRooms) {
+              const uniqueRoomIds = [...new Set(roomIds)]
+              const sortedByCapacity = [...laserRooms]
+                .filter(r => r.is_active)
+                .sort((a, b) => a.capacity - b.capacity)
+              
+              if (uniqueRoomIds.length === 1) {
+                // Une seule salle utilisée
+                const room = laserRooms.find(r => r.id === uniqueRoomIds[0])
+                if (room) {
+                  const isSmallest = sortedByCapacity[0]?.id === room.id
+                  const isLargest = sortedByCapacity[sortedByCapacity.length - 1]?.id === room.id
+                  if (isSmallest) {
+                    setLaserAllocationMode('petit')
+                  } else if (isLargest) {
+                    setLaserAllocationMode('grand')
+                  }
+                }
+              } else if (uniqueRoomIds.length > 1) {
+                // Plusieurs salles = Maxi
+                setLaserAllocationMode('maxi')
+              }
+            }
             
             // Les pauses sont maintenant "après" chaque jeu, pas besoin de gapBetweenGames
           } else if (editingBooking.type === 'EVENT') {
@@ -1251,13 +1276,16 @@ export function BookingModal({
             // Trouver la meilleure salle laser pour cette session
             let allocatedRoomIds: string[] = []
             if (findBestLaserRoom) {
-              const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
+              const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId, laserAllocationMode)
               if (allocation) {
                 allocatedRoomIds = allocation.roomIds
               } else {
                 // AUCUNE SALLE DISPONIBLE : BLOQUER LA CRÉATION
                 const timeStr = `${String(sessionStart.getHours()).padStart(2, '0')}:${String(sessionStart.getMinutes()).padStart(2, '0')}`
-                setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${timeStr}. Les salles sont pleines ou ont une capacité insuffisante. Veuillez choisir un autre créneau ou réduire le nombre de participants.`)
+                const modeText = laserAllocationMode === 'petit' ? ' (Petit laby forcé)' :
+                                laserAllocationMode === 'grand' ? ' (Grand laby forcé)' :
+                                laserAllocationMode === 'maxi' ? ' (Maxi forcé)' : ''
+                setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${timeStr}${modeText}. Capacité insuffisante. Veuillez choisir un autre créneau, réduire le nombre de participants${laserAllocationMode !== 'auto' ? ', ou changer le mode d\'allocation' : ''}.`)
                 return
               }
             }
@@ -1309,13 +1337,16 @@ export function BookingModal({
               // Trouver la meilleure salle laser pour cette session
               let allocatedRoomIds: string[] = []
               if (findBestLaserRoom) {
-                const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
+                const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId, laserAllocationMode)
                 if (allocation) {
                   allocatedRoomIds = allocation.roomIds
                 } else {
                   // AUCUNE SALLE DISPONIBLE : BLOQUER LA CRÉATION
                   const timeStr = `${String(sessionStart.getHours()).padStart(2, '0')}:${String(sessionStart.getMinutes()).padStart(2, '0')}`
-                  setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${timeStr}. Les salles sont pleines ou ont une capacité insuffisante. Veuillez choisir un autre créneau ou réduire le nombre de participants.`)
+                  const modeText = laserAllocationMode === 'petit' ? ' (Petit laby forcé)' :
+                                  laserAllocationMode === 'grand' ? ' (Grand laby forcé)' :
+                                  laserAllocationMode === 'maxi' ? ' (Maxi forcé)' : ''
+                  setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${timeStr}${modeText}. Capacité insuffisante. Veuillez choisir un autre créneau, réduire le nombre de participants${laserAllocationMode !== 'auto' ? ', ou changer le mode d\'allocation' : ''}.`)
                   return
                 }
               }
@@ -1370,13 +1401,16 @@ export function BookingModal({
             let laserRoomId: string | null = null
             if (area === 'LASER') {
               if (findBestLaserRoom) {
-                const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
+                const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId, laserAllocationMode)
                 if (allocation && allocation.roomIds.length > 0) {
                   laserRoomId = allocation.roomIds[0]
                 } else {
                   // AUCUNE SALLE DISPONIBLE : BLOQUER LA CRÉATION
                   const timeStr = `${String(sessionStart.getHours()).padStart(2, '0')}:${String(sessionStart.getMinutes()).padStart(2, '0')}`
-                  setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${timeStr}. Les salles sont pleines ou ont une capacité insuffisante. Veuillez choisir un autre créneau ou réduire le nombre de participants.`)
+                  const modeText = laserAllocationMode === 'petit' ? ' (Petit laby forcé)' :
+                                  laserAllocationMode === 'grand' ? ' (Grand laby forcé)' :
+                                  laserAllocationMode === 'maxi' ? ' (Maxi forcé)' : ''
+                  setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${timeStr}${modeText}. Capacité insuffisante. Veuillez choisir un autre créneau, réduire le nombre de participants${laserAllocationMode !== 'auto' ? ', ou changer le mode d\'allocation' : ''}.`)
                   return
                 }
               }
@@ -1415,7 +1449,7 @@ export function BookingModal({
               let laserRoomId: string | null = null
               if (area === 'LASER') {
                 if (findBestLaserRoom) {
-                  const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
+                  const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId, laserAllocationMode)
                   if (allocation && allocation.roomIds.length > 0) {
                     laserRoomId = allocation.roomIds[0]
                   } else {
@@ -2978,8 +3012,8 @@ export function BookingModal({
             </div>
           )}
 
-          {/* Allocation manuelle LASER - DÉSACTIVÉ pour l'instant (allocation automatique uniquement) */}
-          {false && bookingType === 'GAME' && gameArea === 'LASER' && (
+          {/* Allocation manuelle LASER */}
+          {bookingType === 'GAME' && gameArea === 'LASER' && (
             <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
               <div className="flex items-center gap-2 mb-3">
                 <Target className="w-5 h-5 text-purple-400" />
