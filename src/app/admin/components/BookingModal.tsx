@@ -534,30 +534,8 @@ export function BookingModal({
             setGamePauses(pauses)
             setLaserRoomIds(roomIds)
             
-            // Détecter le mode d'allocation LASER si c'est un jeu LASER
-            if (firstSession.game_area === 'LASER' && roomIds.length > 0 && laserRooms) {
-              const uniqueRoomIds = [...new Set(roomIds)]
-              const sortedByCapacity = [...laserRooms]
-                .filter(r => r.is_active)
-                .sort((a, b) => a.capacity - b.capacity)
-              
-              if (uniqueRoomIds.length === 1) {
-                // Une seule salle utilisée
-                const room = laserRooms.find(r => r.id === uniqueRoomIds[0])
-                if (room) {
-                  const isSmallest = sortedByCapacity[0]?.id === room.id
-                  const isLargest = sortedByCapacity[sortedByCapacity.length - 1]?.id === room.id
-                  if (isSmallest) {
-                    setLaserAllocationMode('petit')
-                  } else if (isLargest) {
-                    setLaserAllocationMode('grand')
-                  }
-                }
-              } else if (uniqueRoomIds.length > 1) {
-                // Plusieurs salles = Maxi
-                setLaserAllocationMode('maxi')
-              }
-            }
+            // Mode allocation LASER reste toujours sur 'auto' par défaut
+            // L'utilisateur peut le changer manuellement si besoin
             
             // Les pauses sont maintenant "après" chaque jeu, pas besoin de gapBetweenGames
           } else if (editingBooking.type === 'EVENT') {
