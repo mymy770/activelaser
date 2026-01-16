@@ -512,6 +512,7 @@ export async function POST(request: NextRequest) {
       .insert({
         branch_id,
         order_type,
+        source: 'website', // Source = website car créé depuis le site public
         status: orderStatus,
         booking_id: bookingId,
         contact_id: contactId,

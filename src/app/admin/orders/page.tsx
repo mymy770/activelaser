@@ -9,17 +9,6 @@ import {
   CheckCircle, 
   XCircle, 
   AlertCircle,
-  Phone,
-  Mail,
-  Users,
-  Calendar,
-  MapPin,
-  Filter,
-  ChevronDown,
-  ExternalLink,
-  Gamepad2,
-  Target,
-  PartyPopper,
   Search,
   X
 } from 'lucide-react'
@@ -31,7 +20,7 @@ import { OrdersTable } from './components/OrdersTable'
 import { OrderDetailModal } from './components/OrderDetailModal'
 import { ContactDetailsModal } from '../components/ContactDetailsModal'
 import { createClient } from '@/lib/supabase/client'
-import type { OrderWithRelations, OrderStatus, GameArea } from '@/lib/supabase/types'
+import type { OrderWithRelations } from '@/lib/supabase/types'
 
 type Theme = 'light' | 'dark'
 
@@ -42,9 +31,6 @@ export default function OrdersPage() {
   const selectedBranchId = branchesHook.selectedBranchId
   const branches = branchesHook.branches
   const branchesLoading = branchesHook.loading
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
-  const [typeFilter, setTypeFilter] = useState<'all' | 'GAME' | 'EVENT'>('all')
-  const [gameAreaFilter, setGameAreaFilter] = useState<'all' | GameArea>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [theme, setTheme] = useState<Theme>('light')
   const [selectedOrder, setSelectedOrder] = useState<OrderWithRelations | null>(null)
@@ -89,24 +75,8 @@ export default function OrdersPage() {
     }
   }, [branches, selectedBranchId, branchesHook])
 
-  // Filtrer les commandes
+  // Filtrer les commandes par recherche uniquement (les autres filtres sont dans le tableau)
   const filteredOrders = orders.filter(order => {
-    // Filtre par statut
-    if (statusFilter !== 'all' && order.status !== statusFilter) {
-      return false
-    }
-    
-    // Filtre par type (GAME/EVENT)
-    if (typeFilter !== 'all' && order.order_type !== typeFilter) {
-      return false
-    }
-    
-    // Filtre par zone de jeu (ACTIVE/LASER)
-    if (gameAreaFilter !== 'all' && order.game_area !== gameAreaFilter) {
-      return false
-    }
-    
-    // Filtre par recherche
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       const matchesName = `${order.customer_first_name} ${order.customer_last_name}`.toLowerCase().includes(query)
@@ -316,120 +286,6 @@ export default function OrdersPage() {
             </div>
           </div>
         )}
-
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2 mb-6">
-          <Filter className="w-4 h-4 text-gray-400" />
-          
-          {/* Statut */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                statusFilter === 'all' 
-                  ? 'bg-blue-600 text-white' 
-                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Tous
-            </button>
-            <button
-              onClick={() => setStatusFilter('pending')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                statusFilter === 'pending' 
-                  ? 'bg-red-600 text-white' 
-                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              En attente
-            </button>
-            <button
-              onClick={() => setStatusFilter('auto_confirmed')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                statusFilter === 'auto_confirmed' 
-                  ? 'bg-green-600 text-white' 
-                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Confirmés
-            </button>
-          </div>
-          
-          <div className={`w-px h-6 ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`}></div>
-          
-          {/* Type */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setTypeFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                typeFilter === 'all' 
-                  ? 'bg-blue-600 text-white' 
-                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Tous types
-            </button>
-            <button
-              onClick={() => setTypeFilter('GAME')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                typeFilter === 'GAME' 
-                  ? 'bg-blue-600 text-white' 
-                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Games
-            </button>
-            <button
-              onClick={() => setTypeFilter('EVENT')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                typeFilter === 'EVENT' 
-                  ? 'bg-purple-600 text-white' 
-                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Events
-            </button>
-          </div>
-          
-          <div className={`w-px h-6 ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`}></div>
-          
-          {/* Zone de jeu (si GAME sélectionné) */}
-          {typeFilter === 'GAME' && (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setGameAreaFilter('all')}
-                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                  gameAreaFilter === 'all' 
-                    ? 'bg-blue-600 text-white' 
-                    : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Tous jeux
-              </button>
-              <button
-                onClick={() => setGameAreaFilter('ACTIVE')}
-                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                  gameAreaFilter === 'ACTIVE' 
-                    ? 'bg-blue-600 text-white' 
-                    : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Active
-              </button>
-              <button
-                onClick={() => setGameAreaFilter('LASER')}
-                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                  gameAreaFilter === 'LASER' 
-                    ? 'bg-cyan-600 text-white' 
-                    : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Laser
-              </button>
-            </div>
-          )}
-          
-        </div>
 
         {/* Orders List */}
         {loading ? (

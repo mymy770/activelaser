@@ -234,6 +234,7 @@ export interface Database {
           branch_id: string | null
           order_type: OrderType
           status: OrderStatus
+          source: 'admin_agenda' | 'website' | null
           booking_id: string | null
           contact_id: string | null
           request_reference: string
