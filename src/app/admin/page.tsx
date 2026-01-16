@@ -1373,14 +1373,6 @@ export default function AdminPage() {
 
     if (targetLaserRooms.length === 0) return null
 
-    // Trier les salles par capacité décroissante pour identifier L1 et L2
-    const sortedRooms = [...targetLaserRooms].sort((a, b) => {
-      if (a.capacity !== b.capacity) {
-        return b.capacity - a.capacity // Décroissant (L2=20 en premier, puis L1=15)
-      }
-      return a.sort_order - b.sort_order
-    })
-    
     // Trier les salles par capacité croissante pour optimiser l'espace (plus petite salle suffisante en premier)
     const sortedRoomsByCapacity = [...targetLaserRooms].sort((a, b) => {
       if (a.capacity !== b.capacity) {
@@ -1389,70 +1381,78 @@ export default function AdminPage() {
       return a.sort_order - b.sort_order
     })
 
-    // Identifier L1 et L2
-    const l1 = sortedRooms.find(r => {
-      const slug = r.slug?.toUpperCase()
-      const name = r.name?.toUpperCase() || ''
-      return slug === 'L1' || name.includes('L1') || name.includes('LASER 1') || name.includes('LASER1')
-    })
-    
-    const l2 = sortedRooms.find(r => {
-      const slug = r.slug?.toUpperCase()
-      const name = r.name?.toUpperCase() || ''
-      return slug === 'L2' || name.includes('L2') || name.includes('LASER 2') || name.includes('LASER2')
-    })
-
-    // Fonction helper pour vérifier la disponibilité d'une salle
-    const isRoomAvailable = async (roomId: string): Promise<boolean> => {
-      if (!checkLaserRoomAvailability) return true
-      return await checkLaserRoomAvailability(roomId, startDateTime, endDateTime, excludeBookingId)
+    // Fonction helper pour calculer la capacité restante d'une salle
+    const getRoomRemainingCapacity = (roomId: string): number => {
+      const room = targetLaserRooms.find(r => r.id === roomId)
+      if (!room) return 0
+      
+      // Trouver toutes les réservations qui chevauchent le créneau
+      const overlappingBookings = allBookings.filter(b => {
+        if (excludeBookingId && b.id === excludeBookingId) return false
+        if (!b.game_sessions || b.game_sessions.length === 0) return false
+        
+        return b.game_sessions.some(s => {
+          if (s.game_area !== 'LASER') return false
+          if (s.laser_room_id !== roomId) return false
+          const sessionStart = new Date(s.start_datetime)
+          const sessionEnd = new Date(s.end_datetime)
+          return sessionStart < endDateTime && sessionEnd > startDateTime
+        })
+      })
+      
+      // Calculer le total de participants déjà dans cette salle
+      const currentParticipants = overlappingBookings.reduce((sum, b) => sum + b.participants_count, 0)
+      return room.capacity - currentParticipants
     }
     
-    // Logique d'allocation selon nombre de participants et seuil
-    // Si participants >= threshold : chercher une salle entière (priorité à la plus petite suffisante)
-    // Si participants < threshold : partager possible (pour l'instant, même logique mais pourra être étendu)
-    
-    // Calculer capacité totale disponible
-    const totalCapacity = targetLaserRooms.reduce((sum, room) => sum + room.capacity, 0)
+    // Logique d'allocation basée sur la capacité restante
+    // TOUJOURS vérifier la capacité restante, pas juste si vide
     
     // Si le groupe nécessite toutes les salles combinées
     if (participants > Math.max(...targetLaserRooms.map(r => r.capacity))) {
-      // Vérifier si toutes les salles sont disponibles
-      const allAvailable = await Promise.all(targetLaserRooms.map(r => isRoomAvailable(r.id)))
-      if (allAvailable.every(available => available)) {
+      // Vérifier si la capacité restante totale suffit
+      const totalRemainingCapacity = targetLaserRooms.reduce((sum, r) => sum + getRoomRemainingCapacity(r.id), 0)
+      if (totalRemainingCapacity >= participants) {
         return { 
           roomIds: targetLaserRooms.map(r => r.id), 
           requiresTwoRooms: targetLaserRooms.length > 1 
         }
       }
-      return null
+      return null // Vraiment plein
     }
     
-    // Groupe >= threshold : chercher la plus petite salle suffisante et disponible
+    // Groupe >= threshold : PRÉFÈRE une salle seule, mais peut partager si nécessaire
     if (participants >= threshold) {
+      // D'abord chercher une salle vide avec capacité suffisante
       for (const room of sortedRoomsByCapacity) {
-        if (room.capacity >= participants) {
-          const available = await isRoomAvailable(room.id)
-          if (available) {
-            return { roomIds: [room.id], requiresTwoRooms: false }
-          }
-        }
-      }
-      return null
-    }
-    
-    // Groupe < threshold : chercher une salle avec espace disponible (partage possible)
-    // Pour l'instant, même logique simple : chercher la plus petite salle suffisante
-    for (const room of sortedRoomsByCapacity) {
-      if (room.capacity >= participants) {
-        const available = await isRoomAvailable(room.id)
-        if (available) {
+        const remaining = getRoomRemainingCapacity(room.id)
+        if (remaining === room.capacity && room.capacity >= participants) {
+          // Salle vide et suffisante
           return { roomIds: [room.id], requiresTwoRooms: false }
         }
       }
+      
+      // Sinon, chercher une salle avec capacité restante suffisante (partage)
+      for (const room of sortedRoomsByCapacity) {
+        const remaining = getRoomRemainingCapacity(room.id)
+        if (remaining >= participants) {
+          // Capacité restante suffisante pour partager
+          return { roomIds: [room.id], requiresTwoRooms: false }
+        }
+      }
+      
+      return null // Aucune salle ne peut accueillir le groupe
     }
     
-    // Aucune salle disponible
+    // Groupe < threshold : PEUT partager, chercher la plus petite salle avec capacité restante
+    for (const room of sortedRoomsByCapacity) {
+      const remaining = getRoomRemainingCapacity(room.id)
+      if (remaining >= participants) {
+        return { roomIds: [room.id], requiresTwoRooms: false }
+      }
+    }
+    
+    // Aucune salle ne peut accueillir le groupe
     return null
   }
 

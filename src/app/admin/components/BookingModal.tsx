@@ -1254,6 +1254,10 @@ export function BookingModal({
               const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
               if (allocation) {
                 allocatedRoomIds = allocation.roomIds
+              } else {
+                // AUCUNE SALLE DISPONIBLE : BLOQUER LA CRÉATION
+                setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${formatTime(sessionStart)}. Les salles sont pleines ou ont une capacité insuffisante. Veuillez choisir un autre créneau ou réduire le nombre de participants.`)
+                return
               }
             }
             
@@ -1268,18 +1272,6 @@ export function BookingModal({
                 pause_before_minutes: 0
               })
             })
-            
-            // Si aucune salle trouvée, créer quand même une session sans salle (sera gérée par validation)
-            if (allocatedRoomIds.length === 0) {
-              game_sessions.push({
-                game_area: 'LASER',
-                start_datetime: sessionStart.toISOString(),
-                end_datetime: sessionEnd.toISOString(),
-                laser_room_id: null,
-                session_order: i + 1,
-                pause_before_minutes: 0
-              })
-            }
             
             // Prochain jeu commence après la pause
             currentStart = new Date(sessionEnd)
@@ -1319,6 +1311,10 @@ export function BookingModal({
                 const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
                 if (allocation) {
                   allocatedRoomIds = allocation.roomIds
+                } else {
+                  // AUCUNE SALLE DISPONIBLE : BLOQUER LA CRÉATION
+                  setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${formatTime(sessionStart)}. Les salles sont pleines ou ont une capacité insuffisante. Veuillez choisir un autre créneau ou réduire le nombre de participants.`)
+                  return
                 }
               }
               
@@ -1333,18 +1329,6 @@ export function BookingModal({
                   pause_before_minutes: 0
                 })
               })
-              
-              // Si aucune salle trouvée, créer quand même une session sans salle
-              if (allocatedRoomIds.length === 0) {
-                game_sessions.push({
-                  game_area: 'LASER',
-                  start_datetime: sessionStart.toISOString(),
-                  end_datetime: sessionEnd.toISOString(),
-                  laser_room_id: null,
-                  session_order: i + 1,
-                  pause_before_minutes: 0
-                })
-              }
             }
             
             // Prochain jeu commence après la pause
@@ -1382,10 +1366,16 @@ export function BookingModal({
             
             // Allocation Laser si nécessaire
             let laserRoomId: string | null = null
-            if (area === 'LASER' && findBestLaserRoom) {
-              const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
-              if (allocation && allocation.roomIds.length > 0) {
-                laserRoomId = allocation.roomIds[0]
+            if (area === 'LASER') {
+              if (findBestLaserRoom) {
+                const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
+                if (allocation && allocation.roomIds.length > 0) {
+                  laserRoomId = allocation.roomIds[0]
+                } else {
+                  // AUCUNE SALLE DISPONIBLE : BLOQUER LA CRÉATION
+                  setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${formatTime(sessionStart)}. Les salles sont pleines ou ont une capacité insuffisante. Veuillez choisir un autre créneau ou réduire le nombre de participants.`)
+                  return
+                }
               }
             }
             
@@ -1418,23 +1408,29 @@ export function BookingModal({
             const sessionEnd = new Date(sessionStart)
             sessionEnd.setMinutes(sessionEnd.getMinutes() + duration)
             
-            // Allocation Laser si nécessaire
-            let laserRoomId: string | null = null
-            if (area === 'LASER' && findBestLaserRoom) {
-              const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
-              if (allocation && allocation.roomIds.length > 0) {
-                laserRoomId = allocation.roomIds[0]
+              // Allocation Laser si nécessaire
+              let laserRoomId: string | null = null
+              if (area === 'LASER') {
+                if (findBestLaserRoom) {
+                  const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
+                  if (allocation && allocation.roomIds.length > 0) {
+                    laserRoomId = allocation.roomIds[0]
+                  } else {
+                    // AUCUNE SALLE DISPONIBLE : BLOQUER LA CRÉATION
+                    setError(`Aucune salle laser disponible pour ${parsedParticipants} participants à ${formatTime(sessionStart)}. Les salles sont pleines ou ont une capacité insuffisante. Veuillez choisir un autre créneau ou réduire le nombre de participants.`)
+                    return
+                  }
+                }
               }
-            }
-            
-            game_sessions.push({
-              game_area: area,
-              start_datetime: sessionStart.toISOString(),
-              end_datetime: sessionEnd.toISOString(),
-              laser_room_id: laserRoomId,
-              session_order: i + 1,
-              pause_before_minutes: i === 0 ? 15 : (eventCustomGamePauses[i - 1] ?? 0) // Pause avant le premier jeu = 15 min (salle + 15), puis pause après chaque jeu précédent
-            })
+              
+              game_sessions.push({
+                game_area: area,
+                start_datetime: sessionStart.toISOString(),
+                end_datetime: sessionEnd.toISOString(),
+                laser_room_id: laserRoomId,
+                session_order: i + 1,
+                pause_before_minutes: i === 0 ? 15 : (eventCustomGamePauses[i - 1] ?? 0) // Pause avant le premier jeu = 15 min (salle + 15), puis pause après chaque jeu précédent
+              })
             
             // Préparer le début du prochain jeu (après la pause)
             if (i < gameCount - 1) {
