@@ -2978,8 +2978,8 @@ export function BookingModal({
             </div>
           )}
 
-          {/* Allocation manuelle LASER - Uniquement pour GAME LASER */}
-          {bookingType === 'GAME' && gameArea === 'LASER' && (
+          {/* Allocation manuelle LASER - DÉSACTIVÉ pour l'instant (allocation automatique uniquement) */}
+          {false && bookingType === 'GAME' && gameArea === 'LASER' && (
             <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
               <div className="flex items-center gap-2 mb-3">
                 <Target className="w-5 h-5 text-purple-400" />
