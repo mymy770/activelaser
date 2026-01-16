@@ -42,12 +42,13 @@ async function findOrCreateContact(
   firstName: string,
   lastName: string | null,
   phone: string,
-  email: string | null
+  email: string | null,
+  notes: string | null
 ): Promise<string> {
   // Chercher un contact existant avec même téléphone ET même nom
   const { data: existingContacts } = await supabase
     .from('contacts')
-    .select('id, first_name, last_name, phone, email')
+    .select('id, first_name, last_name, phone, email, notes')
     .eq('phone', phone)
     .eq('status', 'active')
   
@@ -59,8 +60,28 @@ async function findOrCreateContact(
     )
     
     if (exactMatch) {
+      // Si des notes sont fournies, les ajouter aux notes existantes
+      if (notes && notes.trim()) {
+        const dateStr = new Date().toLocaleDateString('fr-FR')
+        const newNote = `[${dateStr} - Réservation site] ${notes}`
+        const updatedNotes = exactMatch.notes 
+          ? `${exactMatch.notes}\n\n${newNote}`
+          : newNote
+        
+        await supabase
+          .from('contacts')
+          .update({ notes: updatedNotes })
+          .eq('id', exactMatch.id)
+      }
       return exactMatch.id
     }
+  }
+  
+  // Préparer les notes pour un nouveau contact
+  let formattedNotes = null
+  if (notes && notes.trim()) {
+    const dateStr = new Date().toLocaleDateString('fr-FR')
+    formattedNotes = `[${dateStr} - Réservation site] ${notes}`
   }
   
   // Créer un nouveau contact
@@ -72,6 +93,7 @@ async function findOrCreateContact(
       last_name: lastName,
       phone: phone,
       email: email,
+      notes: formattedNotes,
       source: 'website',
       status: 'active',
     })
@@ -434,13 +456,14 @@ export async function POST(request: NextRequest) {
     // Générer le numéro de référence temporaire
     const requestReference = await generateRequestReference()
     
-    // Créer ou trouver le contact
+    // Créer ou trouver le contact (avec les notes)
     const contactId = await findOrCreateContact(
       branch_id,
       customer_first_name,
       customer_last_name || null,
       customer_phone,
-      customer_email || null
+      customer_email || null,
+      customer_notes || null
     )
     
     // Vérifier la disponibilité
