@@ -54,8 +54,9 @@ export function AdminHeader({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showUserMenu])
 
-  // Compteur de commandes en attente pour le badge
+  // Compteur de commandes en attente pour le badge (visible partout)
   const pendingOrdersCount = usePendingOrdersCount(selectedBranch?.id || null)
+  const hasPendingOrders = pendingOrdersCount > 0
 
   const getRoleBadge = () => {
     const baseClasses = "px-2 py-0.5 text-xs rounded-full"
@@ -126,7 +127,7 @@ export function AdminHeader({
         <div className="hidden min-[900px]:flex items-center gap-3 flex-1 justify-center min-w-0">
           <Link
             href="/admin"
-            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 relative ${
               pathname === '/admin'
                 ? 'bg-blue-600 text-white'
                 : theme === 'dark' 
@@ -136,6 +137,12 @@ export function AdminHeader({
           >
             <Calendar className="w-4 h-4" />
             <span>Agenda</span>
+            {/* Pastille rouge critique pour commandes en attente */}
+            {hasPendingOrders && pathname !== '/admin/orders' && (
+              <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center animate-pulse shadow-lg">
+                !
+              </span>
+            )}
           </Link>
           <Link
             href="/admin/clients"
@@ -162,8 +169,9 @@ export function AdminHeader({
           >
             <ShoppingCart className="w-4 h-4" />
             <span>Commandes</span>
-            {pendingOrdersCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+            {/* Pastille rouge critique pour commandes en attente */}
+            {hasPendingOrders && (
+              <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center animate-pulse shadow-lg">
                 {pendingOrdersCount > 9 ? '9+' : pendingOrdersCount}
               </span>
             )}
@@ -306,7 +314,7 @@ export function AdminHeader({
               <Link
                 href="/admin"
                 onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors relative ${
                   pathname === '/admin'
                     ? 'bg-blue-600 text-white'
                     : theme === 'dark' 
@@ -316,6 +324,11 @@ export function AdminHeader({
               >
                 <Calendar className="w-4 h-4" />
                 <span>Agenda</span>
+                {hasPendingOrders && pathname !== '/admin/orders' && (
+                  <span className="bg-red-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full ml-auto animate-pulse">
+                    !
+                  </span>
+                )}
               </Link>
               <Link
                 href="/admin/clients"
@@ -344,8 +357,8 @@ export function AdminHeader({
               >
                 <ShoppingCart className="w-4 h-4" />
                 <span>Commandes</span>
-                {pendingOrdersCount > 0 && (
-                  <span className="bg-yellow-500 text-black text-xs font-bold px-2 py-0.5 rounded-full ml-auto">
+                {hasPendingOrders && (
+                  <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-auto animate-pulse">
                     {pendingOrdersCount}
                   </span>
                 )}

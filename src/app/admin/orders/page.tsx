@@ -27,8 +27,9 @@ import { useOrders } from '@/hooks/useOrders'
 import { useBranches } from '@/hooks/useBranches'
 import { useAuth } from '@/hooks/useAuth'
 import { AdminHeader } from '../components/AdminHeader'
+import { OrdersTable } from './components/OrdersTable'
 import { createClient } from '@/lib/supabase/client'
-import type { OrderWithRelations, OrderStatus } from '@/lib/supabase/types'
+import type { OrderWithRelations, OrderStatus, GameArea } from '@/lib/supabase/types'
 
 type Theme = 'light' | 'dark'
 
@@ -40,6 +41,8 @@ export default function OrdersPage() {
   const branches = branchesHook.branches
   const branchesLoading = branchesHook.loading
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
+  const [typeFilter, setTypeFilter] = useState<'all' | 'GAME' | 'EVENT'>('all')
+  const [gameAreaFilter, setGameAreaFilter] = useState<'all' | GameArea>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [theme, setTheme] = useState<Theme>('light')
   
@@ -83,10 +86,20 @@ export default function OrdersPage() {
     }
   }, [branches, selectedBranchId, branchesHook])
 
-  // Filtrer les commandes par statut et recherche
+  // Filtrer les commandes
   const filteredOrders = orders.filter(order => {
     // Filtre par statut
     if (statusFilter !== 'all' && order.status !== statusFilter) {
+      return false
+    }
+    
+    // Filtre par type (GAME/EVENT)
+    if (typeFilter !== 'all' && order.order_type !== typeFilter) {
+      return false
+    }
+    
+    // Filtre par zone de jeu (ACTIVE/LASER)
+    if (gameAreaFilter !== 'all' && order.game_area !== gameAreaFilter) {
       return false
     }
     
@@ -211,6 +224,29 @@ export default function OrdersPage() {
       />
 
       <main className="p-6">
+        {/* Barre de recherche */}
+        <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl p-4 border ${isDark ? 'border-gray-700' : 'border-gray-200'} mb-6`}>
+          <div className="flex items-center gap-4">
+            <div className="flex-1 relative">
+              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Rechercher une commande (nom, téléphone, email, référence)..."
+                className={`w-full pl-10 pr-4 py-3 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg text-base placeholder-gray-500 focus:border-blue-500 focus:outline-none`}
+              />
+            </div>
+            <button
+              onClick={() => refresh()}
+              className={`p-3 rounded-lg transition-colors ${isDark ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+              title="Rafraîchir"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-white'} border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
@@ -254,58 +290,116 @@ export default function OrdersPage() {
         )}
 
         {/* Filters */}
-        <div className="flex items-center gap-2 mb-6">
+        <div className="flex flex-wrap items-center gap-2 mb-6">
           <Filter className="w-4 h-4 text-gray-400" />
-          <button
-            onClick={() => setStatusFilter('all')}
-            className={`px-3 py-1.5 rounded-lg text-sm ${
-              statusFilter === 'all' 
-                ? 'bg-cyan-500 text-white' 
-                : isDark ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Tous
-          </button>
-          <button
-            onClick={() => setStatusFilter('pending')}
-            className={`px-3 py-1.5 rounded-lg text-sm ${
-              statusFilter === 'pending' 
-                ? 'bg-yellow-500 text-black' 
-                : isDark ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            En attente
-          </button>
-          <button
-            onClick={() => setStatusFilter('auto_confirmed')}
-            className={`px-3 py-1.5 rounded-lg text-sm ${
-              statusFilter === 'auto_confirmed' 
-                ? 'bg-green-500 text-white' 
-                : isDark ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Confirmés auto
-          </button>
-          <button
-            onClick={() => setStatusFilter('manually_confirmed')}
-            className={`px-3 py-1.5 rounded-lg text-sm ${
-              statusFilter === 'manually_confirmed' 
-                ? 'bg-blue-500 text-white' 
-                : isDark ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Confirmés manuel
-          </button>
-          <button
-            onClick={() => setStatusFilter('cancelled')}
-            className={`px-3 py-1.5 rounded-lg text-sm ${
-              statusFilter === 'cancelled' 
-                ? 'bg-red-500 text-white' 
-                : isDark ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Annulés
-          </button>
+          
+          {/* Statut */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setStatusFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                statusFilter === 'all' 
+                  ? 'bg-blue-600 text-white' 
+                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Tous
+            </button>
+            <button
+              onClick={() => setStatusFilter('pending')}
+              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                statusFilter === 'pending' 
+                  ? 'bg-red-600 text-white' 
+                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              En attente
+            </button>
+            <button
+              onClick={() => setStatusFilter('auto_confirmed')}
+              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                statusFilter === 'auto_confirmed' 
+                  ? 'bg-green-600 text-white' 
+                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Confirmés
+            </button>
+          </div>
+          
+          <div className={`w-px h-6 ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`}></div>
+          
+          {/* Type */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setTypeFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                typeFilter === 'all' 
+                  ? 'bg-blue-600 text-white' 
+                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Tous types
+            </button>
+            <button
+              onClick={() => setTypeFilter('GAME')}
+              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                typeFilter === 'GAME' 
+                  ? 'bg-blue-600 text-white' 
+                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Games
+            </button>
+            <button
+              onClick={() => setTypeFilter('EVENT')}
+              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                typeFilter === 'EVENT' 
+                  ? 'bg-purple-600 text-white' 
+                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Events
+            </button>
+          </div>
+          
+          <div className={`w-px h-6 ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`}></div>
+          
+          {/* Zone de jeu (si GAME sélectionné) */}
+          {typeFilter === 'GAME' && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setGameAreaFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                  gameAreaFilter === 'all' 
+                    ? 'bg-blue-600 text-white' 
+                    : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Tous jeux
+              </button>
+              <button
+                onClick={() => setGameAreaFilter('ACTIVE')}
+                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                  gameAreaFilter === 'ACTIVE' 
+                    ? 'bg-blue-600 text-white' 
+                    : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Active
+              </button>
+              <button
+                onClick={() => setGameAreaFilter('LASER')}
+                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                  gameAreaFilter === 'LASER' 
+                    ? 'bg-cyan-600 text-white' 
+                    : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Laser
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Orders List */}
@@ -315,147 +409,13 @@ export default function OrdersPage() {
           </div>
         ) : error ? (
           <div className="text-center py-12 text-red-500">{error}</div>
-        ) : filteredOrders.length === 0 ? (
-          <div className={`text-center py-12 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            Aucune commande trouvée
-          </div>
         ) : (
-          <div className="space-y-4">
-            {filteredOrders.map((order) => {
-              const statusDisplay = getStatusDisplay(order.status)
-              const StatusIcon = statusDisplay.icon
-              const TypeIcon = getTypeIcon(order.order_type, order.game_area)
-              
-              return (
-                <div 
-                  key={order.id}
-                  className={`p-4 rounded-xl border ${statusDisplay.border} ${statusDisplay.bg} ${
-                    isDark ? 'bg-opacity-50' : ''
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    {/* Left: Order Info */}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <TypeIcon className={`w-5 h-5 ${statusDisplay.color}`} />
-                        <span className="font-bold text-lg">
-                          {order.customer_first_name} {order.customer_last_name}
-                        </span>
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusDisplay.bg} ${statusDisplay.color} border ${statusDisplay.border}`}>
-                          <StatusIcon className="w-3 h-3 inline mr-1" />
-                          {statusDisplay.label}
-                        </span>
-                        <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                          {order.request_reference}
-                        </span>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-gray-400" />
-                          <span>{formatDate(order.requested_date)}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-gray-400" />
-                          <span>{formatTime(order.requested_time)}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Users className="w-4 h-4 text-gray-400" />
-                          <span>{order.participants_count} personnes</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <TypeIcon className="w-4 h-4 text-gray-400" />
-                          <span>
-                            {order.order_type === 'EVENT' ? 'Événement' : order.game_area || 'Game'}
-                            {order.number_of_games && order.number_of_games > 1 && ` (${order.number_of_games} parties)`}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-4 mt-2 text-sm">
-                        <a 
-                          href={`tel:${order.customer_phone}`}
-                          className="flex items-center gap-1 text-cyan-400 hover:underline"
-                        >
-                          <Phone className="w-3 h-3" />
-                          {order.customer_phone}
-                        </a>
-                        {order.customer_email && (
-                          <a 
-                            href={`mailto:${order.customer_email}`}
-                            className="flex items-center gap-1 text-cyan-400 hover:underline"
-                          >
-                            <Mail className="w-3 h-3" />
-                            {order.customer_email}
-                          </a>
-                        )}
-                      </div>
-                      
-                      {order.pending_reason && (
-                        <div className="mt-2 text-sm text-yellow-500">
-                          <AlertCircle className="w-3 h-3 inline mr-1" />
-                          Raison: {order.pending_reason}
-                          {order.pending_details && ` - ${order.pending_details}`}
-                        </div>
-                      )}
-                      
-                      {order.customer_notes && (
-                        <div className={`mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                          Note: {order.customer_notes}
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Right: Actions */}
-                    <div className="flex items-center gap-2 ml-4">
-                      {order.status === 'pending' && (
-                        <>
-                          <button
-                            onClick={() => handleConfirm(order.id)}
-                            className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600"
-                          >
-                            Confirmer
-                          </button>
-                          <button
-                            onClick={() => handleCancel(order.id)}
-                            className="px-3 py-1.5 bg-red-500/20 text-red-500 rounded-lg text-sm font-medium hover:bg-red-500/30"
-                          >
-                            Annuler
-                          </button>
-                        </>
-                      )}
-                      
-                      {(order.status === 'auto_confirmed' || order.status === 'manually_confirmed') && order.booking && (
-                        <Link
-                          href={`/admin?booking=${order.booking.id}`}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-cyan-500/20 text-cyan-400 rounded-lg text-sm font-medium hover:bg-cyan-500/30"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          Voir réservation
-                        </Link>
-                      )}
-                      
-                      {order.contact && (
-                        <Link
-                          href={`/admin/clients?contact=${order.contact.id}`}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-lg text-sm font-medium hover:bg-purple-500/30"
-                        >
-                          <Users className="w-3 h-3" />
-                          Fiche client
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Footer: Timestamps */}
-                  <div className={`mt-3 pt-3 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                    Créée le {new Date(order.created_at).toLocaleString('fr-FR')}
-                    {order.processed_at && ` • Traitée le ${new Date(order.processed_at).toLocaleString('fr-FR')}`}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          <OrdersTable
+            orders={filteredOrders}
+            isDark={isDark}
+            onConfirm={handleConfirm}
+            onCancel={handleCancel}
+          />
         )}
       </main>
     </div>
