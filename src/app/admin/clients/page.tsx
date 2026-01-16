@@ -17,8 +17,8 @@ import type { Contact } from '@/lib/supabase/types'
 
 export default function ClientsPage() {
   const router = useRouter()
-  const { user } = useAuth()
-  const { branches, selectedBranch, selectBranch } = useBranches()
+  const { user, loading: authLoading, signOut } = useAuth()
+  const { branches, selectedBranch, selectBranch, loading: branchesLoading } = useBranches()
   const { searchContacts, archiveContact, unarchiveContact } = useContacts(selectedBranch?.id || null)
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -58,6 +58,13 @@ export default function ClientsPage() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
 
   const pageSize = 20
+
+  // Rediriger si pas authentifié
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login')
+    }
+  }, [user, authLoading, router])
 
   // Rechercher les contacts
   const performSearch = useCallback(async () => {
@@ -227,7 +234,7 @@ export default function ClientsPage() {
 
   const isDark = theme === 'dark'
 
-  if (!user || !selectedBranch) {
+  if (authLoading || branchesLoading || !user || !selectedBranch) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-100'}`}>
         <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
