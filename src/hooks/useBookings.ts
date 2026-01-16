@@ -350,6 +350,35 @@ export function useBookings(branchId: string | null, date?: string) {
         newSessions = insertedSessions || []
       }
 
+      // Créer une entrée dans orders pour synchroniser avec la section Commandes
+      const bookingDate = new Date(data.start_datetime)
+      const orderData = {
+        branch_id: data.branch_id,
+        booking_id: newBooking.id,
+        contact_id: data.primary_contact_id || null,
+        source: 'admin_agenda',
+        status: 'auto_confirmed',
+        order_type: data.type, // 'GAME' ou 'EVENT'
+        game_area: newSessions.length > 0 ? newSessions[0].game_area : 'ACTIVE',
+        number_of_games: newSessions.length || 1,
+        requested_date: bookingDate.toISOString().split('T')[0],
+        requested_time: bookingDate.toTimeString().slice(0, 5),
+        participants_count: data.participants_count,
+        customer_name: `${data.customer_first_name || ''} ${data.customer_last_name || ''}`.trim() || null,
+        customer_phone: data.customer_phone || null,
+        customer_email: data.customer_email || null,
+        customer_notes: data.customer_notes_at_booking || null,
+      }
+
+      const { error: orderError } = await supabase
+        .from('orders')
+        .insert(orderData as any)
+
+      if (orderError) {
+        // Log mais ne pas bloquer - l'order est optionnel pour la compatibilité
+        console.warn('Order creation warning (non-blocking):', orderError.message)
+      }
+
       const result: BookingWithSlots = {
         ...newBooking,
         slots: newSlots,

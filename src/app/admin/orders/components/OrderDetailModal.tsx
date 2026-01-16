@@ -390,8 +390,12 @@ export function OrderDetailModal({
                 </div>
                 <div className="flex justify-between">
                   <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Source</span>
-                  <span className={isDark ? 'text-white' : 'text-gray-900'}>
-                    Site internet
+                  <span className={`px-2 py-0.5 rounded text-sm ${
+                    order.source === 'admin_agenda'
+                      ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                      : 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
+                  }`}>
+                    {order.source === 'admin_agenda' ? 'Admin' : 'Site internet'}
                   </span>
                 </div>
                 {order.branch?.name && (

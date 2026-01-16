@@ -252,9 +252,11 @@ export function OrdersTable({ orders, isDark, onConfirm, onCancel, onViewOrder, 
               {/* Source */}
               <div className="col-span-1">
                 <span className={`inline-flex items-center px-2 py-1 rounded text-xs ${
-                  isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
+                  order.source === 'admin_agenda'
+                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                    : 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
                 }`}>
-                  Site
+                  {order.source === 'admin_agenda' ? 'Admin' : 'Site'}
                 </span>
               </div>
             </div>
