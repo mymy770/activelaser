@@ -20,7 +20,8 @@ import {
   ExternalLink,
   Gamepad2,
   Target,
-  Cake
+  Cake,
+  Search
 } from 'lucide-react'
 import { useOrders } from '@/hooks/useOrders'
 import { useBranches } from '@/hooks/useBranches'
@@ -39,6 +40,7 @@ export default function OrdersPage() {
   const branches = branchesHook.branches
   const branchesLoading = branchesHook.loading
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [theme, setTheme] = useState<Theme>('light')
   
   const { 
@@ -81,10 +83,27 @@ export default function OrdersPage() {
     }
   }, [branches, selectedBranchId, branchesHook])
 
-  // Filtrer les commandes par statut
-  const filteredOrders = statusFilter === 'all' 
-    ? orders 
-    : orders.filter(o => o.status === statusFilter)
+  // Filtrer les commandes par statut et recherche
+  const filteredOrders = orders.filter(order => {
+    // Filtre par statut
+    if (statusFilter !== 'all' && order.status !== statusFilter) {
+      return false
+    }
+    
+    // Filtre par recherche
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      const matchesName = `${order.customer_first_name} ${order.customer_last_name}`.toLowerCase().includes(query)
+      const matchesPhone = order.customer_phone.toLowerCase().includes(query)
+      const matchesEmail = order.customer_email?.toLowerCase().includes(query)
+      const matchesReference = order.request_reference.toLowerCase().includes(query)
+      const matchesBookingRef = order.booking?.reference_code?.toLowerCase().includes(query)
+      
+      return matchesName || matchesPhone || matchesEmail || matchesReference || matchesBookingRef
+    }
+    
+    return true
+  })
 
   // Formater la date
   const formatDate = (date: string) => {
