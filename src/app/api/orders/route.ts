@@ -350,12 +350,10 @@ async function createBooking(
     gameEndDateTime = endDateTime
   }
   
-  // Définir la couleur par défaut selon le type de jeu
-  // Bleu pour ACTIVE, Violet pour LASER, Vert pour EVENT
-  let defaultColor = '#3B82F6' // Bleu par défaut (ACTIVE)
-  if (gameArea === 'LASER') {
-    defaultColor = '#8B5CF6' // Violet pour LASER
-  } else if (orderType === 'EVENT') {
+  // Définir la couleur par défaut selon le type
+  // Bleu pour tous les GAME (ACTIVE et LASER), Vert pour EVENT
+  let defaultColor = '#3B82F6' // Bleu pour GAME
+  if (orderType === 'EVENT') {
     defaultColor = '#22C55E' // Vert pour EVENT
   }
   
