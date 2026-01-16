@@ -383,10 +383,10 @@ export function useContacts(branchId: string | null) {
 
       const bookingIds = (bookingContacts as any[]).map((bc: any) => bc.booking_id)
 
-      // Récupérer les bookings
+      // Récupérer les bookings avec leurs game_sessions
       const { data: bookings, error: bookingsError } = await supabase
         .from('bookings')
-        .select('id, reference_code, type, status, start_datetime, end_datetime, participants_count, created_at')
+        .select('id, reference_code, type, status, start_datetime, end_datetime, participants_count, created_at, game_sessions(id, game_area)')
         .in('id', bookingIds)
         .eq('branch_id', branchId)
         .order('start_datetime', { ascending: false })

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { X, Loader2, Users, Clock, User, Phone, Mail, MessageSquare, Gamepad2, PartyPopper, Palette, Home, Calendar, ChevronLeft, ChevronRight, Trash2, Edit2, RefreshCw, AlertTriangle, ChevronDown, Building2 } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { X, Loader2, Users, Clock, User, Phone, Mail, MessageSquare, Gamepad2, PartyPopper, Palette, Home, Calendar, ChevronLeft, ChevronRight, Trash2, Edit2, RefreshCw, AlertTriangle, ChevronDown, Building2, Zap, Target } from 'lucide-react'
 import type { CreateBookingData, BookingWithSlots } from '@/hooks/useBookings'
 import { ContactFieldAutocomplete } from './ContactFieldAutocomplete'
 import { useContacts } from '@/hooks/useContacts'
@@ -33,7 +33,7 @@ interface BookingModalProps {
   branches?: Array<{ id: string; name: string; slug: string }> // Liste des branches pour permettre le changement
   selectedBranchId?: string | null // ID de la branche sélectionnée
   // Fonctions Laser
-  findBestLaserRoom?: (participants: number, startDateTime: Date, endDateTime: Date, excludeBookingId?: string, targetBranchId?: string | null) => { roomIds: string[]; requiresTwoRooms: boolean } | null
+  findBestLaserRoom?: (participants: number, startDateTime: Date, endDateTime: Date, excludeBookingId?: string, targetBranchId?: string | null) => Promise<{ roomIds: string[]; requiresTwoRooms: boolean } | null>
   checkLaserVestsConstraint?: (participants: number, startDateTime: Date, endDateTime: Date, excludeBookingId?: string, targetBranchId?: string | null) => Promise<{ isViolated: boolean; currentUsage: number; maxVests: number; message: string }>
   checkLaserRoomCapacity?: (roomId: string, participants: number, targetBranchId?: string | null) => { isExceeded: boolean; roomCapacity: number; overcapBy: number }
   laserRooms?: LaserRoom[] // Liste des laser rooms de la branche
@@ -140,6 +140,7 @@ export function BookingModal({
   // CRM: Contact sélectionné
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
   const [isEditingContact, setIsEditingContact] = useState(false) // Mode modification activé par "modifier client"
+  const [isEditingEvent, setIsEditingEvent] = useState(false) // Mode modification activé par "modifier événement"
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false)
   const [pendingContactData, setPendingContactData] = useState<{ phone: string; email: string | null } | null>(null)
   const [pendingEventRoomId, setPendingEventRoomId] = useState<string | null | undefined>(null)
@@ -240,6 +241,12 @@ export function BookingModal({
     setIsEditingContact(true)
   }
 
+  // Activer le mode modification de l'événement
+  const handleModifyEvent = () => {
+    if (bookingType !== 'EVENT' || !editingBooking) return
+    setIsEditingEvent(true)
+  }
+
   // CRM: Changer de contact (réinitialiser et permettre nouveau contact)
   const handleChangeContact = () => {
     setSelectedContact(null)
@@ -274,6 +281,57 @@ export function BookingModal({
   const getAvailableQuickPlans = (gameCount: '2'): EventQuickPlan[] => {
     if (gameCount === '2') return ['AA', 'LL', 'AL', 'LA'] as EventQuickPlan[]
     return []
+  }
+
+  // Helper pour calculer les sessions ACTIVE d'un événement (pour vérification overbooking)
+  const calculateActiveSessionsForEvent = (): Array<{ start: Date; end: Date }> => {
+    const activeSessions: Array<{ start: Date; end: Date }> = []
+    
+    if (eventGamePlanType !== 'CUSTOM') {
+      const areas = getQuickPlanAreas(eventQuickPlan)
+      let currentStart = new Date(localDate)
+      currentStart.setHours(eventFirstGameStartHour, eventFirstGameStartMinute, 0, 0)
+      
+      for (let i = 0; i < areas.length; i++) {
+        if (areas[i] === 'ACTIVE') {
+          const duration = parseInt(eventGameDurations[i] || '30', 10)
+          const sessionStart = new Date(currentStart)
+          const sessionEnd = new Date(sessionStart)
+          sessionEnd.setMinutes(sessionEnd.getMinutes() + duration)
+          activeSessions.push({ start: sessionStart, end: sessionEnd })
+        }
+        
+        // Préparer le début du prochain jeu
+        if (i < areas.length - 1) {
+          const duration = parseInt(eventGameDurations[i] || '30', 10)
+          currentStart = new Date(currentStart)
+          currentStart.setMinutes(currentStart.getMinutes() + duration + (eventGamePauses[i] ?? 0))
+        }
+      }
+    } else {
+      // Plan sur mesure
+      let currentStart = new Date(localDate)
+      currentStart.setHours(eventFirstGameStartHour, eventFirstGameStartMinute, 0, 0)
+      
+      for (let i = 0; i < eventCustomNumberOfGames; i++) {
+        if (eventCustomGameArea[i] === 'ACTIVE') {
+          const duration = parseInt(eventCustomGameDurations[i] || '30', 10)
+          const sessionStart = new Date(currentStart)
+          const sessionEnd = new Date(sessionStart)
+          sessionEnd.setMinutes(sessionEnd.getMinutes() + duration)
+          activeSessions.push({ start: sessionStart, end: sessionEnd })
+        }
+        
+        // Préparer le début du prochain jeu
+        if (i < eventCustomNumberOfGames - 1) {
+          const duration = parseInt(eventCustomGameDurations[i] || '30', 10)
+          currentStart = new Date(currentStart)
+          currentStart.setMinutes(currentStart.getMinutes() + duration + (eventCustomGamePauses[i] ?? 0))
+        }
+      }
+    }
+    
+    return activeSessions
   }
 
   // Obtenir le label d'un plan prédéfini
@@ -475,32 +533,95 @@ export function BookingModal({
             
             // Les pauses sont maintenant "après" chaque jeu, pas besoin de gapBetweenGames
           } else if (editingBooking.type === 'EVENT') {
-            // EVENT : déterminer le plan de jeu depuis les 2 sessions
-            const session1 = editingBooking.game_sessions[0]
-            const session2 = editingBooking.game_sessions[1]
+            // EVENT : déterminer le plan de jeu depuis les sessions
+            const sessions = editingBooking.game_sessions || []
             
-            if (session1 && session2) {
-              const plan1 = session1.game_area === 'ACTIVE' ? 'A' : 'L'
-              const plan2 = session2.game_area === 'ACTIVE' ? 'A' : 'L'
-              setEventGamePlan(`${plan1}${plan2}` as 'AA' | 'LL' | 'AL' | 'LA')
+            if (sessions.length >= 2) {
+              // Déterminer si c'est un plan prédéfini (2 jeux) ou sur mesure
+              if (sessions.length === 2) {
+                // Plan prédéfini à 2 jeux
+                setEventGamePlanType('2')
+                
+                const session1 = sessions[0]
+                const session2 = sessions[1]
+                const plan1 = session1.game_area === 'ACTIVE' ? 'A' : 'L'
+                const plan2 = session2.game_area === 'ACTIVE' ? 'A' : 'L'
+                const quickPlan = `${plan1}${plan2}` as EventQuickPlan
+                setEventQuickPlan(quickPlan)
+                setEventGamePlan(quickPlan as 'AA' | 'LL' | 'AL' | 'LA') // Pour compatibilité
+                
+                // Durées des sessions
+                const session1Start = new Date(session1.start_datetime)
+                const session1End = new Date(session1.end_datetime)
+                const session1DurationMs = session1End.getTime() - session1Start.getTime()
+                const session1DurationMinutes = Math.round(session1DurationMs / (1000 * 60))
+                
+                const session2Start = new Date(session2.start_datetime)
+                const session2End = new Date(session2.end_datetime)
+                const session2DurationMs = session2End.getTime() - session2Start.getTime()
+                const session2DurationMinutes = Math.round(session2DurationMs / (1000 * 60))
+                
+                setEventGameDurations([String(session1DurationMinutes), String(session2DurationMinutes)])
+                
+                // Pause entre sessions
+                const pauseMs = session2Start.getTime() - session1End.getTime()
+                const pauseMinutes = Math.round(pauseMs / (1000 * 60))
+                setEventGamePauses([pauseMinutes])
+                
+                // Durées pour compatibilité (ancien système)
+                setEventSession1Duration(String(session1DurationMinutes))
+                setEventSession2Duration(String(session2DurationMinutes))
+                setEventPause(pauseMinutes)
+              } else {
+                // Plan sur mesure (plus de 2 jeux)
+                setEventGamePlanType('CUSTOM')
+                setEventCustomNumberOfGames(sessions.length)
+                
+                const areas: GameArea[] = []
+                const durations: string[] = []
+                const pauses: number[] = []
+                const roomIds: string[] = []
+                
+                sessions.forEach((session, index) => {
+                  areas.push(session.game_area || 'ACTIVE')
+                  
+                  const sessionStart = new Date(session.start_datetime)
+                  const sessionEnd = new Date(session.end_datetime)
+                  const durationMs = sessionEnd.getTime() - sessionStart.getTime()
+                  const durationMinutes = Math.round(durationMs / (1000 * 60))
+                  durations.push(String(durationMinutes))
+                  
+                  // Calculer la pause après ce jeu
+                  if (index < sessions.length - 1) {
+                    const nextSession = sessions[index + 1]
+                    const nextSessionStart = new Date(nextSession.start_datetime)
+                    const pauseMs = nextSessionStart.getTime() - sessionEnd.getTime()
+                    const pauseMinutes = Math.round(pauseMs / (1000 * 60))
+                    pauses.push(pauseMinutes)
+                  }
+                  
+                  if (session.laser_room_id) {
+                    roomIds.push(session.laser_room_id)
+                  } else {
+                    roomIds.push('')
+                  }
+                })
+                
+                setEventCustomGameArea(areas)
+                setEventCustomGameDurations(durations)
+                setEventCustomGamePauses(pauses)
+                setEventCustomLaserRoomIds(roomIds)
+              }
               
-              // Durées des sessions
-              const session1Start = new Date(session1.start_datetime)
-              const session1End = new Date(session1.end_datetime)
-              const session1DurationMs = session1End.getTime() - session1Start.getTime()
-              const session1DurationMinutes = Math.round(session1DurationMs / (1000 * 60))
-              setEventSession1Duration(String(session1DurationMinutes))
+              // Initialiser l'heure de début du premier jeu
+              if (sessions.length > 0) {
+                const firstGameStart = new Date(sessions[0].start_datetime)
+                setEventFirstGameStartHour(firstGameStart.getHours())
+                setEventFirstGameStartMinute(firstGameStart.getMinutes())
+              }
               
-              const session2Start = new Date(session2.start_datetime)
-              const session2End = new Date(session2.end_datetime)
-              const session2DurationMs = session2End.getTime() - session2Start.getTime()
-              const session2DurationMinutes = Math.round(session2DurationMs / (1000 * 60))
-              setEventSession2Duration(String(session2DurationMinutes))
-              
-              // Pause entre sessions
-              const pauseMs = session2Start.getTime() - session1End.getTime()
-              const pauseMinutes = Math.round(pauseMs / (1000 * 60))
-              setEventPause(pauseMinutes)
+              // Verrouiller les données de l'événement par défaut
+              setIsEditingEvent(false)
             }
           }
         } else {
@@ -531,6 +652,7 @@ export function BookingModal({
             if (contact) {
               setSelectedContact(contact)
               setIsEditingContact(false) // Les champs doivent être gelés pour une réservation existante
+              setIsEditingEvent(false) // Les données de l'événement doivent être gelées pour une réservation existante
               // Charger les notes du contact (notes_client fait partie du contact)
               setNotes(contact.notes_client || '')
               // Ne pas écraser les champs si le contact existe (on garde les snapshot)
@@ -617,6 +739,7 @@ export function BookingModal({
         // CRM: Réinitialiser le contact et le mode édition pour une nouvelle réservation
         setSelectedContact(null)
         setIsEditingContact(false)
+        setIsEditingEvent(false) // Réinitialiser le mode édition événement
         // Couleur par défaut selon le type
         setColor(defaultBookingType === 'GAME' ? COLORS[0].value : COLORS[1].value)
       }
@@ -810,16 +933,46 @@ export function BookingModal({
       }
       
       // Vérifier l'overbooking dans la nouvelle branche
+      // Pour les événements, vérifier chaque session ACTIVE individuellement (pas la durée totale)
       if (calculateOverbooking) {
-        const overbookingInfo = calculateOverbooking(
-          currentParsedParticipants,
-          startDateTime,
-          endDateTime,
-          editingBooking?.id,
-          bookingBranchId // Passer la branche cible
-        )
+        let overbookingInfo = null
+        let hasOverbooking = false
         
-        if (overbookingInfo.willCauseOverbooking) {
+        if (bookingType === 'EVENT') {
+          // Pour les événements, calculer les sessions ACTIVE et vérifier chacune individuellement
+          const activeSessions = calculateActiveSessionsForEvent()
+          
+          // Vérifier chaque session ACTIVE individuellement (pas la durée totale)
+          for (const session of activeSessions) {
+            const sessionObInfo = calculateOverbooking(
+              currentParsedParticipants,
+              session.start,
+              session.end,
+              editingBooking?.id,
+              bookingBranchId
+            )
+            
+            if (sessionObInfo.willCauseOverbooking) {
+              hasOverbooking = true
+              // Garder l'info avec le plus grand overbooking
+              if (!overbookingInfo || sessionObInfo.maxOverbookedCount > overbookingInfo.maxOverbookedCount) {
+                overbookingInfo = sessionObInfo
+              }
+            }
+          }
+        } else {
+          // Pour GAME, vérifier normalement
+          overbookingInfo = calculateOverbooking(
+            currentParsedParticipants,
+            startDateTime,
+            endDateTime,
+            editingBooking?.id,
+            bookingBranchId
+          )
+          hasOverbooking = overbookingInfo.willCauseOverbooking
+        }
+        
+        if (hasOverbooking && overbookingInfo) {
           setOverbookingInfo(overbookingInfo)
           setShowOverbookingWarning(true)
         } else {
@@ -831,10 +984,17 @@ export function BookingModal({
       
       // Pour les événements, vérifier la disponibilité des salles dans la nouvelle branche
       if (bookingType === 'EVENT' && findRoomAvailability) {
+        // Pour les événements, utiliser les dates de la salle pour vérifier la disponibilité
+        const roomStartDate = new Date(localDate)
+        roomStartDate.setHours(roomStartHour, roomStartMinute, 0, 0)
+        const { endHour: roomEndHour, endMinute: roomEndMinute } = calculateRoomEndTime()
+        const roomEndDate = new Date(localDate)
+        roomEndDate.setHours(roomEndHour, roomEndMinute, 0, 0)
+        
         const roomAvailability = findRoomAvailability(
           currentParsedParticipants,
-          startDateTime,
-          endDateTime,
+          roomStartDate,
+          roomEndDate,
           editingBooking?.id,
           bookingBranchId // Passer la branche cible
         )
@@ -1022,20 +1182,6 @@ export function BookingModal({
         endDate = gameEndDate
       }
 
-      // Construire les slots (version simple - un seul slot continu)
-      // Utiliser directement les heures saisies par l'utilisateur
-      const slotStart = new Date(localDate)
-      slotStart.setHours(hour, minute, 0, 0)
-      
-      const slotEnd = new Date(localDate)
-      slotEnd.setHours(hour, minute, parsedDuration, 0)
-      
-      const slots: CreateBookingData['slots'] = [{
-        slot_start: slotStart.toISOString(),
-        slot_end: slotEnd.toISOString(),
-        participants_count: parsedParticipants
-      }]
-
       // Notes : séparer notes client (globales) et notes réservation (spécifiques)
       const bookingNotes = bookingType === 'EVENT' 
         ? (eventAlias.trim() || eventNotes.trim()
@@ -1102,7 +1248,7 @@ export function BookingModal({
             // Trouver la meilleure salle laser pour cette session
             let allocatedRoomIds: string[] = []
             if (findBestLaserRoom) {
-              const allocation = findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
+              const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
               if (allocation) {
                 allocatedRoomIds = allocation.roomIds
               }
@@ -1167,7 +1313,7 @@ export function BookingModal({
               // Trouver la meilleure salle laser pour cette session
               let allocatedRoomIds: string[] = []
               if (findBestLaserRoom) {
-                const allocation = findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
+                const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
                 if (allocation) {
                   allocatedRoomIds = allocation.roomIds
                 }
@@ -1234,7 +1380,7 @@ export function BookingModal({
             // Allocation Laser si nécessaire
             let laserRoomId: string | null = null
             if (area === 'LASER' && findBestLaserRoom) {
-              const allocation = findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
+              const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
               if (allocation && allocation.roomIds.length > 0) {
                 laserRoomId = allocation.roomIds[0]
               }
@@ -1246,13 +1392,13 @@ export function BookingModal({
               end_datetime: sessionEnd.toISOString(),
               laser_room_id: laserRoomId,
               session_order: i + 1,
-              pause_before_minutes: i === 0 ? 15 : (eventGamePauses[i - 1] || 0) // Pause avant le premier jeu = 15 min (salle + 15), puis pause après chaque jeu précédent
+              pause_before_minutes: i === 0 ? 15 : (eventGamePauses[i - 1] ?? 0) // Pause avant le premier jeu = 15 min (salle + 15), puis pause après chaque jeu précédent
             })
             
             // Préparer le début du prochain jeu (après la pause)
             if (i < gameCount - 1) {
               currentStart = new Date(sessionEnd)
-              currentStart.setMinutes(currentStart.getMinutes() + (eventGamePauses[i] || 0))
+              currentStart.setMinutes(currentStart.getMinutes() + (eventGamePauses[i] ?? 0))
             }
           }
         } else {
@@ -1272,7 +1418,7 @@ export function BookingModal({
             // Allocation Laser si nécessaire
             let laserRoomId: string | null = null
             if (area === 'LASER' && findBestLaserRoom) {
-              const allocation = findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
+              const allocation = await findBestLaserRoom(parsedParticipants, sessionStart, sessionEnd, editingBooking?.id, bookingBranchId)
               if (allocation && allocation.roomIds.length > 0) {
                 laserRoomId = allocation.roomIds[0]
               }
@@ -1284,14 +1430,44 @@ export function BookingModal({
               end_datetime: sessionEnd.toISOString(),
               laser_room_id: laserRoomId,
               session_order: i + 1,
-              pause_before_minutes: i === 0 ? 15 : (eventCustomGamePauses[i - 1] || 0) // Pause avant le premier jeu = 15 min (salle + 15), puis pause après chaque jeu précédent
+              pause_before_minutes: i === 0 ? 15 : (eventCustomGamePauses[i - 1] ?? 0) // Pause avant le premier jeu = 15 min (salle + 15), puis pause après chaque jeu précédent
             })
             
             // Préparer le début du prochain jeu (après la pause)
             if (i < gameCount - 1) {
               currentStart = new Date(sessionEnd)
-              currentStart.setMinutes(currentStart.getMinutes() + (eventCustomGamePauses[i] || 0))
+              currentStart.setMinutes(currentStart.getMinutes() + (eventCustomGamePauses[i] ?? 0))
             }
+          }
+        }
+      }
+
+      // Construire les slots selon le type de booking
+      const slots: CreateBookingData['slots'] = []
+      
+      if (bookingType === 'GAME') {
+        // Pour GAME : un seul slot continu
+        const slotStart = new Date(localDate)
+        slotStart.setHours(hour, minute, 0, 0)
+        
+        const slotEnd = new Date(localDate)
+        slotEnd.setHours(hour, minute, parsedDuration, 0)
+        
+        slots.push({
+          slot_start: slotStart.toISOString(),
+          slot_end: slotEnd.toISOString(),
+          participants_count: parsedParticipants
+        })
+      } else if (bookingType === 'EVENT') {
+        // Pour EVENT : créer un slot uniquement pour chaque session ACTIVE (pas pendant les pauses)
+        // Les pauses entre les jeux ne doivent pas bloquer les slots
+        for (const session of game_sessions) {
+          if (session.game_area === 'ACTIVE') {
+            slots.push({
+              slot_start: session.start_datetime,
+              slot_end: session.end_datetime,
+              participants_count: parsedParticipants
+            })
           }
         }
       }
@@ -1313,8 +1489,8 @@ export function BookingModal({
         primary_contact_id: contactIdToLink || undefined,
         notes: bookingNotes || undefined,
         color: color,
-        slots,
-        game_sessions: game_sessions.length > 0 ? game_sessions : undefined
+        slots: slots.length > 0 ? slots : [],
+        game_sessions: game_sessions.length > 0 ? game_sessions : []
       }
 
       console.log('Submitting booking:', bookingData)
@@ -1337,6 +1513,7 @@ export function BookingModal({
         } else {
           // Pour une édition, fermer automatiquement le modal après sauvegarde
           setIsEditingContact(false)
+          setIsEditingEvent(false)
           onClose()
         }
       } else {
@@ -1461,7 +1638,7 @@ export function BookingModal({
           if (i < areas.length - 1) {
             const duration = parseInt(eventGameDurations[i] || '30', 10)
             currentStart = new Date(currentStart)
-            currentStart.setMinutes(currentStart.getMinutes() + duration + (eventGamePauses[i] || 0))
+            currentStart.setMinutes(currentStart.getMinutes() + duration + (eventGamePauses[i] ?? 0))
           }
         }
       } else {
@@ -1482,7 +1659,7 @@ export function BookingModal({
           if (i < eventCustomNumberOfGames - 1) {
             const duration = parseInt(eventCustomGameDurations[i] || '30', 10)
             currentStart = new Date(currentStart)
-            currentStart.setMinutes(currentStart.getMinutes() + duration + (eventCustomGamePauses[i] || 0))
+            currentStart.setMinutes(currentStart.getMinutes() + duration + (eventCustomGamePauses[i] ?? 0))
           }
         }
       }
@@ -1564,20 +1741,53 @@ export function BookingModal({
 
     // Vérifier l'overbooking avant de soumettre (pour GAME et EVENT)
     if (calculateOverbooking && (bookingType === 'GAME' || bookingType === 'EVENT')) {
-      const gameStartDate = new Date(localDate)
-      gameStartDate.setHours(hour || 10, minute || 0, 0, 0)
+      let obInfo = null
       
-      const { endHour: gameEndHour, endMinute: gameEndMinute } = calculateGameEndTime()
-      const gameEndDate = new Date(localDate)
-      gameEndDate.setHours(gameEndHour, gameEndMinute, 0, 0)
+      if (bookingType === 'EVENT') {
+        // Pour les événements, vérifier chaque session ACTIVE individuellement
+        const activeSessions = calculateActiveSessionsForEvent()
+        let maxOverbooking = null
+        
+        for (const session of activeSessions) {
+          const sessionObInfo = calculateOverbooking(
+            parsedParticipants,
+            session.start,
+            session.end,
+            editingBooking?.id,
+            bookingBranchId
+          )
+          
+          if (sessionObInfo.willCauseOverbooking) {
+            // Garder l'info avec le plus grand overbooking
+            if (!maxOverbooking || sessionObInfo.maxOverbookedCount > maxOverbooking.maxOverbookedCount) {
+              maxOverbooking = sessionObInfo
+            }
+          }
+        }
+        
+        obInfo = maxOverbooking || {
+          willCauseOverbooking: false,
+          maxOverbookedCount: 0,
+          maxOverbookedSlots: 0,
+          affectedTimeSlots: []
+        }
+      } else {
+        // Pour GAME, vérifier normalement
+        const gameStartDate = new Date(localDate)
+        gameStartDate.setHours(hour || 10, minute || 0, 0, 0)
+        
+        const { endHour: gameEndHour, endMinute: gameEndMinute } = calculateGameEndTime()
+        const gameEndDate = new Date(localDate)
+        gameEndDate.setHours(gameEndHour, gameEndMinute, 0, 0)
 
-      const obInfo = calculateOverbooking(
-        parsedParticipants,
-        gameStartDate,
-        gameEndDate,
-        editingBooking?.id,
-        bookingBranchId
-      )
+        obInfo = calculateOverbooking(
+          parsedParticipants,
+          gameStartDate,
+          gameEndDate,
+          editingBooking?.id,
+          bookingBranchId
+        )
+      }
 
       if (obInfo.willCauseOverbooking) {
         // Stocker la salle avant d'afficher le popup
@@ -1718,6 +1928,30 @@ export function BookingModal({
       setShowDeleteConfirm(false)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Ref pour le formulaire
+  const formRef = useRef<HTMLFormElement>(null)
+
+  // Handler simple pour la touche Entrée - soumet directement
+  const handleEnterKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !loading) {
+      // Si on est dans un textarea, laisser le comportement par défaut (sauf Ctrl+Enter)
+      if (e.target instanceof HTMLTextAreaElement) {
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault()
+          const fakeEvent = { preventDefault: () => {} } as React.FormEvent
+          handleSubmit(fakeEvent)
+        }
+        return
+      }
+      
+      // Pour tous les autres inputs, soumettre directement
+      e.preventDefault()
+      e.stopPropagation()
+      const fakeEvent = { preventDefault: () => {} } as React.FormEvent
+      handleSubmit(fakeEvent)
     }
   }
 
@@ -1942,7 +2176,7 @@ export function BookingModal({
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+        <form ref={formRef} onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
           {/* Reference Code / Numéro de commande */}
           <div>
             <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -2096,6 +2330,7 @@ export function BookingModal({
                     min="1"
                     value={participants}
                     onChange={(e) => setParticipants(e.target.value)}
+                    onKeyDown={handleEnterKey}
                     className={`w-full px-2 py-2 rounded-lg border text-sm ${
                       isOverCapacity
                         ? 'border-red-500 bg-red-500/10'
@@ -2159,10 +2394,33 @@ export function BookingModal({
           {/* EVENT : Plan de jeu - ENSUITE */}
           {bookingType === 'EVENT' && laserRooms.length > 0 && (
             <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
-              <div className="flex items-center gap-2 mb-3">
-                <PartyPopper className="w-5 h-5 text-green-400" />
-                <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Plan de jeu</span>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <PartyPopper className="w-5 h-5 text-green-400" />
+                  <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Plan de jeu</span>
+                </div>
+                {/* Bouton Modifier événement (uniquement en mode édition) */}
+                {editingBooking && !isEditingEvent && (
+                  <button
+                    type="button"
+                    onClick={handleModifyEvent}
+                    className={`px-3 py-1.5 text-xs rounded-lg transition-colors flex items-center gap-2 ${
+                      isDark
+                        ? 'bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/50'
+                        : 'bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300'
+                    }`}
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    Modifier événement
+                  </button>
+                )}
               </div>
+              
+              {/* Variable pour désactiver les champs si l'événement est verrouillé */}
+              {(() => {
+                const isEventLocked = editingBooking && !isEditingEvent
+                return (
+                  <div className={isEventLocked ? 'opacity-60 pointer-events-none' : ''}>
               
               {/* Sélection du nombre de jeux (2 jeux ou sur mesure) */}
               <div className="mb-4">
@@ -2316,10 +2574,11 @@ export function BookingModal({
                                 type="number"
                                 min="0"
                                 step="15"
-                                value={eventGamePauses[index] || 30}
+                                value={eventGamePauses[index] ?? 30}
                                 onChange={(e) => {
                                   const newPauses = [...eventGamePauses]
-                                  newPauses[index] = parseInt(e.target.value, 10) || 0
+                                  const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10)
+                                  newPauses[index] = isNaN(value) ? 0 : value
                                   setEventGamePauses(newPauses)
                                 }}
                                 className={`w-full px-2 py-1 rounded border text-sm ${
@@ -2499,10 +2758,11 @@ export function BookingModal({
                               type="number"
                               min="0"
                               step="15"
-                              value={eventCustomGamePauses[index] || 0}
+                              value={eventCustomGamePauses[index] ?? 0}
                               onChange={(e) => {
                                 const newPauses = [...eventCustomGamePauses]
-                                newPauses[index] = parseInt(e.target.value, 10) || 0
+                                const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10)
+                                newPauses[index] = isNaN(value) ? 0 : value
                                 setEventCustomGamePauses(newPauses)
                               }}
                               className={`w-full px-2 py-1 rounded border text-sm ${
@@ -2518,6 +2778,9 @@ export function BookingModal({
                   ))}
                 </div>
               )}
+                  </div>
+                )
+              })()}
             </div>
           )}
 
@@ -2544,7 +2807,7 @@ export function BookingModal({
                       : isDark ? 'border-gray-700 hover:border-gray-600' : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <Gamepad2 className={`w-6 h-6 ${gameArea === 'ACTIVE' ? 'text-blue-500' : isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                  <Zap className={`w-6 h-6 ${gameArea === 'ACTIVE' ? 'text-blue-500' : isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                   <span className={`font-medium ${gameArea === 'ACTIVE' ? 'text-blue-500' : isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                     Active
                   </span>
@@ -2565,7 +2828,7 @@ export function BookingModal({
                       : isDark ? 'border-gray-700 hover:border-gray-600' : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <Gamepad2 className={`w-6 h-6 ${gameArea === 'LASER' ? 'text-purple-500' : isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                  <Target className={`w-6 h-6 ${gameArea === 'LASER' ? 'text-purple-500' : isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                   <span className={`font-medium ${gameArea === 'LASER' ? 'text-purple-500' : isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                     Laser
                   </span>
@@ -2612,6 +2875,7 @@ export function BookingModal({
                     <select
                       value={hour}
                       onChange={(e) => setHour(parseInt(e.target.value))}
+                      onKeyDown={handleEnterKey}
                       className={`admin-time-select flex-1 px-2 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 ${
                         isDark
                           ? 'bg-gray-800 border-gray-600 text-white focus:bg-gray-800 hover:bg-gray-800'
@@ -2625,6 +2889,7 @@ export function BookingModal({
                     <select
                       value={minute}
                       onChange={(e) => setMinute(parseInt(e.target.value))}
+                      onKeyDown={handleEnterKey}
                       className={`admin-time-select flex-1 px-2 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 ${
                         isDark
                           ? 'bg-gray-800 border-gray-600 text-white focus:bg-gray-800 hover:bg-gray-800'
@@ -2649,6 +2914,7 @@ export function BookingModal({
                       step="15"
                       value={durationMinutes}
                       onChange={(e) => setDurationMinutes(e.target.value)}
+                      onKeyDown={handleEnterKey}
                       className={`w-full px-2 py-2 rounded-lg border text-sm ${
                         isDark
                           ? 'bg-gray-700 border-gray-600 text-white'
@@ -2693,7 +2959,11 @@ export function BookingModal({
           {bookingType === 'GAME' && laserRooms.length > 0 && gameArea && gameArea !== 'CUSTOM' && (
             <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
               <div className="flex items-center gap-2 mb-3">
-                <Gamepad2 className={`w-5 h-5 ${gameArea === 'ACTIVE' ? 'text-blue-400' : 'text-purple-400'}`} />
+                {gameArea === 'ACTIVE' ? (
+                  <Zap className="w-5 h-5 text-blue-400" />
+                ) : (
+                  <Target className="w-5 h-5 text-purple-400" />
+                )}
                 <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   Configuration des jeux ({gameArea === 'ACTIVE' ? 'Active' : 'Laser'})
                 </span>
@@ -3019,6 +3289,7 @@ export function BookingModal({
                   isDark={isDark}
                   inputType="text"
                   disabled={areFieldsFrozen}
+                  onEnterKey={handleEnterKey}
                 />
               </div>
               <div>
@@ -3035,6 +3306,7 @@ export function BookingModal({
                   isDark={isDark}
                   inputType="text"
                   disabled={areFieldsFrozen}
+                  onEnterKey={handleEnterKey}
                 />
               </div>
             </div>
@@ -3056,6 +3328,7 @@ export function BookingModal({
                   isDark={isDark}
                   inputType="tel"
                   disabled={areFieldsFrozen}
+                  onEnterKey={handleEnterKey}
                 />
               </div>
               <div>
@@ -3073,6 +3346,7 @@ export function BookingModal({
                   isDark={isDark}
                   inputType="email"
                   disabled={areFieldsFrozen}
+                  onEnterKey={handleEnterKey}
                 />
               </div>
             </div>

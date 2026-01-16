@@ -17,6 +17,7 @@ interface ContactFieldAutocompleteProps {
   inputType?: 'text' | 'tel' | 'email'
   disabled?: boolean // Désactive la recherche et rend le champ readonly
   isFocused?: boolean // Indique si ce champ a le focus (pour ne lancer la recherche que sur le champ actif)
+  onEnterKey?: () => void // Handler pour la touche Entrée
 }
 
 export function ContactFieldAutocomplete({
@@ -31,6 +32,7 @@ export function ContactFieldAutocomplete({
   inputType = 'text',
   disabled = false,
   isFocused = false,
+  onEnterKey,
 }: ContactFieldAutocompleteProps) {
   const [showResults, setShowResults] = useState(false)
   const [searchResults, setSearchResults] = useState<Contact[]>([])
@@ -135,6 +137,24 @@ export function ContactFieldAutocomplete({
           onChange={(e) => {
             if (!disabled) {
               onChange(e.target.value)
+            }
+          }}
+          onKeyDown={(e) => {
+            // Si Entrée est pressée
+            if (e.key === 'Enter') {
+              // Si des résultats sont affichés avec des résultats disponibles, laisser naviguer (Tab/Entrée pour sélectionner)
+              if (showResults && searchResults.length > 0) {
+                // Laisser le comportement par défaut du navigateur
+                return
+              }
+              
+              // Sinon, soumettre le formulaire si le handler est fourni
+              if (onEnterKey) {
+                e.preventDefault()
+                e.stopPropagation()
+                // Appeler le handler directement
+                onEnterKey()
+              }
             }
           }}
           onFocus={() => {

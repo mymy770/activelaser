@@ -175,10 +175,13 @@ export function useLaserRooms(branchId: string | null) {
     const supabase = getClient()
     try {
       // Chercher toutes les game_sessions LASER qui chevauchent ce créneau
+      // IMPORTANT : Filtrer SEULEMENT les sessions avec game_area = 'LASER'
+      // Les sessions ACTIVE ne doivent PAS être prises en compte ici
+      // Les grilles ACTIVE et LASER sont complètement indépendantes
       const { data: sessions, error } = await supabase
         .from('game_sessions')
         .select('id, booking_id')
-        .eq('game_area', 'LASER')
+        .eq('game_area', 'LASER') // FILTRE CRITIQUE : Seulement LASER, pas ACTIVE
         .lt('start_datetime', endDateTime.toISOString())
         .gt('end_datetime', startDateTime.toISOString())
 
@@ -197,6 +200,9 @@ export function useLaserRooms(branchId: string | null) {
       if (filteredSessions.length === 0) return 0
 
       // Charger les bookings pour obtenir participants_count
+      // IMPORTANT : On compte participants_count du booking entier, mais SEULEMENT pour les bookings
+      // qui ont des sessions LASER sur ce créneau. Les bookings avec uniquement des sessions ACTIVE
+      // ne sont PAS inclus ici car la requête filtre déjà avec .eq('game_area', 'LASER')
       const bookingIds = [...new Set(filteredSessions.map((s: any) => s.booking_id))]
       const { data: bookings } = await supabase
         .from('bookings')
@@ -206,7 +212,11 @@ export function useLaserRooms(branchId: string | null) {
 
       if (!bookings) return 0
 
-      // Calculer le total des participants
+      // Calculer le total des participants UNIQUEMENT pour les bookings avec sessions LASER
+      // IMPORTANT : Si un booking a à la fois des sessions ACTIVE et LASER (booking mixte),
+      // on compte quand même le total car tous les participants peuvent utiliser les vestes LASER
+      // Les grilles ACTIVE et LASER sont indépendantes : un participant peut jouer ACTIVE
+      // et ne pas utiliser de veste LASER, ou vice versa
       const totalParticipants = bookings.reduce((sum, booking) => {
         return sum + booking.participants_count
       }, 0)

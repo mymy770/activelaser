@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Edit2, Archive, User, Phone, Mail, Loader2, Eye, Calendar, Gamepad2, PartyPopper, ChevronLeft, ChevronRight, X, Plus, Download, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, Users as UsersIcon, Clock, GitMerge, Settings } from 'lucide-react'
+import { Search, Edit2, Archive, User, Phone, Mail, Loader2, Eye, Calendar, Gamepad2, PartyPopper, ChevronLeft, ChevronRight, X, Plus, Download, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, Users as UsersIcon, Clock, GitMerge, Settings, Zap, Target } from 'lucide-react'
 import { useContacts, type SearchContactsResult } from '@/hooks/useContacts'
 import { useBranches } from '@/hooks/useBranches'
 import { useAuth } from '@/hooks/useAuth'
@@ -833,6 +833,39 @@ export default function ClientsPage() {
                       const bookingDate = new Date(booking.start_datetime)
                       const isPast = bookingDate < new Date()
                       
+                      // Déterminer le type de jeu pour les GAME
+                      let gameIcon = null
+                      if (booking.type === 'GAME') {
+                        // Vérifier si game_sessions existe et est un tableau
+                        const sessions = booking.game_sessions || []
+                        if (Array.isArray(sessions) && sessions.length > 0) {
+                          // Extraire les game_area (peut être un objet avec game_area ou directement une string)
+                          const gameAreas = sessions
+                            .map(s => {
+                              // Si c'est un objet avec game_area, prendre game_area, sinon prendre directement
+                              return (typeof s === 'object' && s !== null) ? s.game_area : s
+                            })
+                            .filter(Boolean)
+                          
+                          const hasActive = gameAreas.includes('ACTIVE')
+                          const hasLaser = gameAreas.includes('LASER')
+                          
+                          if (hasActive && !hasLaser) {
+                            // Toutes les sessions sont ACTIVE
+                            gameIcon = <Zap className="w-5 h-5 flex-shrink-0 text-blue-400" />
+                          } else if (hasLaser && !hasActive) {
+                            // Toutes les sessions sont LASER
+                            gameIcon = <Target className="w-5 h-5 flex-shrink-0 text-purple-400" />
+                          } else {
+                            // Mix (ACTIVE + LASER) ou autre - garder Gamepad2
+                            gameIcon = <Gamepad2 className="w-5 h-5 flex-shrink-0 text-blue-400" />
+                          }
+                        } else {
+                          // Pas de game_sessions - logo par défaut
+                          gameIcon = <Gamepad2 className="w-5 h-5 flex-shrink-0 text-blue-400" />
+                        }
+                      }
+                      
                       return (
                         <div
                           key={booking.id}
@@ -855,7 +888,7 @@ export default function ClientsPage() {
                               {booking.type === 'EVENT' ? (
                                 <PartyPopper className="w-5 h-5 flex-shrink-0 text-green-400" />
                               ) : (
-                                <Gamepad2 className="w-5 h-5 flex-shrink-0 text-blue-400" />
+                                gameIcon || <Gamepad2 className="w-5 h-5 flex-shrink-0 text-blue-400" />
                               )}
                               <div className="flex-1 min-w-0">
                                 <div className={`font-medium truncate ${
