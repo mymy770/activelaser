@@ -32,6 +32,7 @@ export default function OrdersPage() {
   const branches = branchesHook.branches
   const branchesLoading = branchesHook.loading
   const [searchQuery, setSearchQuery] = useState('')
+  const [quickStatusFilter, setQuickStatusFilter] = useState<string>('all')
   const [theme, setTheme] = useState<Theme>('light')
   const [selectedOrder, setSelectedOrder] = useState<OrderWithRelations | null>(null)
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null)
@@ -75,8 +76,14 @@ export default function OrdersPage() {
     }
   }, [branches, selectedBranchId, branchesHook])
 
-  // Filtrer les commandes par recherche uniquement (les autres filtres sont dans le tableau)
+  // Filtrer les commandes par recherche et statut rapide
   const filteredOrders = orders.filter(order => {
+    // Filtre par statut rapide (en haut de page)
+    if (quickStatusFilter !== 'all' && order.status !== quickStatusFilter) {
+      return false
+    }
+    
+    // Filtre par recherche
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       const matchesName = `${order.customer_first_name} ${order.customer_last_name}`.toLowerCase().includes(query)
@@ -312,6 +319,79 @@ export default function OrdersPage() {
             </div>
           </div>
         )}
+
+        {/* Filtres rapides par statut */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <span className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Filtrer :</span>
+          
+          <button
+            onClick={() => setQuickStatusFilter('all')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              quickStatusFilter === 'all'
+                ? 'bg-blue-600 text-white'
+                : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Toutes ({stats.total})
+          </button>
+          
+          <button
+            onClick={() => setQuickStatusFilter('pending')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+              quickStatusFilter === 'pending'
+                ? 'bg-red-600 text-white'
+                : stats.pending > 0
+                  ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30 border-2 border-red-500'
+                  : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            En attente
+            {stats.pending > 0 && (
+              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                quickStatusFilter === 'pending' ? 'bg-white text-red-600' : 'bg-red-500 text-white'
+              }`}>
+                {stats.pending}
+              </span>
+            )}
+          </button>
+          
+          <button
+            onClick={() => setQuickStatusFilter('auto_confirmed')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+              quickStatusFilter === 'auto_confirmed'
+                ? 'bg-green-600 text-white'
+                : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            <CheckCircle className="w-4 h-4" />
+            Confirmés auto ({stats.auto_confirmed})
+          </button>
+          
+          <button
+            onClick={() => setQuickStatusFilter('manually_confirmed')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+              quickStatusFilter === 'manually_confirmed'
+                ? 'bg-blue-600 text-white'
+                : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            <CheckCircle className="w-4 h-4" />
+            Confirmés manuel ({stats.manually_confirmed})
+          </button>
+          
+          <button
+            onClick={() => setQuickStatusFilter('cancelled')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+              quickStatusFilter === 'cancelled'
+                ? 'bg-gray-600 text-white'
+                : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            <XCircle className="w-4 h-4" />
+            Annulées ({stats.cancelled})
+          </button>
+        </div>
 
         {/* Orders List */}
         {loading ? (
