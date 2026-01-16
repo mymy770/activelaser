@@ -179,18 +179,16 @@ export function OrderDetailModal({
           </div>
         </div>
 
-        {/* Statut */}
-        <div className={`mx-6 -mt-4 relative z-10 p-4 rounded-xl border ${statusInfo.bg} ${statusInfo.border}`}>
-          <div className="flex items-center gap-3">
-            <StatusIcon className={`w-5 h-5 ${statusInfo.color}`} />
-            <span className={`font-medium ${statusInfo.color}`}>{statusInfo.label}</span>
-          </div>
-          {order.pending_reason && (
-            <p className={`mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              Raison: {order.pending_details || order.pending_reason}
-            </p>
-          )}
+        {/* Statut - compact */}
+        <div className={`mx-6 mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${statusInfo.bg} ${statusInfo.border} border`}>
+          <StatusIcon className={`w-4 h-4 ${statusInfo.color}`} />
+          <span className={`font-medium ${statusInfo.color}`}>{statusInfo.label}</span>
         </div>
+        {order.pending_reason && (
+          <p className={`mx-6 mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            Raison: {order.pending_details || order.pending_reason}
+          </p>
+        )}
 
         {/* Contenu principal */}
         <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
