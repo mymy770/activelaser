@@ -2085,7 +2085,7 @@ export default function AdminPage() {
                           <div className="flex-shrink-0">
                             <div
                               className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: booking.color || (booking.type === 'EVENT' ? '#22c55e' : '#3b82f6') }}
+                              style={{ backgroundColor: booking.status === 'CANCELLED' ? '#ef4444' : (booking.color || (booking.type === 'EVENT' ? '#22c55e' : '#3b82f6')) }}
                             />
                           </div>
                         </div>
@@ -2635,7 +2635,7 @@ export default function AdminPage() {
                         className={`cursor-pointer relative ${
                           booking
                             ? `flex items-center justify-center p-2 text-center`
-                            : `p-2 ${isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'}`
+                            : `p-2 ${isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'} transition-colors`
                         }`}
                         style={{
                           gridColumn: booking ? `${gridColumn} / ${gridColumn + colSpan}` : gridColumn,
@@ -2820,7 +2820,7 @@ export default function AdminPage() {
                                 <div
                                   key={`laser-cell-${timeIndex}-${roomIndex}`}
                                   onClick={() => openBookingModal(slot.hour, slot.minute, undefined, 'GAME', 'LASER')}
-                                  className={`cursor-pointer relative ${isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'}`}
+                                  className={`cursor-pointer relative ${isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'} transition-colors`}
                                   style={{
                                     gridColumn,
                                     gridRow,
@@ -3055,7 +3055,7 @@ export default function AdminPage() {
                         className={`cursor-pointer ${
                           booking
                             ? `flex flex-col items-center justify-center p-1 text-center`
-                            : `${isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'}`
+                            : `${isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'} transition-colors`
                         }`}
                         style={{
                           gridColumn: segment ? `${gridColumn} / ${gridColumn + colSpan}` : gridColumn,
