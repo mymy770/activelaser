@@ -37,7 +37,7 @@ async function findOrCreateContact(
   const { data: existing } = await supabase
     .from('contacts')
     .select('id')
-    .eq('branch_id', branchId)
+    .eq('branch_id_main', branchId)
     .eq('phone', phone)
     .single()
   
@@ -49,12 +49,12 @@ async function findOrCreateContact(
   const { data: newContact, error } = await supabase
     .from('contacts')
     .insert({
-      branch_id: branchId,
+      branch_id_main: branchId,
       first_name: firstName,
       last_name: lastName || '',
       phone,
       email: email || null,
-      notes: notes || null,
+      notes_client: notes || null,
       source: 'website'
     })
     .select('id')

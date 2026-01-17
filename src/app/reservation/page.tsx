@@ -111,6 +111,8 @@ export default function ReservationPage() {
       grouped[monthKey].push(date)
     })
     
+    console.log('[getDatesByMonth] Grouped keys:', Object.keys(grouped).slice(0, 3))
+    
     return grouped
   }
 
