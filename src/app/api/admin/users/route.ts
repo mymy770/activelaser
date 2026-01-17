@@ -111,16 +111,22 @@ export async function GET(request: NextRequest) {
         const serviceClient = createServiceRoleClient()
         const { data: authUser } = await serviceClient.auth.admin.getUserById(user.id)
         
-        users.push({
-          ...profile,
-          email: authUser?.user?.email || user.id,
-          branches: [],
-          creator: profile.created_by ? await supabase
+        // Récupérer le créateur si existe
+        let creator = null
+        if (profile.created_by) {
+          const { data: creatorProfile } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', profile.created_by)
             .single()
-            .then(r => r.data) : null,
+          creator = creatorProfile
+        }
+        
+        users.push({
+          ...profile,
+          email: authUser?.user?.email || user.id,
+          branches: [],
+          creator,
         })
         
         return NextResponse.json(
@@ -164,16 +170,22 @@ export async function GET(request: NextRequest) {
         })
       )
       
-      userMap.set(user.id, {
-        ...profile,
-        email: authUserSelf?.user?.email || user.id,
-        branches: adminBranchesFull.filter(Boolean) as any[],
-        creator: profile.created_by ? await supabase
+      // Récupérer le créateur du branch_admin
+      let creatorSelf = null
+      if (profile.created_by) {
+        const { data: creatorProfile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', profile.created_by)
           .single()
-          .then(r => r.data) : null,
+        creatorSelf = creatorProfile
+      }
+      
+      userMap.set(user.id, {
+        ...profile,
+        email: authUserSelf?.user?.email || user.id,
+        branches: adminBranchesFull.filter(Boolean) as any[],
+        creator: creatorSelf,
       })
       
       // Ensuite, ajouter tous les autres utilisateurs qui partagent des branches
