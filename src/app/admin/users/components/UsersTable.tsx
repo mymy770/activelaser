@@ -270,9 +270,15 @@ export function UsersTable({
 
                   {/* Contact */}
                   <td className="px-4 py-4">
-                    <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      <Phone className="w-4 h-4 flex-shrink-0" />
-                      <span>{user.phone}</span>
+                    <div className="space-y-1">
+                      <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <Mail className="w-4 h-4 flex-shrink-0" />
+                        <span className="truncate">{user.id}</span>
+                      </div>
+                      <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <Phone className="w-4 h-4 flex-shrink-0" />
+                        <span>{user.phone}</span>
+                      </div>
                     </div>
                   </td>
 
@@ -311,15 +317,15 @@ export function UsersTable({
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => onEdit(user)}
-                        disabled={user.id === currentUserId && user.role === 'super_admin'}
+                        disabled={user.id === currentUserId}
                         className={`p-2 rounded-lg transition-colors ${
-                          user.id === currentUserId && user.role === 'super_admin'
+                          user.id === currentUserId
                             ? 'opacity-50 cursor-not-allowed'
                             : isDark
                             ? 'hover:bg-gray-600 text-gray-400 hover:text-white'
                             : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
                         }`}
-                        title="Modifier"
+                        title={user.id === currentUserId ? 'Vous ne pouvez pas vous modifier vous-même' : 'Modifier'}
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
@@ -333,7 +339,7 @@ export function UsersTable({
                             ? 'hover:bg-red-900/30 text-gray-400 hover:text-red-400'
                             : 'hover:bg-red-50 text-gray-500 hover:text-red-600'
                         }`}
-                        title="Supprimer"
+                        title={user.id === currentUserId ? 'Vous ne pouvez pas vous supprimer vous-même' : 'Supprimer'}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
