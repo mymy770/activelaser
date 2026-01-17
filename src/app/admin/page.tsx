@@ -31,7 +31,21 @@ export default function AdminPage() {
   const [userData, setUserData] = useState<UserData | null>(null)
   // Utiliser useBranches pour partager la branche sélectionnée avec le CRM
   const branchesHook = useBranches()
-  const selectedBranchId = branchesHook.selectedBranchId
+  const branches = branchesHook.branches
+  const selectedBranchIdFromHook = branchesHook.selectedBranchId
+  
+  // Calculer effectiveSelectedBranchId AVANT useBookings pour éviter les problèmes de timing
+  // Si selectedBranchId n'est pas défini mais qu'il n'y a qu'une seule branche, l'utiliser
+  const effectiveSelectedBranchId = selectedBranchIdFromHook || (branches.length === 1 ? branches[0]?.id : null)
+  
+  // Synchroniser avec le hook si nécessaire
+  useEffect(() => {
+    if (effectiveSelectedBranchId && !selectedBranchIdFromHook && branches.length === 1) {
+      branchesHook.selectBranch(effectiveSelectedBranchId)
+    }
+  }, [effectiveSelectedBranchId, selectedBranchIdFromHook, branches.length, branchesHook])
+  
+  const selectedBranchId = effectiveSelectedBranchId
   const setSelectedBranchId = (branchId: string | null) => {
     if (branchId) {
       branchesHook.selectBranch(branchId)
@@ -164,8 +178,7 @@ export default function AdminPage() {
     refresh: refreshAllBookings
   } = useBookings(selectedBranchId, undefined) // undefined = pas de filtre par date, on charge tout
 
-  // Utiliser les branches du hook principal (déjà appelé plus haut)
-  const branches = branchesHook.branches
+  // branches déjà défini plus haut
   const refreshBranches = branchesHook.refresh
 
   // Filtrer les réservations pour l'agenda du jour sélectionné
@@ -1927,16 +1940,7 @@ export default function AdminPage() {
 
   const selectedBranchFromUserData = userData.branches.find(b => b.id === selectedBranchId)
   // Récupérer le Branch complet depuis useBranches
-  // Si selectedBranchId n'est pas défini mais qu'il n'y a qu'une seule branche, l'utiliser
-  let effectiveSelectedBranchId = selectedBranchId
-  if (!effectiveSelectedBranchId && branches.length === 1) {
-    effectiveSelectedBranchId = branches[0].id
-    // Mettre à jour le hook pour synchroniser
-    if (effectiveSelectedBranchId) {
-      branchesHook.selectBranch(effectiveSelectedBranchId)
-    }
-  }
-  const selectedBranch = branches.find(b => b.id === effectiveSelectedBranchId) || null
+  const selectedBranch = branches.find(b => b.id === selectedBranchId) || (branches.length > 0 ? branches[0] : null)
   const isDark = theme === 'dark'
 
   // Conversion userData vers format AuthUser pour AdminHeader
