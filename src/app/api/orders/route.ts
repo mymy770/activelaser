@@ -191,7 +191,7 @@ async function checkAvailability(
     // Récupérer les salles laser
     const { data: laserRooms } = await supabase
       .from('laser_rooms')
-      .select('id, name, capacity')
+      .select('id, name, capacity, sort_order, is_active')
       .eq('branch_id', branchId)
       .eq('is_active', true)
       .order('sort_order')
@@ -200,12 +200,14 @@ async function checkAvailability(
       return { available: false, reason: 'other', details: 'No laser rooms configured' }
     }
     
-    // Récupérer toutes les réservations laser qui chevauchent
-    const { data: overlappingBookings } = await supabase
+    // Récupérer toutes les réservations avec game_sessions LASER
+    const { data: allBookings } = await supabase
       .from('bookings')
       .select(`
         id,
+        branch_id,
         participants_count,
+        status,
         game_sessions (
           id,
           game_area,
@@ -217,66 +219,50 @@ async function checkAvailability(
       .eq('branch_id', branchId)
       .neq('status', 'CANCELLED')
     
-    // Filtrer pour ne garder que les sessions laser qui chevauchent
+    // Calculer vestes utilisées sur ce créneau
     let usedVests = 0
-    const roomsWithBookings = new Set<string>()
-    
-    overlappingBookings?.forEach(booking => {
-      const laserSessions = booking.game_sessions?.filter((s: any) => 
-        s.game_area === 'LASER' &&
-        new Date(s.start_datetime) < endDateTime &&
-        new Date(s.end_datetime) > startDateTime
-      ) || []
-      
-      if (laserSessions.length > 0) {
-        usedVests += booking.participants_count
-        laserSessions.forEach((s: any) => {
-          if (s.laser_room_id) roomsWithBookings.add(s.laser_room_id)
-        })
+    if (allBookings) {
+      for (const booking of allBookings) {
+        const hasLaserSession = booking.game_sessions?.some((s: any) => 
+          s.game_area === 'LASER' &&
+          new Date(s.start_datetime) < endDateTime &&
+          new Date(s.end_datetime) > startDateTime
+        )
+        if (hasLaserSession) {
+          usedVests += booking.participants_count
+        }
       }
-    })
+    }
     
     if (usedVests + participantsCount > availableVests) {
       return { available: false, reason: 'laser_vests_full', details: `Only ${availableVests - usedVests} vests available` }
     }
     
-    // Trouver les salles disponibles
-    const exclusiveThreshold = settings.laser_exclusive_threshold || 10
-    const availableRooms = laserRooms.filter(room => !roomsWithBookings.has(room.id))
+    // Utiliser la fonction d'allocation partagée (même logique que l'admin)
+    const { findBestLaserRoomsForBooking } = await import('@/lib/laser-allocation')
     
-    // Calculer le nombre de salles nécessaires
-    // Si participants > capacité d'une salle, on a besoin de plusieurs salles
-    const maxRoomCapacity = Math.max(...laserRooms.map(r => r.capacity || 12))
-    const roomsNeeded = Math.ceil(participantsCount / maxRoomCapacity)
+    const allocation = await findBestLaserRoomsForBooking({
+      participants: participantsCount,
+      startDateTime,
+      endDateTime,
+      branchId,
+      laserRooms,
+      settings: {
+        laser_exclusive_threshold: settings.laser_exclusive_threshold || 10,
+        laser_total_vests: totalVests,
+        laser_spare_vests: spareVests
+      },
+      allBookings: allBookings || [],
+      allocationMode: 'auto'
+    })
     
-    console.log(`[checkAvailability] LASER: ${participantsCount} participants, need ${roomsNeeded} rooms, ${availableRooms.length} available`)
-    
-    if (roomsNeeded <= availableRooms.length) {
-      // Prendre les salles nécessaires (par ordre de capacité CROISSANTE)
-      // Plus petite salle suffisante en premier pour optimiser l'espace
-      const sortedRooms = [...availableRooms].sort((a, b) => {
-        if (a.capacity !== b.capacity) {
-          return (a.capacity || 12) - (b.capacity || 12) // CROISSANT: L1(15) avant L2(20)
-        }
-        return (a.sort_order || 0) - (b.sort_order || 0)
-      })
-      const selectedRoomIds = sortedRooms.slice(0, roomsNeeded).map(r => r.id)
-      console.log(`[checkAvailability] Selected rooms:`, sortedRooms.slice(0, roomsNeeded).map(r => `${r.name}(${r.capacity})`))
-      return { available: true, laserRoomIds: selectedRoomIds }
+    if (!allocation) {
+      return { available: false, reason: 'slot_unavailable', details: 'No laser room available with sufficient capacity' }
     }
     
-    // Pas assez de salles disponibles
-    if (participantsCount < exclusiveThreshold && availableRooms.length > 0) {
-      // Petit groupe, peut partager une salle
-      return { available: true, laserRoomIds: [availableRooms[0].id] }
-    }
+    console.log(`[checkAvailability] LASER allocation: ${allocation.roomIds.length} room(s)`, allocation.roomIds)
     
-    // Vérifier si on peut partager des salles occupées
-    if (participantsCount < exclusiveThreshold) {
-      return { available: true, laserRoomIds: [laserRooms[0].id] }
-    }
-    
-    return { available: false, reason: 'slot_unavailable', details: `Need ${roomsNeeded} rooms but only ${availableRooms.length} available` }
+    return { available: true, laserRoomIds: allocation.roomIds }
   }
   
   // Pour ACTIVE games
