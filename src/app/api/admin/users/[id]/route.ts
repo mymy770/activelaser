@@ -60,12 +60,21 @@ export async function PUT(
       )
     }
 
-    // Empêcher la modification de son propre rôle
-    if (targetUserId === user.id) {
-      return NextResponse.json(
-        { success: false, error: 'Vous ne pouvez pas modifier votre propre rôle' },
-        { status: 403 }
-      )
+    // Parser le body pour vérifier les modifications demandées
+    const body = await request.json()
+    const { first_name, last_name, phone, role, branch_ids } = body
+
+    // Si l'utilisateur modifie son propre compte
+    const isSelfEdit = targetUserId === user.id
+    if (isSelfEdit) {
+      // Autoriser uniquement la modification des infos de contact (prénom, nom, téléphone)
+      // Interdire la modification du rôle ou des branches
+      if (role !== undefined || branch_ids !== undefined) {
+        return NextResponse.json(
+          { success: false, error: 'Vous ne pouvez pas modifier votre propre rôle ou vos branches' },
+          { status: 403 }
+        )
+      }
     }
 
     // Récupérer l'utilisateur cible
@@ -82,8 +91,8 @@ export async function PUT(
       )
     }
 
-    // Si branch_admin, vérifier qu'il gère cet utilisateur
-    if (profile.role === 'branch_admin') {
+    // Si branch_admin et pas soi-même, vérifier qu'il gère cet utilisateur
+    if (profile.role === 'branch_admin' && !isSelfEdit) {
       const { data: adminBranches } = await supabase
         .from('user_branches')
         .select('branch_id')
@@ -106,10 +115,6 @@ export async function PUT(
         )
       }
     }
-
-    // Parser le body
-    const body = await request.json()
-    const { first_name, last_name, phone, role, branch_ids } = body
 
     // Préparer les updates
     const updates: any = {}
