@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { X, Loader2, User, Phone, Mail, AlertTriangle, Check } from 'lucide-react'
-import { useContacts } from '@/hooks/useContacts'
-import type { Contact } from '@/lib/supabase/types'
+import { useContacts, type UpdateContactData } from '@/hooks/useContacts'
+import type { Contact, BookingContactUpdate } from '@/lib/supabase/types'
+
+type ContactField = 'first_name' | 'last_name' | 'phone' | 'email' | 'notes_client'
 import { getClient } from '@/lib/supabase/client'
 
 interface MergeContactsModalProps {
@@ -62,12 +64,23 @@ export function MergeContactsModal({
 
       // Récupérer les valeurs sélectionnées
       const allContacts = [primaryContact, ...duplicateContacts]
-      const mergedData: any = {}
+      const mergedData: UpdateContactData = {}
 
       Object.entries(selectedFields).forEach(([field, contactId]) => {
         const selectedContact = allContacts.find(c => c.id === contactId)
         if (selectedContact) {
-          mergedData[field] = (selectedContact as any)[field]
+          const value = selectedContact[field as ContactField]
+          if (field === 'first_name' && value) {
+            mergedData.first_name = value
+          } else if (field === 'last_name') {
+            mergedData.last_name = value
+          } else if (field === 'phone' && value) {
+            mergedData.phone = value
+          } else if (field === 'email') {
+            mergedData.email = value
+          } else if (field === 'notes_client') {
+            mergedData.notes_client = value
+          }
         }
       })
 
@@ -90,10 +103,11 @@ export function MergeContactsModal({
           .from('booking_contacts')
           .select('booking_id, contact_id')
           .eq('contact_id', duplicate.id)
+          .returns<Array<{ booking_id: string; contact_id: string }>>()
 
         if (bookingContacts && bookingContacts.length > 0) {
           // Pour chaque réservation, vérifier si le contact principal est déjà lié
-          for (const bc of bookingContacts as any[]) {
+          for (const bc of bookingContacts) {
             const bookingId = bc.booking_id
             const { data: existing } = await supabase
               .from('booking_contacts')
@@ -104,9 +118,11 @@ export function MergeContactsModal({
 
             if (!existing) {
               // Transférer la liaison - mettre à jour contact_id
-              await (supabase
-                .from('booking_contacts') as any)
-                .update({ contact_id: primaryContact.id })
+              const updateData: BookingContactUpdate = { contact_id: primaryContact.id }
+              await supabase
+                .from('booking_contacts')
+                // @ts-expect-error - Supabase type inference limitation with update
+                .update(updateData)
                 .eq('booking_id', bookingId)
                 .eq('contact_id', duplicate.id)
             } else {
@@ -137,8 +153,8 @@ export function MergeContactsModal({
     }
   }
 
-  const getContactValue = (contact: Contact, field: string) => {
-    return (contact as any)[field] || '-'
+  const getContactValue = (contact: Contact, field: ContactField): string => {
+    return contact[field] || '-'
   }
 
   return (
@@ -213,7 +229,7 @@ export function MergeContactsModal({
                 </tr>
               </thead>
               <tbody className={isDark ? 'divide-y divide-gray-700' : 'divide-y divide-gray-200'}>
-                {['first_name', 'last_name', 'phone', 'email', 'notes_client'].map((field) => (
+                {(['first_name', 'last_name', 'phone', 'email', 'notes_client'] as ContactField[]).map((field) => (
                   <tr key={field}>
                     <td className={`px-4 py-3 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                       {field === 'first_name' ? 'Prénom' :

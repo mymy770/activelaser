@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { getClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
-import type { Profile, Branch, UserRole } from '@/lib/supabase/types'
+import type { Profile, Branch, UserRole, ProfileInsert } from '@/lib/supabase/types'
 
 export interface AuthUser {
   id: string
@@ -36,14 +36,15 @@ export function useAuth() {
 
       // Si le profil n'existe pas (code PGRST116 = no rows), le créer
       if (profileError && profileError.code === 'PGRST116') {
-        const profileData = {
+        const profileData: ProfileInsert = {
           id: authUser.id,
-          role: 'super_admin' as const, // Premier utilisateur = super_admin
+          role: 'super_admin', // Premier utilisateur = super_admin
           full_name: authUser.email?.split('@')[0] || 'Admin',
         }
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
-          .insert(profileData as any) // Type assertion temporaire pour contourner le problème de typage
+          // @ts-expect-error - Supabase SSR typing limitation with insert
+          .insert(profileData)
           .select()
           .single<Profile>()
 

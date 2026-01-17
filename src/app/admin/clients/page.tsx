@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Edit2, Archive, User, Phone, Mail, Loader2, Eye, ChevronLeft, ChevronRight, Plus, Download, ArrowUpDown, ArrowUp, ArrowDown, Users as UsersIcon, GitMerge, Settings } from 'lucide-react'
+import { Search, Edit2, Archive, User, Phone, Mail, Loader2, Eye, ChevronLeft, ChevronRight, Plus, Download, ArrowUpDown, ArrowUp, ArrowDown, Users as UsersIcon, GitMerge, Settings, X } from 'lucide-react'
 import { useContacts, type SearchContactsResult } from '@/hooks/useContacts'
 import { useBranches } from '@/hooks/useBranches'
 import { useAuth } from '@/hooks/useAuth'
@@ -397,7 +397,7 @@ export default function ClientsPage() {
               <CustomSelect
                 value={filterStatus}
                 onChange={(value) => {
-                  setFilterStatus(value as any)
+                  setFilterStatus(value as 'all' | 'active' | 'archived')
                   setPage(1)
                 }}
                 options={[
@@ -418,7 +418,7 @@ export default function ClientsPage() {
               <CustomSelect
                 value={filterSource}
                 onChange={(value) => {
-                  setFilterSource(value as any)
+                  setFilterSource(value as 'all' | 'admin_agenda' | 'public_booking')
                   setPage(1)
                 }}
                 options={[

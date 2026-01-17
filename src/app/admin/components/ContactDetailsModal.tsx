@@ -68,7 +68,7 @@ export function ContactDetailsModal({
 
       // Charger les ORDERS liées au contact (pas les bookings)
       // Les orders contiennent TOUTES les commandes, y compris annulées
-      let orders: any[] = []
+      const ordersList: any[] = []
       
       // Méthode 1: Via contact_id directement
       const { data: contactOrders, error: contactOrdersError } = await supabase
@@ -92,12 +92,13 @@ export function ContactDetailsModal({
       if (contactOrdersError) {
         console.error('Error fetching orders by contact_id:', contactOrdersError)
       }
-      if (contactOrders) {
-        orders = contactOrders
+      if (contactOrders && Array.isArray(contactOrders)) {
+        ordersList.push(...contactOrders)
       }
       
       // Méthode 2: Via téléphone (fallback pour anciennes commandes sans contact_id)
-      if (contactData.phone && orders.length === 0) {
+      const phoneNumber = (contactData as Contact).phone
+      if (phoneNumber && ordersList.length === 0) {
         const { data: phoneOrders, error: phoneOrdersError } = await supabase
           .from('orders')
           .select(`
@@ -113,22 +114,24 @@ export function ContactDetailsModal({
             created_at,
             booking:bookings(id, reference_code, start_datetime, status)
           `)
-          .eq('customer_phone', contactData.phone)
+          .eq('customer_phone', phoneNumber)
           .order('created_at', { ascending: false })
 
         if (phoneOrdersError) {
           console.error('Error fetching orders by phone:', phoneOrdersError)
         }
-        if (phoneOrders) {
+        if (phoneOrders && Array.isArray(phoneOrders)) {
           // Fusionner et dédupliquer
-          const existingIds = new Set(orders.map(o => o.id))
-          phoneOrders.forEach(o => {
+          const existingIds = new Set(ordersList.map((o: any) => o.id))
+          phoneOrders.forEach((o: any) => {
             if (!existingIds.has(o.id)) {
-              orders.push(o)
+              ordersList.push(o)
             }
           })
         }
       }
+      
+      const orders = ordersList
 
       // Transformer les orders pour l'affichage (format similaire aux anciens bookings)
       const linkedItems = orders.map((order: any) => ({

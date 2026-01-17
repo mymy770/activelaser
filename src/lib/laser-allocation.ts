@@ -3,7 +3,7 @@
  * Utilisé par l'admin ET l'API site pour garantir une logique identique
  */
 
-import type { LaserRoom } from './types'
+import type { LaserRoom } from './supabase/types'
 
 export interface LaserAllocationResult {
   roomIds: string[]

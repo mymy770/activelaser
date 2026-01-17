@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getClient } from '@/lib/supabase/client'
 import type { LaserRoom } from '@/lib/supabase/types'
+import type { PostgrestError } from '@supabase/supabase-js'
 
 export function useLaserRooms(branchId: string | null) {
   const [laserRooms, setLaserRooms] = useState<LaserRoom[]>([])
@@ -33,8 +34,8 @@ export function useLaserRooms(branchId: string | null) {
       // Si la table n'existe pas encore (migration non exécutée), retourner un tableau vide
       if (fetchError) {
         // Code 42P01 = table does not exist
-        const errorCode = (fetchError as any)?.code || ''
-        const errorMessage = String((fetchError as any)?.message || fetchError || '')
+        const errorCode = fetchError.code || ''
+        const errorMessage = String(fetchError.message || '')
         
         // Vérifier si l'erreur est un objet vide
         const isEmptyError = (
@@ -68,9 +69,9 @@ export function useLaserRooms(branchId: string | null) {
       }
     } catch (err) {
       // Vérifier si c'est une erreur de table inexistante
-      const errorObj = err as any
+      const errorObj = err as PostgrestError
       const errorCode = String(errorObj?.code || '')
-      const errorMessage = String(errorObj?.message || errorObj || '')
+      const errorMessage = String(errorObj?.message || '')
       
       // Si l'erreur est un objet vide ou une chaîne vide, considérer que c'est probablement une table inexistante
       const isEmptyError = (
@@ -132,6 +133,7 @@ export function useLaserRooms(branchId: string | null) {
     const supabase = getClient()
     try {
       // Chercher les game_sessions qui utilisent cette salle sur ce créneau
+      type SessionResult = { id: string; booking_id: string }
       const { data, error } = await supabase
         .from('game_sessions')
         .select('id, booking_id')
@@ -139,6 +141,7 @@ export function useLaserRooms(branchId: string | null) {
         .eq('game_area', 'LASER')
         .lt('start_datetime', endDateTime.toISOString())
         .gt('end_datetime', startDateTime.toISOString())
+        .returns<SessionResult[]>()
 
       if (error) throw error
 
@@ -151,8 +154,8 @@ export function useLaserRooms(branchId: string | null) {
           .returns<Array<{ id: string }>>()
 
         if (bookingSessions) {
-          const sessionIds = bookingSessions.map((s: any) => s.id)
-          const filtered = data.filter((s: any) => !sessionIds.includes(s.id))
+          const sessionIds = bookingSessions.map((s) => s.id)
+          const filtered = data.filter((s) => !sessionIds.includes(s.id))
           return filtered.length === 0
         }
       }
@@ -180,12 +183,14 @@ export function useLaserRooms(branchId: string | null) {
       // IMPORTANT : Filtrer SEULEMENT les sessions avec game_area = 'LASER'
       // Les sessions ACTIVE ne doivent PAS être prises en compte ici
       // Les grilles ACTIVE et LASER sont complètement indépendantes
+      type SessionResult = { id: string; booking_id: string }
       const { data: sessions, error } = await supabase
         .from('game_sessions')
         .select('id, booking_id')
         .eq('game_area', 'LASER') // FILTRE CRITIQUE : Seulement LASER, pas ACTIVE
         .lt('start_datetime', endDateTime.toISOString())
         .gt('end_datetime', startDateTime.toISOString())
+        .returns<SessionResult[]>()
 
       if (error) throw error
 
@@ -196,7 +201,7 @@ export function useLaserRooms(branchId: string | null) {
       let filteredSessions = sessions
       if (excludeBookingId && typeof excludeBookingId === 'string' && excludeBookingId.trim() !== '') {
         // Filtrer toutes les sessions qui appartiennent au booking à exclure
-        filteredSessions = sessions.filter((s: any) => s.booking_id !== excludeBookingId)
+        filteredSessions = sessions.filter((s) => s.booking_id !== excludeBookingId)
       }
 
       if (filteredSessions.length === 0) return 0
@@ -204,7 +209,7 @@ export function useLaserRooms(branchId: string | null) {
       // Charger les bookings pour obtenir participants_count ET branch_id
       // IMPORTANT : On compte participants_count du booking entier, mais SEULEMENT pour les bookings
       // qui ont des sessions LASER sur ce créneau ET qui appartiennent à la branche cible
-      const bookingIds = [...new Set(filteredSessions.map((s: any) => s.booking_id))]
+      const bookingIds = [...new Set(filteredSessions.map((s) => s.booking_id))]
       const { data: bookings } = await supabase
         .from('bookings')
         .select('id, participants_count, branch_id')

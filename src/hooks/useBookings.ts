@@ -2,7 +2,22 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { getClient } from '@/lib/supabase/client'
-import type { Booking, BookingSlot, BookingType, BookingStatus, Contact, GameSession } from '@/lib/supabase/types'
+import type { 
+  Booking, 
+  BookingSlot, 
+  BookingType, 
+  BookingStatus, 
+  Contact, 
+  GameSession,
+  Order,
+  BookingInsert,
+  BookingSlotInsert,
+  BookingContactInsert,
+  GameSessionInsert,
+  OrderInsert,
+  OrderUpdate,
+  BookingUpdate,
+} from '@/lib/supabase/types'
 
 // Type étendu avec les slots, contacts et game_sessions
 export interface BookingWithSlots extends Booking {
@@ -319,7 +334,8 @@ export function useBookings(branchId: string | null, date?: string) {
       
       const { data: newBooking, error: bookingError } = await supabase
         .from('bookings')
-        .insert(insertData as any)
+        // @ts-expect-error - Supabase SSR typing limitation with insert
+        .insert(insertData as BookingInsert)
         .select()
         .single<Booking>()
 
@@ -347,12 +363,13 @@ export function useBookings(branchId: string | null, date?: string) {
       if (data.primary_contact_id) {
         const { error: bookingContactError } = await supabase
           .from('booking_contacts')
+          // @ts-expect-error - Supabase SSR typing limitation with insert
           .insert({
             booking_id: newBooking.id,
             contact_id: data.primary_contact_id,
             is_primary: true,
             role: null,
-          } as any)
+          } as BookingContactInsert)
 
         if (bookingContactError) {
           console.error('Booking contact link error:', bookingContactError)
@@ -374,7 +391,8 @@ export function useBookings(branchId: string | null, date?: string) {
 
         const { data: insertedSlots, error: slotsError } = await supabase
           .from('booking_slots')
-          .insert(slotsToInsert as any)
+          // @ts-expect-error - Supabase SSR typing limitation with insert
+          .insert(slotsToInsert as BookingSlotInsert[])
           .select()
           .returns<BookingSlot[]>()
 
@@ -406,7 +424,8 @@ export function useBookings(branchId: string | null, date?: string) {
 
         const { data: insertedSessions, error: sessionsError } = await supabase
           .from('game_sessions')
-          .insert(sessionsToInsert as any)
+          // @ts-expect-error - Supabase SSR typing limitation with insert
+          .insert(sessionsToInsert as GameSessionInsert[])
           .select()
           .returns<GameSession[]>()
 
@@ -430,9 +449,7 @@ export function useBookings(branchId: string | null, date?: string) {
         // Réactivation: mettre à jour l'order existant
         console.log('Reactivating order:', data.reactivateOrderId)
         
-        const { error: updateOrderError } = await supabase
-          .from('orders')
-          .update({
+        const updateData = {
             booking_id: newBooking.id,
             status: 'manually_confirmed',
             requested_date: bookingDate.toISOString().split('T')[0],
@@ -442,10 +459,15 @@ export function useBookings(branchId: string | null, date?: string) {
             customer_last_name: data.customer_last_name || '',
             customer_phone: data.customer_phone || '0000000000',
             customer_email: data.customer_email || null,
-            game_area: newSessions.length > 0 ? newSessions[0].game_area : null,
+            game_area: (newSessions.length > 0 ? newSessions[0].game_area : null) as 'ACTIVE' | 'LASER' | null,
             number_of_games: newSessions.length || 1,
             processed_at: new Date().toISOString(),
-          })
+          }
+        
+        const { error: updateOrderError } = await supabase
+          .from('orders')
+          // @ts-expect-error - Supabase SSR typing limitation with update
+          .update(updateData as OrderUpdate)
           .eq('id', data.reactivateOrderId)
         
         if (updateOrderError) {
@@ -481,14 +503,15 @@ export function useBookings(branchId: string | null, date?: string) {
 
         const { data: insertedOrder, error: orderError } = await supabase
           .from('orders')
-          .insert(orderData as any)
+          // @ts-expect-error - Supabase SSR typing limitation with insert
+          .insert(orderData as OrderInsert)
           .select()
-          .single()
+          .single<Order>()
 
         if (orderError) {
           console.error('Order creation error:', orderError.message, orderError.details, orderError.hint, orderError.code)
-        } else {
-          console.log('Order created successfully:', insertedOrder?.id)
+        } else if (insertedOrder) {
+          console.log('Order created successfully:', insertedOrder.id)
         }
       }
 
@@ -581,12 +604,13 @@ export function useBookings(branchId: string | null, date?: string) {
         if (newPrimaryContactId) {
           const { error: bookingContactError } = await supabase
             .from('booking_contacts')
+            // @ts-expect-error - Supabase SSR typing limitation with insert
             .insert({
               booking_id: id,
               contact_id: newPrimaryContactId,
               is_primary: true,
               role: null,
-            } as any)
+            } as BookingContactInsert)
 
           if (bookingContactError) {
             console.error('Error inserting new booking_contacts:', bookingContactError)
@@ -617,7 +641,8 @@ export function useBookings(branchId: string | null, date?: string) {
 
           const { data: insertedSlots } = await supabase
             .from('booking_slots')
-            .insert(slotsToInsert as any)
+            // @ts-expect-error - Supabase SSR typing limitation with insert
+            .insert(slotsToInsert as BookingSlotInsert[])
             .select()
             .returns<BookingSlot[]>()
 
@@ -648,7 +673,8 @@ export function useBookings(branchId: string | null, date?: string) {
 
           const { data: insertedSessions } = await supabase
             .from('game_sessions')
-            .insert(sessionsToInsert as any)
+            // @ts-expect-error - Supabase SSR typing limitation with insert
+            .insert(sessionsToInsert as GameSessionInsert[])
             .select()
             .returns<GameSession[]>()
 
@@ -686,6 +712,7 @@ export function useBookings(branchId: string | null, date?: string) {
 
       await supabase
         .from('orders')
+        // @ts-expect-error - Supabase SSR typing limitation with update
         .update(orderUpdateData)
         .eq('booking_id', id)
 
@@ -710,13 +737,13 @@ export function useBookings(branchId: string | null, date?: string) {
     try {
       const { error: cancelError } = await supabase
         .from('bookings')
-        // @ts-expect-error - Type assertion nécessaire pour contourner le problème de typage Supabase
+        // @ts-expect-error - Supabase SSR typing limitation with update
         .update({
-          status: 'CANCELLED' as BookingStatus,
+          status: 'CANCELLED',
           cancelled_at: new Date().toISOString(),
           cancelled_reason: reason,
           updated_at: new Date().toISOString(),
-        } as any)
+        } as BookingUpdate)
         .eq('id', id)
 
       if (cancelError) throw cancelError
@@ -724,6 +751,7 @@ export function useBookings(branchId: string | null, date?: string) {
       // Mettre à jour l'order correspondante si elle existe
       await supabase
         .from('orders')
+        // @ts-expect-error - Supabase SSR typing limitation with update
         .update({
           status: 'cancelled',
           updated_at: new Date().toISOString(),
@@ -748,6 +776,7 @@ export function useBookings(branchId: string | null, date?: string) {
       // D'abord, mettre à jour l'order correspondante si elle existe
       await supabase
         .from('orders')
+        // @ts-expect-error - Supabase SSR typing limitation with update
         .update({
           status: 'cancelled',
           booking_id: null, // Détacher l'order du booking supprimé

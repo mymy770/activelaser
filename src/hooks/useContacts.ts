@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { getClient } from '@/lib/supabase/client'
-import type { Contact, ContactStatus, ContactSource } from '@/lib/supabase/types'
+import type { Contact, ContactStatus, ContactSource, ContactInsert, ContactUpdate } from '@/lib/supabase/types'
 
 export interface SearchContactsParams {
   query?: string
@@ -155,6 +155,7 @@ export function useContacts(branchId: string | null) {
     try {
       const { data: newContact, error: createError } = await supabase
         .from('contacts')
+        // @ts-expect-error - Supabase SSR typing limitation with insert
         .insert({
           branch_id_main: data.branch_id_main,
           first_name: data.first_name.trim(),
@@ -165,7 +166,7 @@ export function useContacts(branchId: string | null) {
           alias: data.alias?.trim() || null,
           source: data.source || 'admin_agenda',
           status: 'active',
-        } as any)
+        } as ContactInsert)
         .select()
         .single<Contact>()
 
@@ -236,13 +237,13 @@ export function useContacts(branchId: string | null) {
       // Toujours mettre à jour updated_at (via trigger, mais on peut le faire explicitement)
       updateData.updated_at = new Date().toISOString()
 
-      // @ts-ignore - Supabase typing issue with dynamic updates
-      const query = supabase.from('contacts') as any
-      const { data: updatedContact, error: updateError } = await query
-        .update(updateData)
+      const { data: updatedContact, error: updateError } = await supabase
+        .from('contacts')
+        // @ts-expect-error - Supabase SSR typing limitation with update
+        .update(updateData as ContactUpdate)
         .eq('id', contactId)
         .select()
-        .single()
+        .single<Contact>()
 
       if (updateError) throw updateError
 
@@ -261,15 +262,15 @@ export function useContacts(branchId: string | null) {
     setError(null)
 
     try {
-      // @ts-ignore - Supabase typing issue with dynamic updates
-      const archiveQuery = supabase.from('contacts') as any
-      const { error: archiveError } = await archiveQuery
+      const { error: archiveError } = await supabase
+        .from('contacts')
+        // @ts-expect-error - Supabase SSR typing limitation with update
         .update({
           status: 'archived',
           archived_at: new Date().toISOString(),
           archived_reason: reason?.trim() || null,
           updated_at: new Date().toISOString(),
-        })
+        } as ContactUpdate)
         .eq('id', contactId)
 
       if (archiveError) throw archiveError
@@ -289,15 +290,15 @@ export function useContacts(branchId: string | null) {
     setError(null)
 
     try {
-      // @ts-ignore - Supabase typing issue with dynamic updates
-      const unarchiveQuery = supabase.from('contacts') as any
-      const { error: unarchiveError } = await unarchiveQuery
+      const { error: unarchiveError } = await supabase
+        .from('contacts')
+        // @ts-expect-error - Supabase SSR typing limitation with update
         .update({
           status: 'active',
           archived_at: null,
           archived_reason: null,
           updated_at: new Date().toISOString(),
-        })
+        } as ContactUpdate)
         .eq('id', contactId)
 
       if (unarchiveError) throw unarchiveError
@@ -374,6 +375,7 @@ export function useContacts(branchId: string | null) {
         .from('booking_contacts')
         .select('booking_id')
         .eq('contact_id', contactId)
+        .returns<Array<{ booking_id: string }>>()
 
       if (bookingContactsError) throw bookingContactsError
 
@@ -381,7 +383,7 @@ export function useContacts(branchId: string | null) {
         return []
       }
 
-      const bookingIds = (bookingContacts as any[]).map((bc: any) => bc.booking_id)
+      const bookingIds = bookingContacts.map((bc) => bc.booking_id)
 
       // Récupérer les bookings avec leurs game_sessions
       const { data: bookings, error: bookingsError } = await supabase
@@ -414,6 +416,7 @@ export function useContacts(branchId: string | null) {
         .from('booking_contacts')
         .select('booking_id')
         .eq('contact_id', contactId)
+        .returns<Array<{ booking_id: string }>>()
 
       if (bookingContactsError) throw bookingContactsError
 
@@ -430,36 +433,38 @@ export function useContacts(branchId: string | null) {
         }
       }
 
-      const bookingIds = (bookingContacts as any[]).map((bc: any) => bc.booking_id)
+      const bookingIds = bookingContacts.map((bc) => bc.booking_id)
       const now = new Date().toISOString()
 
       // Récupérer les bookings avec stats
+      type BookingStat = { id: string; type: string; status: string; start_datetime: string; participants_count: number; created_at: string }
       const { data: bookings, error: bookingsError } = await supabase
         .from('bookings')
         .select('id, type, status, start_datetime, participants_count, created_at')
         .in('id', bookingIds)
         .eq('branch_id', branchId)
+        .returns<BookingStat[]>()
 
       if (bookingsError) throw bookingsError
 
-      const bookingsList = (bookings || []) as any[]
+      const bookingsList = bookings || []
       const totalBookings = bookingsList.length
-      const totalParticipants = bookingsList.reduce((sum: number, b: any) => sum + (b.participants_count || 0), 0)
+      const totalParticipants = bookingsList.reduce((sum, b) => sum + (b.participants_count || 0), 0)
       
-      const upcomingBookings = bookingsList.filter((b: any) => b.start_datetime > now && b.status !== 'CANCELLED').length
-      const pastBookings = bookingsList.filter((b: any) => b.start_datetime <= now || b.status === 'CANCELLED').length
+      const upcomingBookings = bookingsList.filter((b) => b.start_datetime > now && b.status !== 'CANCELLED').length
+      const pastBookings = bookingsList.filter((b) => b.start_datetime <= now || b.status === 'CANCELLED').length
       
-      const gameBookings = bookingsList.filter((b: any) => b.type === 'GAME').length
-      const eventBookings = bookingsList.filter((b: any) => b.type === 'EVENT').length
+      const gameBookings = bookingsList.filter((b) => b.type === 'GAME').length
+      const eventBookings = bookingsList.filter((b) => b.type === 'EVENT').length
 
       // Dernière activité (dernière réservation)
-      const sortedByDate = [...bookingsList].sort((a: any, b: any) => 
+      const sortedByDate = [...bookingsList].sort((a, b) => 
         new Date(b.start_datetime).getTime() - new Date(a.start_datetime).getTime()
       )
       const lastActivity = sortedByDate.length > 0 ? sortedByDate[0].start_datetime : null
       
       // Première réservation
-      const sortedByCreated = [...bookingsList].sort((a: any, b: any) => 
+      const sortedByCreated = [...bookingsList].sort((a, b) => 
         new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       )
       const firstBooking = sortedByCreated.length > 0 ? sortedByCreated[0].created_at : null

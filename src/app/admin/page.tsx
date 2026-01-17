@@ -12,7 +12,7 @@ import { SettingsModal } from './components/SettingsModal'
 import { useBranches } from '@/hooks/useBranches'
 import { useAuth } from '@/hooks/useAuth'
 import { useLaserRooms } from '@/hooks/useLaserRooms'
-import type { Profile, UserBranch, GameArea, GameSession } from '@/lib/supabase/types'
+import type { Profile, UserBranch, GameArea, GameSession, UserRole, BookingContact, BookingSlot, Contact } from '@/lib/supabase/types'
 
 type Theme = 'light' | 'dark'
 
@@ -1112,7 +1112,12 @@ export default function AdminPage() {
       if (error) throw error
 
       // Charger les slots et contacts comme dans useBookings
-      const bookingIds = (bookingsData || []).map((b: any) => b.id)
+      type BookingRow = { id: string; [key: string]: unknown }
+      type SlotRow = { booking_id: string; [key: string]: unknown }
+      type BookingContactRow = { booking_id: string; is_primary: boolean; contact: Contact | null }
+      
+      const typedBookings = (bookingsData || []) as BookingRow[]
+      const bookingIds = typedBookings.map((b) => b.id)
       if (bookingIds.length > 0) {
         const { data: slotsData } = await supabase
           .from('booking_slots')
@@ -1126,14 +1131,16 @@ export default function AdminPage() {
           .in('booking_id', bookingIds)
 
         // Construire les bookings avec slots et contacts (simplifié)
-        const bookingsWithDetails: BookingWithSlots[] = (bookingsData || []).map((b: any) => {
-          const primaryContactData = (bookingContactsData as any[])?.find((bc: any) => bc.booking_id === b.id && bc.is_primary)
+        const typedSlots = (slotsData || []) as SlotRow[]
+        const typedContacts = (bookingContactsData || []) as BookingContactRow[]
+        const bookingsWithDetails: BookingWithSlots[] = typedBookings.map((b) => {
+          const primaryContactData = typedContacts.find((bc) => bc.booking_id === b.id && bc.is_primary)
           return {
             ...b,
-            slots: (slotsData || []).filter((s: any) => s.booking_id === b.id),
+            slots: typedSlots.filter((s) => s.booking_id === b.id),
             primaryContact: primaryContactData?.contact || null,
           }
-        })
+        }) as BookingWithSlots[]
 
         setBookingsCache(new Map(bookingsCache.set(cacheKey, bookingsWithDetails)))
       } else {
@@ -1932,8 +1939,8 @@ export default function AdminPage() {
   const authUser = userData ? {
     id: userData.id,
     email: userData.email,
-    role: userData.role as any,
-    profile: userData.profile as any, // Cast pour compatibilité
+    role: userData.role as UserRole,
+    profile: userData.profile as Profile | null,
     branches: authUserBranches,
     isSuperAdmin: userData.role === 'super_admin',
     isBranchAdmin: userData.role === 'branch_admin',
@@ -2010,7 +2017,6 @@ export default function AdminPage() {
           onSignOut={handleSignOut}
           theme={theme}
           onToggleTheme={toggleTheme}
-          rooms={branchRooms}
         />
       )}
 

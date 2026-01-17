@@ -1340,12 +1340,12 @@ export default function ReservationPage() {
                 {/* Title */}
                 <h2 className={`text-3xl font-bold mb-2 ${orderStatus === 'pending' ? 'text-yellow-500' : 'text-primary'}`} style={{ fontFamily: 'Orbitron, sans-serif' }}>
                   {orderStatus === 'pending' 
-                    ? (translations.booking?.confirmation?.pending_title || 'Request Received!')
+                    ? 'Request Received!'
                     : (translations.booking?.confirmation?.title || 'Reservation Confirmed!')}
                 </h2>
                 <p className="text-gray-300 mb-8" style={{ fontFamily: 'Poppins, sans-serif' }}>
                   {orderStatus === 'pending'
-                    ? (translations.booking?.confirmation?.pending_subtitle || 'We will contact you shortly to confirm your reservation')
+                    ? 'We will contact you shortly to confirm your reservation'
                     : (translations.booking?.confirmation?.subtitle || 'Thank you for your reservation')}
                 </p>
 
@@ -1366,7 +1366,7 @@ export default function ReservationPage() {
                 }`}>
                   <p className="text-gray-400 text-sm mb-2" style={{ fontFamily: 'Poppins, sans-serif' }}>
                     {orderStatus === 'pending'
-                      ? (translations.booking?.confirmation?.request_number || 'Request Number')
+                      ? 'Request Number'
                       : (translations.booking?.confirmation?.reservation_number || 'Reservation Number')}
                   </p>
                   <p className={`text-2xl font-bold ${orderStatus === 'pending' ? 'text-yellow-500' : 'text-primary'}`} style={{ fontFamily: 'Orbitron, sans-serif', letterSpacing: '2px' }}>

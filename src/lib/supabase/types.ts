@@ -274,7 +274,7 @@ export interface Database {
   }
 }
 
-// Types utilitaires
+// Types utilitaires - Row (lecture)
 export type Branch = Database['public']['Tables']['branches']['Row']
 export type BranchSettings = Database['public']['Tables']['branch_settings']['Row']
 export type EventRoom = Database['public']['Tables']['event_rooms']['Row']
@@ -287,6 +287,21 @@ export type BookingSlot = Database['public']['Tables']['booking_slots']['Row']
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type UserBranch = Database['public']['Tables']['user_branches']['Row']
 export type Order = Database['public']['Tables']['orders']['Row']
+
+// Types Insert (création)
+export type BookingInsert = Database['public']['Tables']['bookings']['Insert']
+export type BookingSlotInsert = Database['public']['Tables']['booking_slots']['Insert']
+export type BookingContactInsert = Database['public']['Tables']['booking_contacts']['Insert']
+export type GameSessionInsert = Database['public']['Tables']['game_sessions']['Insert']
+export type ContactInsert = Database['public']['Tables']['contacts']['Insert']
+export type OrderInsert = Database['public']['Tables']['orders']['Insert']
+export type ProfileInsert = Database['public']['Tables']['profiles']['Insert']
+
+// Types Update (modification)
+export type BookingUpdate = Database['public']['Tables']['bookings']['Update']
+export type BookingContactUpdate = Database['public']['Tables']['booking_contacts']['Update']
+export type ContactUpdate = Database['public']['Tables']['contacts']['Update']
+export type OrderUpdate = Database['public']['Tables']['orders']['Update']
 
 // Type étendu pour Order avec relations
 export interface OrderWithRelations extends Order {

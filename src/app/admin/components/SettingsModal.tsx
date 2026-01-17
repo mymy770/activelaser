@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { X, Save, Loader2, Settings, Gamepad2, Target, Cake, DollarSign } from 'lucide-react'
 import { getClient } from '@/lib/supabase/client'
 import type { EventRoom, BranchSettings, LaserRoom } from '@/lib/supabase/types'
+import type { PostgrestError } from '@supabase/supabase-js'
 
 type SettingsTab = 'general' | 'active' | 'laser' | 'rooms' | 'pricing'
 
@@ -82,7 +83,7 @@ export function SettingsModal({
       setTotalSlots(14) // Valeur par défaut si pas de settings
       setLaserTotalVests(0)
       setLaserSpareVests(0)
-      setLaserSingleGroupThreshold(8)
+      setLaserExclusiveThreshold(8)
       setLaserEnabled(false)
     }
   }, [settings, branchId]) // Recharger quand branchId change pour avoir les bons paramètres
@@ -106,8 +107,8 @@ export function SettingsModal({
 
         // Si la table n'existe pas, retourner un tableau vide silencieusement
         if (error) {
-          const errorCode = (error as any)?.code || ''
-          const errorMessage = String((error as any)?.message || error || '')
+          const errorCode = error.code || ''
+          const errorMessage = String(error.message || '')
           const isEmptyError = (
             !errorMessage || 
             errorMessage === '{}' || 
@@ -130,9 +131,9 @@ export function SettingsModal({
         setLaserRooms(data || [])
       } catch (err) {
         // Ne pas logger si c'est juste que la table n'existe pas
-        const errorObj = err as any
+        const errorObj = err as PostgrestError
         const errorCode = String(errorObj?.code || '')
-        const errorMessage = String(errorObj?.message || errorObj || '')
+        const errorMessage = String(errorObj?.message || '')
         const isEmptyError = (
           !errorMessage || 
           errorMessage === '{}' || 
@@ -237,8 +238,8 @@ export function SettingsModal({
         
         if (laserRoomError) {
           // Si la table n'existe pas, ignorer silencieusement
-          const errorCode = (laserRoomError as any)?.code || ''
-          const errorMessage = String((laserRoomError as any)?.message || laserRoomError || '')
+          const errorCode = laserRoomError.code || ''
+          const errorMessage = String(laserRoomError.message || '')
           const isTableNotExist = 
             errorCode === '42P01' || 
             errorMessage.toLowerCase().includes('does not exist')
@@ -749,8 +750,8 @@ export function SettingsModal({
                               .returns<LaserRoom>()
 
                             if (error) {
-                              const errorCode = (error as any)?.code || ''
-                              const errorMessage = String((error as any)?.message || error || '')
+                              const errorCode = error.code || ''
+                              const errorMessage = String(error.message || '')
                               const isTableNotExist = 
                                 errorCode === '42P01' || 
                                 errorMessage.toLowerCase().includes('does not exist')

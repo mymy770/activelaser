@@ -228,8 +228,7 @@ export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClien
   const getGameIcon = (orderType: string, gameArea: string | null) => {
     if (orderType === 'EVENT') return PartyPopper
     if (gameArea === 'LASER') return Target
-    if (gameArea === 'MIX') return Gamepad2
-    return Zap
+    return Zap // Active Games (ACTIVE par défaut)
   }
 
   // Options des filtres
@@ -475,11 +474,9 @@ export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClien
                 <div className="col-span-1">
                   {order.order_type === 'GAME' && order.game_area && (
                     <span className={`text-xs px-2 py-0.5 rounded ${
-                      order.game_area === 'LASER' 
+                      order.game_area === 'LASER'
                         ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                        : order.game_area === 'MIX'
-                          ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                          : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                        : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                     }`}>
                       {order.game_area}
                     </span>

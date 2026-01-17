@@ -10,7 +10,10 @@ import {
   XCircle, 
   AlertCircle,
   Search,
-  X
+  X,
+  PartyPopper,
+  Target,
+  Gamepad2
 } from 'lucide-react'
 import { useOrders } from '@/hooks/useOrders'
 import { useBranches } from '@/hooks/useBranches'
@@ -18,6 +21,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { AdminHeader } from '../components/AdminHeader'
 import { OrdersTable } from './components/OrdersTable'
 import { OrderDetailModal } from './components/OrderDetailModal'
+import type { OrderStatus } from '@/lib/supabase/types'
 import { ContactDetailsModal } from '../components/ContactDetailsModal'
 import { ConfirmationModal } from '../components/ConfirmationModal'
 import { createClient } from '@/lib/supabase/client'

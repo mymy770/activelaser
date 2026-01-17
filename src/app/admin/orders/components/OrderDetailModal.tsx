@@ -96,8 +96,7 @@ export function OrderDetailModal({
   const getGameIcon = () => {
     if (order.order_type === 'EVENT') return PartyPopper
     if (order.game_area === 'LASER') return Target
-    if (order.game_area === 'MIX') return Gamepad2
-    return Zap // Active Games
+    return Zap // Active Games (ACTIVE par défaut)
   }
 
   const getGameLabel = () => {
@@ -116,7 +115,6 @@ export function OrderDetailModal({
       }
     }
     if (order.game_area === 'LASER') return 'Laser City'
-    if (order.game_area === 'MIX') return 'Mix Active + Laser'
     return 'Active Games'
   }
 
