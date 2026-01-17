@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -79,12 +79,17 @@ export default function ReservationPage() {
     const today = new Date()
     today.setHours(0, 0, 0, 0) // Normaliser à minuit local
     
+    console.log('[getAvailableDates] Today (normalized):', today.toISOString(), 'Local:', today.toLocaleDateString())
+    
     // Start from TODAY (i=0), not tomorrow
     for (let i = 0; i <= 365; i++) {
       const date = new Date(today)
       date.setDate(today.getDate() + i)
       dates.push(date.toISOString().split('T')[0])
     }
+    
+    console.log('[getAvailableDates] First 3 dates:', dates.slice(0, 3))
+    
     return dates
   }
 
@@ -139,13 +144,42 @@ export default function ReservationPage() {
   }
 
   // Generate available time slots (10:00 to 23:00, every 30 minutes)
+  // FILTRE: Si date = aujourd'hui, ne montrer que les heures futures
   const getAvailableTimes = () => {
     const times: string[] = []
+    const now = new Date()
+    const selectedDateStr = bookingData.date // Format: "YYYY-MM-DD"
+    const todayStr = now.toISOString().split('T')[0]
+    const isToday = selectedDateStr === todayStr
+    
     for (let hour = 10; hour <= 23; hour++) {
-      // Add :00 and :30 for each hour
-      times.push(`${hour.toString().padStart(2, '0')}:00`)
-      if (hour < 23) { // Don't add 23:30, only go to 23:00
-        times.push(`${hour.toString().padStart(2, '0')}:30`)
+      // Add :00
+      const time00 = `${hour.toString().padStart(2, '0')}:00`
+      if (isToday) {
+        // Si aujourd'hui, vérifier que l'heure est dans le futur (avec marge de 1h)
+        const slotDate = new Date(now)
+        slotDate.setHours(hour, 0, 0, 0)
+        const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000)
+        if (slotDate >= oneHourFromNow) {
+          times.push(time00)
+        }
+      } else {
+        times.push(time00)
+      }
+      
+      // Add :30
+      if (hour < 23) {
+        const time30 = `${hour.toString().padStart(2, '0')}:30`
+        if (isToday) {
+          const slotDate = new Date(now)
+          slotDate.setHours(hour, 30, 0, 0)
+          const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000)
+          if (slotDate >= oneHourFromNow) {
+            times.push(time30)
+          }
+        } else {
+          times.push(time30)
+        }
       }
     }
     return times
@@ -325,7 +359,7 @@ export default function ReservationPage() {
   }
 
   const availableDates = getAvailableDates()
-  const availableTimes = getAvailableTimes()
+  const availableTimes = useMemo(() => getAvailableTimes(), [bookingData.date])
 
   const handleLocaleChange = (newLocale: Locale) => {
     setLocale(newLocale)
