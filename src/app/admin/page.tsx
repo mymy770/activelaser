@@ -1737,7 +1737,8 @@ export default function AdminPage() {
         const sessionForThisRoom = overlappingSessions.find(s => s.laser_room_id === targetRoom.id)
         if (!sessionForThisRoom) continue
         
-        // Trouver toutes les salles utilisées par ce booking pour ce créneau
+        // Trouver toutes les salles utilisées par ce booking pour CE CRÉNEAU SPÉCIFIQUE
+        // Important: ne prendre que les sessions qui chevauchent exactement ce créneau
         const usedRoomIds = new Set(overlappingSessions.map(s => s.laser_room_id).filter(Boolean))
         const usedRooms = sortedLaserRooms.filter(r => usedRoomIds.has(r.id))
         
@@ -1748,14 +1749,14 @@ export default function AdminPage() {
         const firstRoomIndex = sortedLaserRooms.findIndex(r => r.id === usedRooms[0].id)
         const lastRoomIndex = sortedLaserRooms.findIndex(r => r.id === usedRooms[usedRooms.length - 1].id)
         
-        // Utiliser la première session pour les dates (toutes les sessions ont les mêmes dates pour une même réservation)
+        // IMPORTANT: Utiliser les dates de la session spécifique, pas une fusion
+        // Cela permet d'afficher chaque jeu (session_order) séparément
         const sessionStart = new Date(sessionForThisRoom.start_datetime)
         const sessionEnd = new Date(sessionForThisRoom.end_datetime)
         
-        // Créer le segment fusionné pour toutes les salles du groupe
-        // Le segment s'étend de firstRoomIndex à lastRoomIndex
+        // Créer le segment avec un ID unique incluant session_order pour différencier les jeux
         const segment: UISegment = {
-          segmentId: `${booking.id}-laser-merged-${firstRoomIndex}-${lastRoomIndex}`,
+          segmentId: `${booking.id}-laser-${sessionForThisRoom.session_order}-${firstRoomIndex}-${lastRoomIndex}-${sessionStart.getTime()}`,
           bookingId: booking.id,
           booking,
           start: sessionStart,

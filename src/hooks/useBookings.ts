@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { getClient } from '@/lib/supabase/client'
 import type { Booking, BookingSlot, BookingType, BookingStatus, Contact, GameSession } from '@/lib/supabase/types'
 
@@ -215,8 +215,75 @@ export function useBookings(branchId: string | null, date?: string) {
     fetchBookings()
   }, [fetchBookings])
 
-  // TODO: Auto-refresh avec WebSockets pour éviter les recharges
-  // Pour l'instant, désactivé pour éviter les bugs
+  // Auto-refresh silencieux toutes les 30 secondes
+  // Utilise useRef pour éviter les problèmes de dépendances React
+  const branchIdRef = useRef(branchId)
+  const dateRef = useRef(date)
+  
+  // Mettre à jour les refs quand les valeurs changent
+  useEffect(() => {
+    branchIdRef.current = branchId
+    dateRef.current = date
+  }, [branchId, date])
+  
+  useEffect(() => {
+    const intervalId = setInterval(async () => {
+      const currentBranchId = branchIdRef.current
+      const currentDate = dateRef.current
+      
+      if (!currentBranchId) return
+      
+      try {
+        const supabase = getClient()
+        
+        // Construire la requête
+        let query = supabase
+          .from('bookings')
+          .select('*')
+          .eq('branch_id', currentBranchId)
+          .neq('status', 'CANCELLED')
+          .order('start_datetime', { ascending: true })
+        
+        // Filtrer par date si fournie
+        if (currentDate) {
+          const startOfDay = `${currentDate}T00:00:00.000Z`
+          const endOfDay = `${currentDate}T23:59:59.999Z`
+          query = query.gte('start_datetime', startOfDay).lte('start_datetime', endOfDay)
+        }
+        
+        const { data: bookingsData, error: bookingsError } = await query.returns<Booking[]>()
+        
+        if (bookingsError || !bookingsData) return
+        
+        // Charger les game_sessions
+        const bookingIds = bookingsData.map(b => b.id)
+        if (bookingIds.length === 0) {
+          setBookings([])
+          return
+        }
+        
+        const { data: sessionsData } = await supabase
+          .from('game_sessions')
+          .select('*')
+          .in('booking_id', bookingIds)
+          .order('session_order')
+          .returns<GameSession[]>()
+        
+        // Associer les sessions aux bookings (silencieusement)
+        const bookingsWithSessions = bookingsData.map(booking => ({
+          ...booking,
+          slots: [],
+          game_sessions: sessionsData?.filter(s => s.booking_id === booking.id) || []
+        }))
+        
+        setBookings(bookingsWithSessions as BookingWithSlots[])
+      } catch {
+        // Silently fail - don't show errors for background refresh
+      }
+    }, 30000) // 30 secondes
+
+    return () => clearInterval(intervalId)
+  }, []) // Pas de dépendances - utilise les refs
 
   // Créer une réservation
   const createBooking = useCallback(async (data: CreateBookingData): Promise<BookingWithSlots | null> => {
