@@ -60,7 +60,7 @@ export default function UsersPage() {
   const handleEdit = (editUser: UserWithBranches) => {
     setSelectedUser(editUser)
     // Si l'utilisateur édite son propre compte, ouvrir le modal simplifié
-    if (editUser.id === user.id) {
+    if (user && editUser.id === user.id) {
       setShowEditSelfModal(true)
     } else {
       setShowEditModal(true)
@@ -190,40 +190,44 @@ export default function UsersPage() {
       </div>
 
       {/* Modals */}
-      <CreateUserModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSubmit={createUser}
-        branches={user.branches}
-        currentUserRole={user.role}
-        currentUserBranchIds={user.branches.map(b => b.id)}
-        isDark={isDark}
-      />
+      {user && (
+        <>
+          <CreateUserModal
+            isOpen={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            onSubmit={createUser}
+            branches={user.branches}
+            currentUserRole={user.role || 'agent'}
+            currentUserBranchIds={user.branches.map(b => b.id)}
+            isDark={isDark}
+          />
 
-      <EditSelfModal
-        isOpen={showEditSelfModal}
-        onClose={() => {
-          setShowEditSelfModal(false)
-          setSelectedUser(null)
-        }}
-        onSubmit={updateUser}
-        user={selectedUser}
-        isDark={isDark}
-      />
+          <EditSelfModal
+            isOpen={showEditSelfModal}
+            onClose={() => {
+              setShowEditSelfModal(false)
+              setSelectedUser(null)
+            }}
+            onSubmit={updateUser}
+            user={selectedUser}
+            isDark={isDark}
+          />
 
-      <EditUserModal
-        isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false)
-          setSelectedUser(null)
-        }}
-        onSubmit={updateUser}
-        user={selectedUser}
-        branches={user.branches}
-        currentUserRole={user.role}
-        currentUserBranchIds={user.branches.map(b => b.id)}
-        isDark={isDark}
-      />
+          <EditUserModal
+            isOpen={showEditModal}
+            onClose={() => {
+              setShowEditModal(false)
+              setSelectedUser(null)
+            }}
+            onSubmit={updateUser}
+            user={selectedUser}
+            branches={user.branches}
+            currentUserRole={user.role || 'agent'}
+            currentUserBranchIds={user.branches.map(b => b.id)}
+            isDark={isDark}
+          />
+        </>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && selectedUser && (

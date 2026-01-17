@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Loader2, User, Phone, Shield, Building2, AlertCircle, Save } from 'lucide-react'
+import { X, Loader2, User, Phone, Shield, Building2, AlertCircle, Save, Mail, Lock } from 'lucide-react'
 import type { UserWithBranches, UserRole, Branch } from '@/lib/supabase/types'
-import { validateIsraeliPhone, VALIDATION_MESSAGES } from '@/lib/validation'
+import { validateIsraeliPhone, validateEmail, VALIDATION_MESSAGES } from '@/lib/validation'
 import { CustomSelect } from '../../components/CustomSelect'
 
 interface EditUserModalProps {
@@ -13,6 +13,8 @@ interface EditUserModalProps {
     first_name?: string
     last_name?: string
     phone?: string
+    email?: string
+    password?: string
     role?: UserRole
     branch_ids?: string[]
   }) => Promise<{ success: boolean; error?: string }>
@@ -36,11 +38,13 @@ export function EditUserModal({
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [role, setRole] = useState<UserRole>('agent')
   const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [validationErrors, setValidationErrors] = useState<{ phone?: string }>({})
+  const [validationErrors, setValidationErrors] = useState<{ phone?: string; email?: string; password?: string }>({})
 
   // Initialiser avec les données de l'utilisateur
   useEffect(() => {
@@ -48,6 +52,8 @@ export function EditUserModal({
       setFirstName(user.first_name)
       setLastName(user.last_name)
       setPhone(user.phone)
+      setEmail(user.email || '')
+      setPassword('') // Toujours vide au départ (optionnel)
       setRole(user.role)
       setSelectedBranchIds(user.branches.map(b => b.id))
       setError(null)
@@ -60,10 +66,29 @@ export function EditUserModal({
     if (!user) return
 
     setError(null)
+    const newValidationErrors: { phone?: string; email?: string; password?: string } = {}
 
-    // Validation
+    // Validation téléphone
     if (!validateIsraeliPhone(phone)) {
-      setError(VALIDATION_MESSAGES.phone.israeliFormat)
+      newValidationErrors.phone = VALIDATION_MESSAGES.phone.israeliFormat
+    }
+
+    // Validation email si modifié
+    if (email.trim() && email.trim() !== user.email) {
+      if (!validateEmail(email.trim())) {
+        newValidationErrors.email = VALIDATION_MESSAGES.email.invalid
+      }
+    }
+
+    // Validation mot de passe si fourni (minimum 6 caractères)
+    if (password.trim()) {
+      if (password.length < 6) {
+        newValidationErrors.password = 'Le mot de passe doit contenir au moins 6 caractères'
+      }
+    }
+
+    if (Object.keys(newValidationErrors).length > 0) {
+      setValidationErrors(newValidationErrors)
       return
     }
 
@@ -74,13 +99,33 @@ export function EditUserModal({
 
     setLoading(true)
 
-    const result = await onSubmit(user.id, {
+    const submitData: {
+      first_name?: string
+      last_name?: string
+      phone?: string
+      email?: string
+      password?: string
+      role?: UserRole
+      branch_ids?: string[]
+    } = {
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       phone,
       role,
       branch_ids: selectedBranchIds,
-    })
+    }
+
+    // Ajouter email seulement si modifié
+    if (email.trim() && email.trim() !== user.email) {
+      submitData.email = email.trim()
+    }
+
+    // Ajouter password seulement si fourni
+    if (password.trim()) {
+      submitData.password = password
+    }
+
+    const result = await onSubmit(user.id, submitData)
 
     setLoading(false)
 
@@ -193,11 +238,13 @@ export function EditUserModal({
               onChange={(e) => {
                 const newPhone = e.target.value
                 setPhone(newPhone)
+                const newErrors = { ...validationErrors }
                 if (newPhone.trim() && !validateIsraeliPhone(newPhone)) {
-                  setValidationErrors({ phone: VALIDATION_MESSAGES.phone.israeliFormat })
+                  newErrors.phone = VALIDATION_MESSAGES.phone.israeliFormat
                 } else {
-                  setValidationErrors({})
+                  delete newErrors.phone
                 }
+                setValidationErrors(newErrors)
               }}
               required
               className={`w-full px-3 py-2 rounded-lg border ${
@@ -215,6 +262,84 @@ export function EditUserModal({
                 <span>{validationErrors.phone}</span>
               </div>
             )}
+          </div>
+
+          <div>
+            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              <Mail className="w-4 h-4 inline mr-1" />
+              Email (identifiant)
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => {
+                const newEmail = e.target.value
+                setEmail(newEmail)
+                const newErrors = { ...validationErrors }
+                if (newEmail.trim() && newEmail.trim() !== user.email && !validateEmail(newEmail.trim())) {
+                  newErrors.email = VALIDATION_MESSAGES.email.invalid
+                } else {
+                  delete newErrors.email
+                }
+                setValidationErrors(newErrors)
+              }}
+              className={`w-full px-3 py-2 rounded-lg border ${
+                validationErrors.email
+                  ? 'border-red-500'
+                  : isDark
+                  ? 'bg-gray-700 border-gray-600 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
+              } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              placeholder="exemple@email.com"
+            />
+            {validationErrors.email && (
+              <div className="flex items-center gap-1 mt-1 text-red-500 text-sm">
+                <AlertCircle className="w-4 h-4" />
+                <span>{validationErrors.email}</span>
+              </div>
+            )}
+            <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              Laissez vide pour ne pas modifier. L'email sert d'identifiant de connexion.
+            </p>
+          </div>
+
+          <div>
+            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              <Lock className="w-4 h-4 inline mr-1" />
+              Nouveau mot de passe
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => {
+                const newPassword = e.target.value
+                setPassword(newPassword)
+                const newErrors = { ...validationErrors }
+                if (newPassword.trim() && newPassword.length < 6) {
+                  newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères'
+                } else {
+                  delete newErrors.password
+                }
+                setValidationErrors(newErrors)
+              }}
+              className={`w-full px-3 py-2 rounded-lg border ${
+                validationErrors.password
+                  ? 'border-red-500'
+                  : isDark
+                  ? 'bg-gray-700 border-gray-600 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
+              } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              placeholder="Laissez vide pour ne pas modifier"
+            />
+            {validationErrors.password && (
+              <div className="flex items-center gap-1 mt-1 text-red-500 text-sm">
+                <AlertCircle className="w-4 h-4" />
+                <span>{validationErrors.password}</span>
+              </div>
+            )}
+            <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              Laissez vide pour ne pas modifier le mot de passe. Minimum 6 caractères.
+            </p>
           </div>
 
           <div>

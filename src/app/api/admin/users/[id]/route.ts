@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { validateEmail, validateIsraeliPhone, formatIsraeliPhone } from '@/lib/validation'
-import type { UserRole } from '@/lib/supabase/types'
+import type { UserRole, Profile } from '@/lib/supabase/types'
 
 /**
  * PUT /api/admin/users/[id]
@@ -12,6 +12,8 @@ import type { UserRole } from '@/lib/supabase/types'
  *   first_name?: string
  *   last_name?: string
  *   phone?: string
+ *   email?: string
+ *   password?: string
  *   role?: 'branch_admin' | 'agent'
  *   branch_ids?: string[]
  * }
@@ -43,7 +45,7 @@ export async function PUT(
       .from('profiles')
       .select('*')
       .eq('id', user.id)
-      .single()
+      .single<Profile>()
 
     if (profileError || !profile) {
       return NextResponse.json(
@@ -53,7 +55,8 @@ export async function PUT(
     }
 
     // Vérifier les permissions
-    if (profile.role !== 'super_admin' && profile.role !== 'branch_admin') {
+    const userRole = profile.role as UserRole
+    if (userRole !== 'super_admin' && userRole !== 'branch_admin') {
       return NextResponse.json(
         { success: false, error: 'Permission refusée' },
         { status: 403 }
@@ -62,7 +65,7 @@ export async function PUT(
 
     // Parser le body pour vérifier les modifications demandées
     const body = await request.json()
-    const { first_name, last_name, phone, role, branch_ids } = body
+    const { first_name, last_name, phone, email, password, role, branch_ids } = body
 
     // Si l'utilisateur modifie son propre compte
     const isSelfEdit = targetUserId === user.id
@@ -92,16 +95,18 @@ export async function PUT(
     }
 
     // Si branch_admin et pas soi-même, vérifier qu'il gère cet utilisateur
-    if (profile.role === 'branch_admin' && !isSelfEdit) {
+    if (userRole === 'branch_admin' && !isSelfEdit) {
       const { data: adminBranches } = await supabase
         .from('user_branches')
         .select('branch_id')
         .eq('user_id', user.id)
+        .returns<Array<{ branch_id: string }>>()
 
       const { data: targetBranches } = await supabase
         .from('user_branches')
         .select('branch_id')
         .eq('user_id', targetUserId)
+        .returns<Array<{ branch_id: string }>>()
 
       const adminBranchIds = (adminBranches || []).map(b => b.branch_id)
       const targetBranchIds = (targetBranches || []).map(b => b.branch_id)
@@ -153,7 +158,7 @@ export async function PUT(
       }
 
       // Si branch_admin, ne peut modifier qu'en agent
-      if (profile.role === 'branch_admin' && role !== 'agent') {
+      if (userRole === 'branch_admin' && role !== 'agent') {
         return NextResponse.json(
           { success: false, error: 'Vous ne pouvez assigner que le rôle agent' },
           { status: 403 }
@@ -161,6 +166,55 @@ export async function PUT(
       }
 
       updates.role = role as UserRole
+    }
+
+    // Mettre à jour l'email et/ou le mot de passe dans Supabase Auth si fournis
+    const supabaseAdmin = createServiceRoleClient()
+    const authUpdates: { email?: string; password?: string } = {}
+
+    if (email !== undefined && email.trim()) {
+      // Vérifier que l'email est valide
+      if (!validateEmail(email.trim())) {
+        return NextResponse.json(
+          { success: false, error: 'Format email invalide' },
+          { status: 400 }
+        )
+      }
+
+      // Vérifier que l'email n'est pas déjà utilisé par un autre utilisateur
+      const { data: existingUser } = await supabaseAdmin.auth.admin.getUserById(targetUserId)
+      if (existingUser?.user?.email !== email.trim()) {
+        // L'email change, vérifier qu'il n'est pas déjà utilisé
+        // Note: Supabase vérifie automatiquement l'unicité de l'email
+        authUpdates.email = email.trim()
+      }
+    }
+
+    if (password !== undefined && password.trim()) {
+      // Vérifier que le mot de passe a au moins 6 caractères
+      if (password.length < 6) {
+        return NextResponse.json(
+          { success: false, error: 'Le mot de passe doit contenir au moins 6 caractères' },
+          { status: 400 }
+        )
+      }
+      authUpdates.password = password
+    }
+
+    // Mettre à jour l'utilisateur Auth si nécessaire
+    if (Object.keys(authUpdates).length > 0) {
+      const { data: updatedAuthUser, error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(
+        targetUserId,
+        authUpdates
+      )
+
+      if (authUpdateError) {
+        console.error('Error updating auth user:', authUpdateError)
+        return NextResponse.json(
+          { success: false, error: authUpdateError.message || 'Erreur lors de la mise à jour de l\'identifiant ou du mot de passe' },
+          { status: 500 }
+        )
+      }
     }
 
     // Mettre à jour le profil
@@ -189,7 +243,7 @@ export async function PUT(
       }
 
       // Si branch_admin, vérifier qu'il n'assigne que ses branches
-      if (profile.role === 'branch_admin') {
+      if (userRole === 'branch_admin') {
         const { data: adminBranches } = await supabase
           .from('user_branches')
           .select('branch_id')
@@ -295,7 +349,7 @@ export async function DELETE(
       .from('profiles')
       .select('*')
       .eq('id', user.id)
-      .single()
+      .single<Profile>()
 
     if (profileError || !profile) {
       return NextResponse.json(
@@ -305,7 +359,8 @@ export async function DELETE(
     }
 
     // Vérifier les permissions
-    if (profile.role !== 'super_admin' && profile.role !== 'branch_admin') {
+    const userRole = profile.role as UserRole
+    if (userRole !== 'super_admin' && userRole !== 'branch_admin') {
       return NextResponse.json(
         { success: false, error: 'Permission refusée' },
         { status: 403 }
@@ -325,7 +380,7 @@ export async function DELETE(
       .from('profiles')
       .select('*')
       .eq('id', targetUserId)
-      .single()
+      .single<Profile>()
 
     if (targetError || !targetProfile) {
       return NextResponse.json(
@@ -335,7 +390,7 @@ export async function DELETE(
     }
 
     // Si branch_admin, vérifier qu'il gère cet utilisateur
-    if (profile.role === 'branch_admin') {
+    if (userRole === 'branch_admin') {
       const { data: adminBranches } = await supabase
         .from('user_branches')
         .select('branch_id')
