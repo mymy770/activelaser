@@ -194,6 +194,9 @@ export function UsersTable({
                   {getSortIcon('name')}
                 </div>
               </th>
+              <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                Email
+              </th>
               <th
                 onClick={() => handleSort('phone')}
                 className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-80 transition-colors ${
@@ -201,7 +204,7 @@ export function UsersTable({
                 }`}
               >
                 <div className="flex items-center">
-                  Contact
+                  Téléphone
                   {getSortIcon('phone')}
                 </div>
               </th>
@@ -227,7 +230,7 @@ export function UsersTable({
           <tbody className={`divide-y ${isDark ? 'divide-gray-700' : 'divide-gray-200'}`}>
             {filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan={5} className={`px-4 py-8 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                <td colSpan={6} className={`px-4 py-8 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                   Aucun utilisateur trouvé
                 </td>
               </tr>
@@ -268,17 +271,19 @@ export function UsersTable({
                     </div>
                   </td>
 
-                  {/* Contact */}
+                  {/* Email */}
                   <td className="px-4 py-4">
-                    <div className="space-y-1">
-                      <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Mail className="w-4 h-4 flex-shrink-0" />
-                        <span className="truncate">{user.id}</span>
-                      </div>
-                      <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Phone className="w-4 h-4 flex-shrink-0" />
-                        <span>{user.phone}</span>
-                      </div>
+                    <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <Mail className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">{user.id}</span>
+                    </div>
+                  </td>
+
+                  {/* Téléphone */}
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <Phone className="w-4 h-4 flex-shrink-0" />
+                      <span>{user.phone}</span>
                     </div>
                   </td>
 
@@ -317,15 +322,12 @@ export function UsersTable({
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => onEdit(user)}
-                        disabled={user.id === currentUserId}
                         className={`p-2 rounded-lg transition-colors ${
-                          user.id === currentUserId
-                            ? 'opacity-50 cursor-not-allowed'
-                            : isDark
+                          isDark
                             ? 'hover:bg-gray-600 text-gray-400 hover:text-white'
                             : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
                         }`}
-                        title={user.id === currentUserId ? 'Vous ne pouvez pas vous modifier vous-même' : 'Modifier'}
+                        title="Modifier"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
