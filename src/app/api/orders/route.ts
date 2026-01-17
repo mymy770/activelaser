@@ -174,7 +174,124 @@ export async function POST(request: NextRequest) {
     
     console.log('[POST /api/orders] Booking timespan:', startDateTime.toISOString(), 'to', endDateTime.toISOString(), 'Total duration:', totalDuration, 'min')
     
-    // 4. Construire les sessions avec session-builder (MÊME LOGIQUE QUE ADMIN)
+    // 4. VÉRIFICATION OVERBOOKING ACTIVE
+    // Si ACTIVE, vérifier si ajouter ces participants cause un overbooking
+    if (game_area === 'ACTIVE') {
+      const maxPlayers = settings.max_concurrent_players || 84 // 14 slots × 6 joueurs par défaut
+      
+      // Récupérer tous les bookings ACTIVE existants sur ce créneau
+      const { data: existingBookings } = await supabase
+        .from('bookings')
+        .select(`
+          id,
+          participants_count,
+          game_sessions (
+            id,
+            game_area,
+            start_datetime,
+            end_datetime
+          )
+        `)
+        .eq('branch_id', branch_id)
+        .neq('status', 'CANCELLED')
+      
+      // Pour chaque tranche de 15 min du nouveau booking, calculer le total de participants
+      let hasOverbooking = false
+      let overbookingDetails = ''
+      
+      // Générer les tranches de 15 min couvertes par le nouveau booking
+      const SLOT_DURATION = 15 // minutes
+      let checkTime = new Date(startDateTime)
+      
+      while (checkTime < endDateTime) {
+        const slotStart = new Date(checkTime)
+        const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION * 60000)
+        
+        // Compter les participants existants sur ce créneau (sessions ACTIVE uniquement)
+        let existingParticipants = 0
+        
+        for (const booking of (existingBookings || [])) {
+          if (!booking.game_sessions || booking.game_sessions.length === 0) continue
+          
+          // Vérifier si une session ACTIVE de ce booking chevauche ce créneau
+          const hasOverlap = booking.game_sessions.some((session: { game_area: string; start_datetime: string; end_datetime: string }) => {
+            if (session.game_area !== 'ACTIVE') return false
+            const sessionStart = new Date(session.start_datetime)
+            const sessionEnd = new Date(session.end_datetime)
+            return sessionStart < slotEnd && sessionEnd > slotStart
+          })
+          
+          if (hasOverlap) {
+            existingParticipants += booking.participants_count
+          }
+        }
+        
+        // Vérifier si overbooking
+        const totalParticipants = existingParticipants + participants_count
+        if (totalParticipants > maxPlayers) {
+          hasOverbooking = true
+          const timeStr = `${String(slotStart.getHours()).padStart(2, '0')}:${String(slotStart.getMinutes()).padStart(2, '0')}`
+          overbookingDetails = `Overbooking at ${timeStr}: ${totalParticipants}/${maxPlayers} players`
+          console.log(`[POST /api/orders] ${overbookingDetails}`)
+          break
+        }
+        
+        checkTime = slotEnd
+      }
+      
+      // Si overbooking → créer order en pending
+      if (hasOverbooking) {
+        console.log('[POST /api/orders] ACTIVE overbooking detected, creating pending order')
+        
+        const referenceCode = generateShortReference()
+        
+        const { data: order, error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            branch_id,
+            order_type,
+            source: 'website',
+            status: 'pending',
+            contact_id: contactId,
+            request_reference: referenceCode,
+            customer_first_name,
+            customer_last_name: customer_last_name || '',
+            customer_phone,
+            customer_email: customer_email || null,
+            customer_notes: customer_notes || null,
+            requested_date,
+            requested_time,
+            participants_count,
+            game_area: game_area || null,
+            number_of_games,
+            pending_reason: 'overbooking',
+            pending_details: overbookingDetails,
+            terms_accepted: true
+          })
+          .select('id, request_reference')
+          .single()
+        
+        if (orderError) {
+          console.error('[POST /api/orders] Order creation error:', orderError)
+          return NextResponse.json(
+            { success: false, error: 'Failed to create order' },
+            { status: 500 }
+          )
+        }
+        
+        console.log('[POST /api/orders] Pending order created (overbooking):', order.id)
+        
+        return NextResponse.json({
+          success: true,
+          order_id: order.id,
+          reference: order.request_reference,
+          status: 'pending',
+          message: 'Your request has been received and is pending confirmation due to capacity limits'
+        })
+      }
+    }
+    
+    // 5. Construire les sessions avec session-builder (LASER uniquement vérifie dispo)
     const { buildGameSessionsForAPI } = await import('@/lib/session-builder')
     
     console.log('[POST /api/orders] Calling buildGameSessionsForAPI with:', {
