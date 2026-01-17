@@ -2241,7 +2241,7 @@ export default function AdminPage() {
             {/* Bouton Rafraîchir l'agenda */}
             <button
               onClick={() => {
-                fetchBookings()
+                refreshAllBookings()
               }}
               className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
                 isDark
