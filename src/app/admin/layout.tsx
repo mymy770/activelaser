@@ -16,6 +16,13 @@ export default function AdminLayout({
   const [isChecking, setIsChecking] = useState(true)
 
   useEffect(() => {
+    // Skip auth check for login page
+    if (pathname === '/admin/login') {
+      setIsAuthenticated(true) // Allow access to login page
+      setIsChecking(false)
+      return
+    }
+
     const checkAuth = async () => {
       const supabase = getClient()
       
@@ -24,8 +31,6 @@ export default function AdminLayout({
         
         if (error || !user) {
           setIsAuthenticated(false)
-          // Rediriger vers la page de login Supabase ou une page d'erreur
-          // Pour l'instant, on affiche juste un message
           console.log('No authenticated user found')
         } else {
           setIsAuthenticated(true)
@@ -55,7 +60,7 @@ export default function AdminLayout({
     return () => {
       subscription.unsubscribe()
     }
-  }, [])
+  }, [pathname])
 
   // Pendant la vérification de l'auth
   if (isChecking) {
@@ -69,30 +74,14 @@ export default function AdminLayout({
     )
   }
 
-  // Non authentifié
+  // Non authentifié - rediriger vers login
   if (!isAuthenticated) {
+    router.push('/admin/login')
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Accès non autorisé</h1>
-          <p className="text-gray-400 mb-6">Vous devez être connecté pour accéder à cette page.</p>
-          <button
-            onClick={() => {
-              // Essayer de rafraîchir la session
-              const supabase = getClient()
-              supabase.auth.getSession().then(({ data: { session } }) => {
-                if (session) {
-                  setIsAuthenticated(true)
-                } else {
-                  // Pas de page de login, afficher un message
-                  alert('Veuillez vous connecter via Supabase Dashboard ou configurer une page de login.')
-                }
-              })
-            }}
-            className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
-          >
-            Réessayer
-          </button>
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+          <p className="text-gray-400">Redirection vers la connexion...</p>
         </div>
       </div>
     )
