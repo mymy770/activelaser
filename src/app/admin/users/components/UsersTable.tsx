@@ -1,15 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { User, Mail, Phone, Building2, Edit2, Trash2, Shield, Users as UsersIcon } from 'lucide-react'
+import { User, Mail, Phone, Building2, Edit2, Trash2, Shield, Users as UsersIcon, ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react'
 import type { UserWithBranches } from '@/lib/supabase/types'
+import { CustomSelect } from '../../components/CustomSelect'
 
 interface UsersTableProps {
   users: UserWithBranches[]
   isDark: boolean
   onEdit: (user: UserWithBranches) => void
   onDelete: (user: UserWithBranches) => void
-  currentUserId: string // Pour empêcher la suppression/modification de soi-même
+  currentUserId: string
 }
 
 export function UsersTable({
@@ -19,28 +20,75 @@ export function UsersTable({
   onDelete,
   currentUserId,
 }: UsersTableProps) {
-  const [selectedRole, setSelectedRole] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [filterRole, setFilterRole] = useState<string>('all')
+  const [filterBranch, setFilterBranch] = useState<string>('all')
+  const [sortField, setSortField] = useState<'name' | 'role' | 'phone'>('name')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+
+  // Extraire toutes les branches uniques
+  const allBranches = Array.from(
+    new Set(users.flatMap(u => u.branches.map(b => b.id)))
+  ).map(id => {
+    const branch = users.flatMap(u => u.branches).find(b => b.id === id)
+    return branch!
+  }).filter(Boolean)
 
   // Filtrer les utilisateurs
-  const filteredUsers = users.filter(user => {
+  let filteredUsers = users.filter(user => {
     // Filtre par rôle
-    if (selectedRole !== 'all' && user.role !== selectedRole) {
+    if (filterRole !== 'all' && user.role !== filterRole) {
       return false
     }
 
-    // Filtre par recherche (nom, prénom, email, téléphone)
+    // Filtre par branche
+    if (filterBranch !== 'all' && !user.branches.some(b => b.id === filterBranch)) {
+      return false
+    }
+
+    // Filtre par recherche
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       const fullName = `${user.first_name} ${user.last_name}`.toLowerCase()
-      const email = user.id.toLowerCase() // L'email est l'ID dans Supabase Auth
       const phone = user.phone.toLowerCase()
 
-      return fullName.includes(query) || email.includes(query) || phone.includes(query)
+      return fullName.includes(query) || phone.includes(query)
     }
 
     return true
   })
+
+  // Trier les utilisateurs
+  filteredUsers.sort((a, b) => {
+    let compareResult = 0
+
+    if (sortField === 'name') {
+      const nameA = `${a.first_name} ${a.last_name}`.toLowerCase()
+      const nameB = `${b.first_name} ${b.last_name}`.toLowerCase()
+      compareResult = nameA.localeCompare(nameB)
+    } else if (sortField === 'role') {
+      const roleOrder = { super_admin: 0, branch_admin: 1, agent: 2 }
+      compareResult = roleOrder[a.role] - roleOrder[b.role]
+    } else if (sortField === 'phone') {
+      compareResult = a.phone.localeCompare(b.phone)
+    }
+
+    return sortDirection === 'asc' ? compareResult : -compareResult
+  })
+
+  const handleSort = (field: 'name' | 'role' | 'phone') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  const getSortIcon = (field: 'name' | 'role' | 'phone') => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-50" />
+    return sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 ml-1" /> : <ArrowDown className="w-3 h-3 ml-1" />
+  }
 
   const getRoleBadge = (role: string) => {
     switch (role) {
@@ -72,39 +120,61 @@ export function UsersTable({
 
   return (
     <div className={`rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-      {/* Header avec filtres */}
-      <div className={`p-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-        <div className="flex flex-col sm:flex-row gap-4">
-          {/* Recherche */}
+      {/* Filtres */}
+      <div className={`p-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'} space-y-4`}>
+        {/* Barre de recherche */}
+        <div className="relative">
+          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
           <input
             type="text"
-            placeholder="Rechercher (nom, email, téléphone)..."
+            placeholder="Rechercher par nom ou téléphone..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={`flex-1 px-3 py-2 rounded-lg border ${
+            className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
               isDark
                 ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                 : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
             } focus:outline-none focus:ring-2 focus:ring-blue-500`}
           />
+        </div>
 
+        {/* Filtres en ligne */}
+        <div className="flex flex-col sm:flex-row gap-3">
           {/* Filtre par rôle */}
-          <select
-            value={selectedRole}
-            onChange={(e) => setSelectedRole(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Tous les rôles</option>
-            <option value="super_admin">Super Admin</option>
-            <option value="branch_admin">Admin Agence</option>
-            <option value="agent">Agent</option>
-          </select>
+          <div className="flex-1">
+            <CustomSelect
+              value={filterRole}
+              onChange={setFilterRole}
+              options={[
+                { value: 'all', label: 'Tous les rôles' },
+                { value: 'super_admin', label: 'Super Admin' },
+                { value: 'branch_admin', label: 'Admin Agence' },
+                { value: 'agent', label: 'Agent' },
+              ]}
+              placeholder="Filtrer par rôle"
+              isDark={isDark}
+            />
+          </div>
+
+          {/* Filtre par branche */}
+          <div className="flex-1">
+            <CustomSelect
+              value={filterBranch}
+              onChange={setFilterBranch}
+              options={[
+                { value: 'all', label: 'Toutes les branches' },
+                ...allBranches.map(b => ({ value: b.id, label: b.name }))
+              ]}
+              placeholder="Filtrer par branche"
+              isDark={isDark}
+            />
+          </div>
         </div>
 
         {/* Compteur */}
-        <div className={`mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+        <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
           {filteredUsers.length} utilisateur{filteredUsers.length !== 1 ? 's' : ''}
-          {searchQuery || selectedRole !== 'all' ? ` (sur ${users.length} total)` : ''}
+          {(searchQuery || filterRole !== 'all' || filterBranch !== 'all') && ` (sur ${users.length} total)`}
         </div>
       </div>
 
@@ -113,14 +183,38 @@ export function UsersTable({
         <table className="w-full">
           <thead className={isDark ? 'bg-gray-700' : 'bg-gray-50'}>
             <tr>
-              <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                Utilisateur
+              <th
+                onClick={() => handleSort('name')}
+                className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-80 transition-colors ${
+                  isDark ? 'text-gray-300 hover:bg-gray-600' : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <div className="flex items-center">
+                  Utilisateur
+                  {getSortIcon('name')}
+                </div>
               </th>
-              <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                Contact
+              <th
+                onClick={() => handleSort('phone')}
+                className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-80 transition-colors ${
+                  isDark ? 'text-gray-300 hover:bg-gray-600' : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <div className="flex items-center">
+                  Contact
+                  {getSortIcon('phone')}
+                </div>
               </th>
-              <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                Rôle
+              <th
+                onClick={() => handleSort('role')}
+                className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-80 transition-colors ${
+                  isDark ? 'text-gray-300 hover:bg-gray-600' : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <div className="flex items-center">
+                  Rôle
+                  {getSortIcon('role')}
+                </div>
               </th>
               <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                 Branche(s)
@@ -176,11 +270,9 @@ export function UsersTable({
 
                   {/* Contact */}
                   <td className="px-4 py-4">
-                    <div className="space-y-1">
-                      <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Phone className="w-4 h-4 flex-shrink-0" />
-                        <span>{user.phone}</span>
-                      </div>
+                    <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <Phone className="w-4 h-4 flex-shrink-0" />
+                      <span>{user.phone}</span>
                     </div>
                   </td>
 
