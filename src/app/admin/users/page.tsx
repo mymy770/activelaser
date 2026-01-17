@@ -58,9 +58,10 @@ export default function UsersPage() {
   }
 
   const handleEdit = (editUser: UserWithBranches) => {
+    if (!user) return
     setSelectedUser(editUser)
     // Si l'utilisateur édite son propre compte, ouvrir le modal simplifié
-    if (user && editUser.id === user.id) {
+    if (editUser.id === user.id) {
       setShowEditSelfModal(true)
     } else {
       setShowEditModal(true)

@@ -221,7 +221,7 @@ export async function PUT(
     if (Object.keys(updates).length > 0) {
       const { error: updateError } = await supabase
         .from('profiles')
-        .update(updates as any)
+        .update(updates)
         .eq('id', targetUserId)
 
       if (updateError) {
