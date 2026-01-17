@@ -47,11 +47,18 @@ export function useBranches() {
       }
 
       // Récupérer le rôle de l'utilisateur
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', authUser.id)
         .single()
+
+      if (profileError) {
+        console.error('Error fetching profile in useBranches:', profileError)
+        throw profileError
+      }
+
+      console.log('useBranches - User role:', profile?.role)
 
       let branchesData: Branch[] = []
 
@@ -66,12 +73,20 @@ export function useBranches() {
 
         if (branchesError) throw branchesError
         branchesData = data || []
+        console.log('useBranches - Super admin branches loaded:', branchesData.length)
       } else {
         // Branch admin et agent voient uniquement leurs branches assignées
-        const { data: userBranches } = await supabase
+        const { data: userBranches, error: userBranchesError } = await supabase
           .from('user_branches')
           .select('branch_id')
           .eq('user_id', authUser.id)
+
+        console.log('useBranches - User branches:', userBranches)
+
+        if (userBranchesError) {
+          console.error('Error fetching user_branches:', userBranchesError)
+          throw userBranchesError
+        }
 
         if (userBranches && userBranches.length > 0) {
           const branchIds = userBranches.map(ub => ub.branch_id)
@@ -85,6 +100,7 @@ export function useBranches() {
 
           if (branchesError) throw branchesError
           branchesData = data || []
+          console.log('useBranches - Branch admin/agent branches loaded:', branchesData.length)
         }
       }
 
