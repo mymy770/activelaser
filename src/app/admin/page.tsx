@@ -2635,12 +2635,12 @@ export default function AdminPage() {
                         className={`cursor-pointer relative ${
                           booking
                             ? `flex items-center justify-center p-2 text-center`
-                            : `p-2 ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`
+                            : `p-2 ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors bg-transparent`
                         }`}
                         style={{
                           gridColumn: booking ? `${gridColumn} / ${gridColumn + colSpan}` : gridColumn,
                           gridRow: booking ? `${gridRow} / ${gridRow + rowSpan}` : gridRow,
-                          backgroundColor: booking ? (booking.color || (booking.type === 'EVENT' ? '#22c55e' : '#3b82f6')) : 'transparent',
+                          ...(booking && { backgroundColor: booking.color || (booking.type === 'EVENT' ? '#22c55e' : '#3b82f6') }),
                           // Quadrillage complet + contour gris pour les réservations
                           borderTop: shouldShowTopBorder ? `2px solid ${borderTopColor}` : 'none',
                           borderBottom: borderBottomColor !== 'none' ? `2px solid ${borderBottomColor}` : 'none',
@@ -2820,11 +2820,10 @@ export default function AdminPage() {
                                 <div
                                   key={`laser-cell-${timeIndex}-${roomIndex}`}
                                   onClick={() => openBookingModal(slot.hour, slot.minute, undefined, 'GAME', 'LASER')}
-                                  className={`cursor-pointer relative ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
+                                  className={`cursor-pointer relative p-2 ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors bg-transparent`}
                                   style={{
                                     gridColumn,
                                     gridRow,
-                                    backgroundColor: 'transparent',
                                     // Ne pas afficher borderTop si on est à l'intérieur d'une réservation
                                     borderTop: shouldShowTopBorder ? `2px solid ${isDark ? '#374151' : '#e5e7eb'}` : 'none',
                                     borderBottom: 'none',
@@ -3055,12 +3054,12 @@ export default function AdminPage() {
                         className={`cursor-pointer ${
                           booking
                             ? `flex flex-col items-center justify-center p-1 text-center`
-                            : `${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`
+                            : `p-1 ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors bg-transparent`
                         }`}
                         style={{
                           gridColumn: segment ? `${gridColumn} / ${gridColumn + colSpan}` : gridColumn,
                           gridRow: segment ? `${gridRow} / ${gridRow + rowSpan}` : gridRow,
-                          backgroundColor: segment && booking ? (booking.color || '#22c55e') : 'transparent',
+                          ...(segment && booking && { backgroundColor: booking.color || '#22c55e' }),
                           // Quadrillage complet + contour gris pour les réservations
                           borderTop: borderTopColor !== 'none' ? `2px solid ${borderTopColor}` : 'none',
                           borderBottom: borderBottomColor !== 'none' ? `2px solid ${borderBottomColor}` : 'none',
