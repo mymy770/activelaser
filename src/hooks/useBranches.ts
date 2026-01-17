@@ -12,14 +12,8 @@ interface BranchWithDetails extends Branch {
 
 export function useBranches() {
   const [branches, setBranches] = useState<BranchWithDetails[]>([])
-  // Charger la branche sélectionnée depuis localStorage pour persister entre les pages
-  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('selectedBranchId')
-      return saved || null
-    }
-    return null
-  })
+  // Ne pas charger depuis localStorage au début - on le fera après avoir chargé les branches autorisées
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -149,25 +143,43 @@ export function useBranches() {
 
       setBranches(branchesWithDetails)
 
-      // Sélectionner automatiquement la première branche si aucune n'est sélectionnée
+      // Sélectionner automatiquement la branche appropriée
       setSelectedBranchId(prev => {
-        if (!prev && branchesWithDetails.length > 0) {
-          // Si une seule branche (branch_admin avec 1 branche), la sélectionner
-          if (branchesWithDetails.length === 1) {
-            return branchesWithDetails[0].id
-          }
-          
-          // Sinon, chercher Rishon LeZion en priorité (pour super_admin)
-          const rishonBranch = branchesWithDetails.find(
-            b => b.slug === 'rishon-lezion' || 
-                 b.name.toLowerCase().includes('rishon') ||
-                 b.name.toLowerCase().includes('rly')
-          )
-          
-          // Si Rishon trouvé, l'utiliser, sinon première branche
-          return rishonBranch?.id || branchesWithDetails[0].id
+        if (branchesWithDetails.length === 0) {
+          return null
         }
-        return prev
+
+        // Si une seule branche (branch_admin avec 1 branche), la sélectionner
+        if (branchesWithDetails.length === 1) {
+          return branchesWithDetails[0].id
+        }
+
+        // Si une branche était déjà sélectionnée, vérifier qu'elle est toujours autorisée
+        if (prev) {
+          const isStillAuthorized = branchesWithDetails.some(b => b.id === prev)
+          if (isStillAuthorized) {
+            return prev // Garder la sélection actuelle si elle est toujours valide
+          }
+          // Sinon, la branche n'est plus autorisée (changement de rôle/permissions), réinitialiser
+        }
+
+        // Vérifier si on a une branche sauvegardée dans localStorage qui est autorisée
+        if (typeof window !== 'undefined') {
+          const saved = localStorage.getItem('selectedBranchId')
+          if (saved && branchesWithDetails.some(b => b.id === saved)) {
+            return saved // Utiliser la branche sauvegardée si elle est autorisée
+          }
+        }
+
+        // Sinon, chercher Rishon LeZion en priorité (pour super_admin)
+        const rishonBranch = branchesWithDetails.find(
+          b => b.slug === 'rishon-lezion' || 
+               b.name.toLowerCase().includes('rishon') ||
+               b.name.toLowerCase().includes('rly')
+        )
+        
+        // Si Rishon trouvé, l'utiliser, sinon première branche
+        return rishonBranch?.id || branchesWithDetails[0].id
       })
     } catch (err) {
       console.error('Error fetching branches:', err)
