@@ -97,7 +97,7 @@ export function AdminHeader({
   }
 
   return (
-    <header className={`${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} border-b px-4 sm:px-6 py-4`}>
+    <header className={`sticky top-0 z-40 ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} border-b px-4 sm:px-6 py-4 shadow-md`}>
       <div className="flex items-center justify-between">
         {/* Logos - À gauche */}
         <div className="flex items-center min-w-0 flex-shrink-0 gap-3">
