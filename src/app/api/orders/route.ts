@@ -548,6 +548,8 @@ export async function POST(request: NextRequest) {
       number_of_games || 1
     )
     
+    console.log('[POST /api/orders] Availability result:', availability)
+    
     let orderStatus: 'pending' | 'auto_confirmed' = 'pending'
     let bookingId: string | null = null
     let bookingReference: string | null = null

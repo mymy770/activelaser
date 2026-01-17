@@ -77,8 +77,10 @@ export default function ReservationPage() {
   const getAvailableDates = () => {
     const dates: string[] = []
     const today = new Date()
-    // Start from tomorrow, generate 365 days
-    for (let i = 1; i <= 365; i++) {
+    today.setHours(0, 0, 0, 0) // Normaliser à minuit local
+    
+    // Start from TODAY (i=0), not tomorrow
+    for (let i = 0; i <= 365; i++) {
       const date = new Date(today)
       date.setDate(today.getDate() + i)
       dates.push(date.toISOString().split('T')[0])

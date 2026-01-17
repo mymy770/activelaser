@@ -82,126 +82,15 @@ export async function PATCH(
     
     if (action === 'confirm') {
       // Confirmer manuellement une commande pending
-      if (order.status !== 'pending') {
-        return NextResponse.json(
-          { success: false, error: 'Order is not pending' },
-          { status: 400 }
-        )
-      }
-      
-      // Utiliser la MÊME référence que l'order (pas de nouvelle génération)
-      const bookingReference = order.request_reference
-      
-      // Récupérer les settings
-      const { data: settings } = await supabase
-        .from('branch_settings')
-        .select('*')
-        .eq('branch_id', order.branch_id)
-        .single()
-      
-      const gameDuration = settings?.game_duration_minutes || 30
-      const eventDuration = settings?.event_total_duration_minutes || 120
-      const bufferBefore = settings?.event_buffer_before_minutes || 30
-      
-      const startDateTime = new Date(`${order.requested_date}T${order.requested_time}`)
-      let endDateTime: Date
-      let gameStartDateTime: Date | null = null
-      let gameEndDateTime: Date | null = null
-      
-      if (order.order_type === 'EVENT') {
-        endDateTime = new Date(startDateTime.getTime() + eventDuration * 60000)
-        gameStartDateTime = new Date(startDateTime.getTime() + bufferBefore * 60000)
-        gameEndDateTime = new Date(gameStartDateTime.getTime() + (order.number_of_games * gameDuration) * 60000)
-      } else {
-        endDateTime = new Date(startDateTime.getTime() + (order.number_of_games * gameDuration) * 60000)
-        gameStartDateTime = startDateTime
-        gameEndDateTime = endDateTime
-      }
-      
-      // Créer le booking
-      const { data: booking, error: bookingError } = await supabase
-        .from('bookings')
-        .insert({
-          branch_id: order.branch_id,
-          type: order.order_type,
-          status: 'CONFIRMED',
-          start_datetime: startDateTime.toISOString(),
-          end_datetime: endDateTime.toISOString(),
-          game_start_datetime: gameStartDateTime?.toISOString(),
-          game_end_datetime: gameEndDateTime?.toISOString(),
-          participants_count: order.participants_count,
-          customer_first_name: order.customer_first_name,
-          customer_last_name: order.customer_last_name || '',
-          customer_phone: order.customer_phone,
-          customer_email: order.customer_email,
-          customer_notes_at_booking: order.customer_notes,
-          primary_contact_id: order.contact_id,
-          reference_code: bookingReference,
-        })
-        .select('id')
-        .single()
-      
-      if (bookingError) {
-        console.error('Error creating booking:', bookingError)
-        return NextResponse.json(
-          { success: false, error: 'Failed to create booking' },
-          { status: 500 }
-        )
-      }
-      
-      // Créer la liaison contact
-      await supabase
-        .from('booking_contacts')
-        .insert({
-          booking_id: booking.id,
-          contact_id: order.contact_id,
-          is_primary: true,
-        })
-      
-      // Créer les slots
-      const slots = []
-      let currentTime = new Date(gameStartDateTime || startDateTime)
-      
-      for (let i = 0; i < order.number_of_games; i++) {
-        const slotEnd = new Date(currentTime.getTime() + gameDuration * 60000)
-        slots.push({
-          booking_id: booking.id,
-          branch_id: order.branch_id,
-          slot_start: currentTime.toISOString(),
-          slot_end: slotEnd.toISOString(),
-          participants_count: order.participants_count,
-          slot_type: 'game_zone',
-        })
-        currentTime = slotEnd
-      }
-      
-      if (slots.length > 0) {
-        await supabase.from('booking_slots').insert(slots)
-      }
-      
-      // Mettre à jour la commande
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({
-          status: 'manually_confirmed',
-          booking_id: booking.id,
-          processed_at: new Date().toISOString(),
-          processed_by: user_id || null,
-        })
-        .eq('id', id)
-      
-      if (updateError) {
-        return NextResponse.json(
-          { success: false, error: 'Failed to update order' },
-          { status: 500 }
-        )
-      }
-      
-      return NextResponse.json({
-        success: true,
-        message: 'Order confirmed successfully',
-        booking_reference: bookingReference
-      })
+      // DÉSACTIVÉ: L'utilisateur doit passer par l'agenda pour validation manuelle
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Direct confirmation disabled',
+          message: 'Please use "Reactivate" button to open this order in the agenda for manual confirmation.'
+        },
+        { status: 400 }
+      )
       
     } else if (action === 'cancel') {
       // Annuler la commande
