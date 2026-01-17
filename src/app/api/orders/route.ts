@@ -165,6 +165,14 @@ export async function POST(request: NextRequest) {
     // 4. Construire les sessions avec session-builder (MÊME LOGIQUE QUE ADMIN)
     const { buildGameSessionsForAPI } = await import('@/lib/session-builder')
     
+    console.log('[POST /api/orders] Calling buildGameSessionsForAPI with:', {
+      gameArea: game_area,
+      numberOfGames: number_of_games,
+      participants: participants_count,
+      startDateTime: startDateTime.toISOString(),
+      gameDuration
+    })
+    
     let sessionResult
     try {
       sessionResult = await buildGameSessionsForAPI({
@@ -175,6 +183,11 @@ export async function POST(request: NextRequest) {
         branchId: branch_id,
         gameDuration,
         supabase
+      })
+      
+      console.log('[POST /api/orders] Session builder result:', {
+        error: sessionResult.error,
+        sessionsCount: sessionResult.game_sessions.length
       })
     } catch (err) {
       console.error('[POST /api/orders] Session building error:', err)

@@ -100,7 +100,8 @@ export default function ReservationPage() {
     
     dates.forEach((date) => {
       const dateObj = new Date(date + 'T00:00:00')
-      const monthKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth()).padStart(2, '0')}`
+      // BUG FIX: getMonth() retourne 0-11, il faut +1 pour avoir 1-12
+      const monthKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`
       if (!grouped[monthKey]) {
         grouped[monthKey] = []
       }

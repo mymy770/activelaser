@@ -148,7 +148,7 @@ export async function buildGameSessionsForAPI(params: {
   supabase: any // Supabase client
 }): Promise<SessionBuilderResult> {
   
-  const { gameArea, supabase, branchId, startDateTime, gameDuration, numberOfGames } = params
+  const { gameArea, supabase, branchId, startDateTime, gameDuration, numberOfGames, participants } = params
   
   // Si LASER, on doit récupérer les données pour findBestLaserRoom
   if (gameArea === 'LASER') {
@@ -213,15 +213,25 @@ export async function buildGameSessionsForAPI(params: {
     }
     
     return await buildGameSessions({
-      ...params,
       bookingType: 'GAME',
+      gameArea,
+      numberOfGames,
+      participants,
+      startDateTime,
+      branchId,
+      gameDuration,
       findBestLaserRoom
     })
   }
   
   // Pour ACTIVE, pas besoin de fonction spéciale
   return await buildGameSessions({
-    ...params,
-    bookingType: 'GAME'
+    bookingType: 'GAME',
+    gameArea,
+    numberOfGames,
+    participants,
+    startDateTime,
+    branchId,
+    gameDuration
   })
 }
