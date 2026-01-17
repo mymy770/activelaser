@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Fragment } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, Plus, LogOut, User, ChevronDown, Sun, Moon, ChevronLeft, ChevronRight, Calendar, Users, PartyPopper, Gamepad2, Search, Trash2, Settings, Sliders } from 'lucide-react'
+import { Loader2, Plus, LogOut, User, ChevronDown, Sun, Moon, ChevronLeft, ChevronRight, Calendar, Users, PartyPopper, Gamepad2, Search, Trash2, Settings, Sliders, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useBookings, type BookingWithSlots, type CreateBookingData } from '@/hooks/useBookings'
 import { BookingModal } from './components/BookingModal'
@@ -2236,6 +2236,21 @@ export default function AdminPage() {
               }`}
             >
               ROOMS
+            </button>
+            
+            {/* Bouton Rafraîchir l'agenda */}
+            <button
+              onClick={() => {
+                fetchBookings()
+              }}
+              className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
+                isDark
+                  ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+              title="Rafraîchir l'agenda"
+            >
+              <RefreshCw className="w-4 h-4" />
             </button>
           </div>
 
