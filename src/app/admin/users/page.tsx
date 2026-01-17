@@ -194,7 +194,7 @@ export default function UsersPage() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSubmit={createUser}
-        branches={branches}
+        branches={user.branches}
         currentUserRole={user.role}
         currentUserBranchIds={user.branches.map(b => b.id)}
         isDark={isDark}
@@ -219,7 +219,7 @@ export default function UsersPage() {
         }}
         onSubmit={updateUser}
         user={selectedUser}
-        branches={branches}
+        branches={user.branches}
         currentUserRole={user.role}
         currentUserBranchIds={user.branches.map(b => b.id)}
         isDark={isDark}

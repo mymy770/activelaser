@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
         })
       }
     } else {
-      // Branch admin voit uniquement les utilisateurs de ses branches
+      // Branch admin voit lui-même + tous les utilisateurs qui partagent au moins une branche
       // 1. Récupérer les branches du branch_admin
       const { data: adminBranches, error: branchesError } = await supabase
         .from('user_branches')
@@ -107,15 +107,31 @@ export async function GET(request: NextRequest) {
         .eq('user_id', user.id)
 
       if (branchesError || !adminBranches || adminBranches.length === 0) {
+        // Même sans branches, le branch_admin doit se voir lui-même
+        const serviceClient = createServiceRoleClient()
+        const { data: authUser } = await serviceClient.auth.admin.getUserById(user.id)
+        
+        users.push({
+          ...profile,
+          email: authUser?.user?.email || user.id,
+          branches: [],
+          creator: profile.created_by ? await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', profile.created_by)
+            .single()
+            .then(r => r.data) : null,
+        })
+        
         return NextResponse.json(
-          { success: true, users: [] },
+          { success: true, users },
           { status: 200 }
         )
       }
 
       const branchIds = adminBranches.map(b => b.branch_id)
 
-      // 2. Récupérer tous les utilisateurs assignés à ces branches
+      // 2. Récupérer tous les utilisateurs assignés à ces branches (y compris le branch_admin lui-même)
       const { data: userBranchesData, error: userBranchesError } = await supabase
         .from('user_branches')
         .select('user_id, branch_id, branches(*), profiles(*)')
@@ -129,16 +145,45 @@ export async function GET(request: NextRequest) {
         )
       }
 
-      // 3. Grouper par utilisateur
+      // 3. Grouper par utilisateur (inclure le branch_admin lui-même même s'il n'a pas de user_branches)
       const userMap = new Map<string, UserWithBranches>()
       
       // Créer un client service role pour récupérer les emails
       const serviceClient = createServiceRoleClient()
       
+      // D'abord, ajouter le branch_admin lui-même
+      const { data: authUserSelf } = await serviceClient.auth.admin.getUserById(user.id)
+      const adminBranchesFull = await Promise.all(
+        branchIds.map(async (branchId) => {
+          const { data: branch } = await supabase
+            .from('branches')
+            .select('*')
+            .eq('id', branchId)
+            .single()
+          return branch
+        })
+      )
+      
+      userMap.set(user.id, {
+        ...profile,
+        email: authUserSelf?.user?.email || user.id,
+        branches: adminBranchesFull.filter(Boolean) as any[],
+        creator: profile.created_by ? await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', profile.created_by)
+          .single()
+          .then(r => r.data) : null,
+      })
+      
+      // Ensuite, ajouter tous les autres utilisateurs qui partagent des branches
       for (const ub of userBranchesData || []) {
         if (!ub.profiles) continue
 
         const userId = ub.user_id
+        // Si c'est déjà le branch_admin, on skip (déjà ajouté)
+        if (userId === user.id) continue
+        
         if (!userMap.has(userId)) {
           // Récupérer l'email depuis auth.users
           const { data: authUser } = await serviceClient.auth.admin.getUserById(userId)
@@ -297,8 +342,21 @@ export async function POST(request: NextRequest) {
       const invalidBranches = branch_ids.filter(id => !adminBranchIds.includes(id))
 
       if (invalidBranches.length > 0) {
+        // Récupérer les noms des branches invalides pour un message plus clair
+        const { data: invalidBranchNames } = await supabase
+          .from('branches')
+          .select('name')
+          .in('id', invalidBranches)
+
+        const branchNames = (invalidBranchNames || []).map(b => b.name).join(', ')
+        
+        console.error(`Branch admin ${user.id} attempted to assign unauthorized branches:`, invalidBranches)
+        
         return NextResponse.json(
-          { success: false, error: 'Vous ne pouvez assigner que vos propres branches' },
+          { 
+            success: false, 
+            error: `Vous ne pouvez assigner que vos propres branches. Branches non autorisées: ${branchNames || invalidBranches.join(', ')}` 
+          },
           { status: 403 }
         )
       }
