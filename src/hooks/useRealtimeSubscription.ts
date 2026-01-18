@@ -17,46 +17,40 @@ interface SubscriptionConfig {
   onChange?: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void
 }
 
+// Compteur global pour générer des IDs uniques
+let channelCounter = 0
+
 /**
  * Hook pour s'abonner aux changements en temps réel sur une table Supabase
- *
- * @example
- * // S'abonner à tous les changements sur bookings d'une branche
- * useRealtimeSubscription({
- *   table: 'bookings',
- *   filter: `branch_id=eq.${branchId}`,
- *   onChange: () => refetch()
- * })
- *
- * @example
- * // S'abonner uniquement aux insertions
- * useRealtimeSubscription({
- *   table: 'orders',
- *   event: 'INSERT',
- *   filter: `branch_id=eq.${branchId}`,
- *   onInsert: (payload) => console.log('New order:', payload.new)
- * })
  */
 export function useRealtimeSubscription(
   config: SubscriptionConfig,
   enabled: boolean = true
 ) {
   const channelRef = useRef<RealtimeChannel | null>(null)
-  const configRef = useRef(config)
+  const isSubscribingRef = useRef(false)
 
-  // Update config ref when it changes
+  const { table, event = '*', filter, onInsert, onUpdate, onDelete, onChange } = config
+
   useEffect(() => {
-    configRef.current = config
-  }, [config])
-
-  const subscribe = useCallback(() => {
-    if (!enabled) return
+    // Ne pas s'abonner si désactivé ou déjà en cours
+    if (!enabled || isSubscribingRef.current) {
+      return
+    }
 
     const supabase = getClient()
-    const { table, event = '*', filter, onInsert, onUpdate, onDelete, onChange } = configRef.current
 
-    // Générer un nom de channel unique
-    const channelName = `realtime:${table}:${filter || 'all'}:${Date.now()}`
+    // Cleanup synchrone du canal précédent
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current)
+      channelRef.current = null
+    }
+
+    isSubscribingRef.current = true
+
+    // Générer un nom de channel unique avec compteur
+    const channelId = ++channelCounter
+    const channelName = `rt_${table}_${filter || 'all'}_${channelId}`
 
     // Configuration pour l'écoute des changements
     const channelConfig: {
@@ -81,12 +75,10 @@ export function useRealtimeSubscription(
         'postgres_changes',
         channelConfig,
         (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
-          // Handler générique pour tout changement
           if (onChange) {
             onChange(payload)
           }
 
-          // Handlers spécifiques par type d'événement
           switch (payload.eventType) {
             case 'INSERT':
               if (onInsert) onInsert(payload)
@@ -100,16 +92,28 @@ export function useRealtimeSubscription(
           }
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
+        isSubscribingRef.current = false
         if (status === 'SUBSCRIBED') {
           console.log(`[Realtime] Subscribed to ${table}${filter ? ` with filter ${filter}` : ''}`)
         } else if (status === 'CHANNEL_ERROR') {
-          console.error(`[Realtime] Error subscribing to ${table}`)
+          console.error(`[Realtime] Error subscribing to ${table}`, err)
+        } else if (status === 'TIMED_OUT') {
+          console.error(`[Realtime] Timeout subscribing to ${table}`)
         }
       })
 
     channelRef.current = channel
-  }, [enabled])
+
+    // Cleanup au démontage ou changement de dépendances
+    return () => {
+      isSubscribingRef.current = false
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
+    }
+  }, [enabled, table, event, filter, onChange, onInsert, onUpdate, onDelete])
 
   const unsubscribe = useCallback(() => {
     if (channelRef.current) {
@@ -119,26 +123,11 @@ export function useRealtimeSubscription(
     }
   }, [])
 
-  useEffect(() => {
-    subscribe()
-    return () => unsubscribe()
-  }, [subscribe, unsubscribe])
-
-  return {
-    unsubscribe,
-    resubscribe: () => {
-      unsubscribe()
-      subscribe()
-    }
-  }
+  return { unsubscribe }
 }
 
 /**
  * Hook simplifié pour rafraîchir automatiquement les données quand une table change
- *
- * @example
- * const { bookings, refresh } = useBookings(branchId)
- * useRealtimeRefresh('bookings', branchId, refresh)
  */
 export function useRealtimeRefresh(
   table: TableName,
@@ -152,15 +141,18 @@ export function useRealtimeRefresh(
     onRefreshRef.current = onRefresh
   }, [onRefresh])
 
+  // Callback stable pour onChange
+  const handleChange = useCallback(() => {
+    console.log(`[Realtime] Change detected in ${table}, refreshing...`)
+    onRefreshRef.current()
+  }, [table])
+
   // Subscription principale
   useRealtimeSubscription(
     {
       table,
       filter: branchId ? `branch_id=eq.${branchId}` : undefined,
-      onChange: () => {
-        console.log(`[Realtime] Change detected in ${table}, refreshing...`)
-        onRefreshRef.current()
-      }
+      onChange: handleChange
     },
     !!branchId
   )
@@ -172,8 +164,9 @@ export function useRealtimeRefresh(
     const supabase = getClient()
     const channels: RealtimeChannel[] = []
 
-    additionalTables.forEach(additionalTable => {
-      const channelName = `realtime:${additionalTable}:related:${Date.now()}`
+    additionalTables.forEach((additionalTable, index) => {
+      const channelId = ++channelCounter
+      const channelName = `rt_${additionalTable}_related_${channelId}`
 
       const channel = supabase
         .channel(channelName)
