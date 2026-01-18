@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
+import { useTranslation } from '@/contexts/LanguageContext'
 
 interface DateNavigationProps {
   selectedDate: Date
@@ -16,6 +17,28 @@ export function DateNavigation({
   view,
   onViewChange,
 }: DateNavigationProps) {
+  const { t, locale } = useTranslation()
+
+  // Helper pour obtenir la locale de date en fonction de la langue
+  const getDateLocale = () => {
+    switch (locale) {
+      case 'he': return 'he-IL'
+      case 'en': return 'en-US'
+      default: return 'fr-FR'
+    }
+  }
+
+  // Helper pour obtenir le nom du mois traduit
+  const getMonthName = (monthIndex: number) => {
+    const monthKeys = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
+    return t(`admin.agenda.months.${monthKeys[monthIndex]}`)
+  }
+
+  // Helper pour obtenir les jours de la semaine traduits (format court)
+  const getDaysShort = () => {
+    return t('admin.agenda.days_short') as unknown as string[]
+  }
+
   const [showCalendar, setShowCalendar] = useState(false)
   const [calendarMonth, setCalendarMonth] = useState(selectedDate.getMonth())
   const [calendarYear, setCalendarYear] = useState(selectedDate.getFullYear())
@@ -42,7 +65,7 @@ export function DateNavigation({
   }, [showCalendar])
 
   const formatDateLong = (date: Date) => {
-    return date.toLocaleDateString('fr-FR', {
+    return date.toLocaleDateString(getDateLocale(), {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -55,8 +78,8 @@ export function DateNavigation({
     const endOfWeek = new Date(startOfWeek)
     endOfWeek.setDate(endOfWeek.getDate() + 6)
 
-    const startStr = startOfWeek.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-    const endStr = endOfWeek.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+    const startStr = startOfWeek.toLocaleDateString(getDateLocale(), { day: 'numeric', month: 'short' })
+    const endStr = endOfWeek.toLocaleDateString(getDateLocale(), { day: 'numeric', month: 'short', year: 'numeric' })
 
     return `${startStr} - ${endStr}`
   }
@@ -143,10 +166,7 @@ export function DateNavigation({
     return days
   }
 
-  const monthNames = [
-    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
-  ]
+  // monthNames est maintenant dynamique via getMonthName()
 
   return (
     <div className="flex items-center gap-4 flex-wrap">
@@ -160,7 +180,7 @@ export function DateNavigation({
               : 'text-gray-400 hover:text-white'
           }`}
         >
-          Jour
+          {t('admin.agenda.view.day')}
         </button>
         <button
           onClick={() => onViewChange('week')}
@@ -170,7 +190,7 @@ export function DateNavigation({
               : 'text-gray-400 hover:text-white'
           }`}
         >
-          Semaine
+          {t('admin.agenda.view.week')}
         </button>
       </div>
 
@@ -212,7 +232,7 @@ export function DateNavigation({
                   <ChevronLeft className="w-5 h-5 text-gray-400" />
                 </button>
                 <span className="text-white font-medium">
-                  {monthNames[calendarMonth]} {calendarYear}
+                  {getMonthName(calendarMonth)} {calendarYear}
                 </span>
                 <button
                   onClick={() => {
@@ -231,8 +251,8 @@ export function DateNavigation({
 
               {/* Jours de la semaine */}
               <div className="grid grid-cols-7 gap-1 mb-2">
-                {['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di'].map(day => (
-                  <div key={day} className="p-2 text-center text-xs text-gray-500 font-medium">
+                {getDaysShort().map((day, i) => (
+                  <div key={i} className="p-2 text-center text-xs text-gray-500 font-medium">
                     {day}
                   </div>
                 ))}
@@ -248,7 +268,7 @@ export function DateNavigation({
                 onClick={handleToday}
                 className="w-full mt-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
               >
-                Aujourd&apos;hui
+                {t('admin.agenda.today')}
               </button>
             </div>
           )}

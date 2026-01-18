@@ -12,6 +12,7 @@ import { SettingsModal } from './components/SettingsModal'
 import { useBranches } from '@/hooks/useBranches'
 import { useAuth } from '@/hooks/useAuth'
 import { useLaserRooms } from '@/hooks/useLaserRooms'
+import { useTranslation } from '@/contexts/LanguageContext'
 import type { Profile, UserBranch, GameArea, GameSession, UserRole, BookingContact, BookingSlot, Contact } from '@/lib/supabase/types'
 
 type Theme = 'light' | 'dark'
@@ -27,6 +28,16 @@ interface UserData {
 export default function AdminPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { t, locale } = useTranslation()
+
+  // Helper pour obtenir la locale de date en fonction de la langue
+  const getDateLocale = () => {
+    switch (locale) {
+      case 'he': return 'he-IL'
+      case 'en': return 'en-US'
+      default: return 'fr-FR'
+    }
+  }
   const [loading, setLoading] = useState(true)
   const [userData, setUserData] = useState<UserData | null>(null)
   // Utiliser useBranches pour partager la branche sélectionnée avec le CRM
@@ -686,24 +697,24 @@ export default function AdminPage() {
   const handleDeleteAllBookings = () => {
     setConfirmationModal({
       isOpen: true,
-      title: '⚠️ ATTENTION',
-      message: 'Cette action va supprimer TOUTES les réservations (jeux et événements) de cette branche. Cette action est irréversible.\n\nÊtes-vous sûr de vouloir continuer ?',
+      title: `⚠️ ${t('admin.agenda.delete_all_title')}`,
+      message: t('admin.agenda.delete_all_message'),
       type: 'warning',
       onConfirm: async () => {
         const success = await deleteAllBookings()
         if (success) {
           setConfirmationModal({
             isOpen: true,
-            title: 'Succès',
-            message: 'Toutes les réservations ont été supprimées. Le système est maintenant à zéro.',
+            title: t('admin.common.success'),
+            message: t('admin.agenda.delete_all_success'),
             type: 'success',
             onConfirm: () => {},
           })
         } else {
           setConfirmationModal({
             isOpen: true,
-            title: 'Erreur',
-            message: 'Erreur lors de la suppression de toutes les réservations.',
+            title: t('admin.common.error'),
+            message: t('admin.agenda.delete_all_error'),
             type: 'warning',
             onConfirm: () => {},
           })
@@ -801,7 +812,7 @@ export default function AdminPage() {
   }
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('fr-FR', {
+    return date.toLocaleDateString(getDateLocale(), {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -810,7 +821,7 @@ export default function AdminPage() {
   }
 
   const formatDateFull = (date: Date) => {
-    return date.toLocaleDateString('fr-FR', {
+    return date.toLocaleDateString(getDateLocale(), {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -880,7 +891,11 @@ export default function AdminPage() {
     return days
   }
 
-  const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+  // Les noms de mois sont maintenant gérés via les clés de traduction
+  const getMonthName = (monthIndex: number) => {
+    const monthKeys = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
+    return t(`admin.agenda.months.${monthKeys[monthIndex]}`)
+  }
 
   const goToPrevDay = () => {
     const newDate = new Date(selectedDate)
@@ -1023,15 +1038,15 @@ export default function AdminPage() {
     const monthTotalParticipants = monthBookings.reduce((sum, b) => sum + b.participants_count, 0)
     
     // Formater la période de la semaine
-    const weekStartStr = weekStart.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
-    const weekEndStr = weekEnd.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+    const weekStartStr = weekStart.toLocaleDateString(getDateLocale(), { day: '2-digit', month: 'short' })
+    const weekEndStr = weekEnd.toLocaleDateString(getDateLocale(), { day: '2-digit', month: 'short', year: 'numeric' })
     
     return {
       day: {
         withRoom: dayWithRoom.length,
         withoutRoom: dayWithoutRoom.length,
         totalParticipants: dayTotalParticipants,
-        dateStr: selectedDate.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+        dateStr: selectedDate.toLocaleDateString(getDateLocale(), { day: '2-digit', month: 'short' })
       },
       week: {
         withRoom: weekWithRoom.length,
@@ -1043,7 +1058,7 @@ export default function AdminPage() {
         withRoom: monthWithRoom.length,
         withoutRoom: monthWithoutRoom.length,
         totalParticipants: monthTotalParticipants,
-        period: selectedDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+        period: selectedDate.toLocaleDateString(getDateLocale(), { month: 'long', year: 'numeric' })
       }
     }
   }
@@ -1403,7 +1418,7 @@ export default function AdminPage() {
         maxOverbookedCount = Math.max(maxOverbookedCount, overbookedCount)
         maxOverbookedSlots = Math.max(maxOverbookedSlots, overbookedSlots)
         
-        const timeLabel = timeSlotStart.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        const timeLabel = timeSlotStart.toLocaleTimeString(getDateLocale(), { hour: '2-digit', minute: '2-digit' })
         affectedTimeSlots.push({
           time: timeLabel,
           overbookedCount,
@@ -1934,7 +1949,7 @@ export default function AdminPage() {
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Chargement...</p>
+          <p className="text-gray-400">{t('admin.common.loading')}</p>
         </div>
       </div>
     )
@@ -2051,7 +2066,7 @@ export default function AdminPage() {
                 type="text"
                 value={agendaSearchQuery}
                 onChange={(e) => setAgendaSearchQuery(e.target.value)}
-                placeholder="Rechercher un rendez-vous (nom client, date, heure, référence)..."
+                placeholder={t('admin.agenda.search_placeholder')}
                 className={`w-full pl-10 pr-4 py-3 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg text-base placeholder-gray-500 focus:border-blue-500 focus:outline-none`}
               />
             </div>
@@ -2060,19 +2075,19 @@ export default function AdminPage() {
             {agendaSearchQuery && searchResults.length > 0 && (
               <div className={`w-96 ${isDark ? 'bg-gray-800' : 'bg-white'} border ${isDark ? 'border-gray-700' : 'border-gray-200'} rounded-lg shadow-xl max-h-96 overflow-y-auto`}>
                 <div className={`px-3 py-2 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'} ${isDark ? 'text-white' : 'text-gray-900'} font-semibold text-sm`}>
-                  {searchResults.length} résultat{searchResults.length > 1 ? 's' : ''} trouvé{searchResults.length > 1 ? 's' : ''}
+                  {searchResults.length} {t('admin.agenda.results_found')}
                 </div>
                 <div className="divide-y divide-gray-700">
                   {searchResults.map((booking) => {
                     const bookingDate = new Date(booking.start_datetime)
-                    const dateFormatted = bookingDate.toLocaleDateString('fr-FR', {
+                    const dateFormatted = bookingDate.toLocaleDateString(getDateLocale(), {
                       day: '2-digit',
                       month: 'short',
                       year: 'numeric'
                     })
                     const timeFormatted = `${String(bookingDate.getHours()).padStart(2, '0')}:${String(bookingDate.getMinutes()).padStart(2, '0')}`
                     const contactData = getContactDisplayData(booking)
-                    const customerName = `${contactData.firstName || ''} ${contactData.lastName || ''}`.trim() || 'Sans nom'
+                    const customerName = `${contactData.firstName || ''} ${contactData.lastName || ''}`.trim() || t('admin.agenda.booking.no_name')
                     
                     return (
                       <button
@@ -2098,7 +2113,7 @@ export default function AdminPage() {
                             </div>
                             {booking.reference_code && (
                               <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'} mt-0.5`}>
-                                Ref: {booking.reference_code}
+                                {t('admin.agenda.ref')}: {booking.reference_code}
                               </div>
                             )}
                           </div>
@@ -2119,7 +2134,7 @@ export default function AdminPage() {
             {/* Message si aucun résultat */}
             {agendaSearchQuery && searchResults.length === 0 && (
               <div className={`w-96 ${isDark ? 'bg-gray-800' : 'bg-white'} border ${isDark ? 'border-gray-700' : 'border-gray-200'} rounded-lg shadow-xl px-4 py-3 ${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
-                Aucun rendez-vous trouvé
+                {t('admin.agenda.no_results')}
               </div>
             )}
           </div>
@@ -2134,15 +2149,15 @@ export default function AdminPage() {
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>Avec salle:</span>
+                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>{t('admin.agenda.stats.with_room')}:</span>
                 <span className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{stats.day.withRoom}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>Sans salle:</span>
+                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>{t('admin.agenda.stats.without_room')}:</span>
                 <span className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{stats.day.withoutRoom}</span>
               </div>
               <div className={`flex items-center justify-between pt-2 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm font-semibold`}>Total personnes:</span>
+                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm font-semibold`}>{t('admin.agenda.stats.total_people')}:</span>
                 <span className={`text-2xl font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{stats.day.totalParticipants}</span>
               </div>
             </div>
@@ -2151,19 +2166,19 @@ export default function AdminPage() {
           {/* Semaine */}
           <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl p-4 border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
             <div className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-base mb-2`}>
-              Semaine ({stats.week.period})
+              {t('admin.agenda.week')} ({stats.week.period})
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>Avec salle:</span>
+                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>{t('admin.agenda.stats.with_room')}:</span>
                 <span className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{stats.week.withRoom}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>Sans salle:</span>
+                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>{t('admin.agenda.stats.without_room')}:</span>
                 <span className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{stats.week.withoutRoom}</span>
               </div>
               <div className={`flex items-center justify-between pt-2 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm font-semibold`}>Total personnes:</span>
+                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm font-semibold`}>{t('admin.agenda.stats.total_people')}:</span>
                 <span className={`text-2xl font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{stats.week.totalParticipants}</span>
               </div>
             </div>
@@ -2172,19 +2187,19 @@ export default function AdminPage() {
           {/* Mois */}
           <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl p-4 border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
             <div className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-base mb-2`}>
-              Mois ({stats.month.period})
+              {t('admin.agenda.month')} ({stats.month.period})
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>Avec salle:</span>
+                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>{t('admin.agenda.stats.with_room')}:</span>
                 <span className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{stats.month.withRoom}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>Sans salle:</span>
+                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>{t('admin.agenda.stats.without_room')}:</span>
                 <span className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{stats.month.withoutRoom}</span>
               </div>
               <div className={`flex items-center justify-between pt-2 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm font-semibold`}>Total personnes:</span>
+                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm font-semibold`}>{t('admin.agenda.stats.total_people')}:</span>
                 <span className={`text-2xl font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{stats.month.totalParticipants}</span>
               </div>
             </div>
@@ -2203,7 +2218,7 @@ export default function AdminPage() {
                   ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
-              title="Paramètres de la branche"
+              title={t('admin.agenda.settings.branch_title')}
             >
               <Settings className="w-5 h-5" />
             </button>
@@ -2216,7 +2231,7 @@ export default function AdminPage() {
                   ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
-              title="Paramètres d'affichage de la grille"
+              title={t('admin.agenda.settings.grid_title')}
             >
               <Sliders className="w-5 h-5" />
             </button>
@@ -2274,7 +2289,7 @@ export default function AdminPage() {
                   ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
-              title="Rafraîchir l'agenda"
+              title={t('admin.agenda.settings.refresh')}
             >
               <RefreshCw className="w-4 h-4" />
             </button>
@@ -2287,7 +2302,7 @@ export default function AdminPage() {
               <button
                 onClick={() => setShowCalendarModal(!showCalendarModal)}
                 className={`p-2 ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300'} border ${isDark ? 'border-gray-700' : 'border-gray-300'} rounded-lg transition-all`}
-                title="Ouvrir le calendrier"
+                title={t('admin.agenda.settings.open_calendar')}
               >
                 <Calendar className={`w-5 h-5 ${isDark ? 'text-white' : 'text-gray-900'}`} />
               </button>
@@ -2305,7 +2320,7 @@ export default function AdminPage() {
                       <button
                         onClick={handlePreviousYear}
                         className={`p-1 ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} rounded hover:opacity-80 transition-all`}
-                        title="Année précédente"
+                        title={t('admin.agenda.settings.previous_year')}
                       >
                         <div className="relative w-4 h-4">
                           <ChevronLeft className={`w-4 h-4 ${isDark ? 'text-white' : 'text-gray-900'} absolute`} />
@@ -2315,24 +2330,24 @@ export default function AdminPage() {
                       <button
                         onClick={handlePreviousMonth}
                         className={`p-1 ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} rounded hover:opacity-80 transition-all`}
-                        title="Mois précédent"
+                        title={t('admin.agenda.settings.previous_month')}
                       >
                         <ChevronLeft className={`w-4 h-4 ${isDark ? 'text-white' : 'text-gray-900'}`} />
                       </button>
                       <div className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'} px-4`}>
-                        {monthNames[calendarMonth]} {calendarYear}
+                        {getMonthName(calendarMonth)} {calendarYear}
                       </div>
                       <button
                         onClick={handleNextMonth}
                         className={`p-1 ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} rounded hover:opacity-80 transition-all`}
-                        title="Mois suivant"
+                        title={t('admin.agenda.settings.next_month')}
                       >
                         <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white' : 'text-gray-900'}`} />
                       </button>
                       <button
                         onClick={handleNextYear}
                         className={`p-1 ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} rounded hover:opacity-80 transition-all`}
-                        title="Année suivante"
+                        title={t('admin.agenda.settings.next_year')}
                       >
                         <div className="relative w-4 h-4">
                           <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white' : 'text-gray-900'} absolute`} />
@@ -2344,7 +2359,7 @@ export default function AdminPage() {
                     {/* Grille calendrier */}
                     <div className="grid grid-cols-7 gap-1">
                       {/* En-têtes jours */}
-                      {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((day, i) => (
+                      {(t('admin.agenda.days_short') as unknown as string[]).map((day, i) => (
                         <div key={i} className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'} text-center p-1 font-bold`}>
                           {day}
                         </div>
@@ -2405,7 +2420,7 @@ export default function AdminPage() {
               onClick={goToToday}
               className={`px-3 py-2 ${isDark ? 'bg-blue-600/20 border-blue-500/50 hover:bg-blue-600/30' : 'bg-blue-100 border-blue-300 hover:bg-blue-200'} border rounded-lg transition-all text-sm ${isDark ? 'text-blue-400' : 'text-blue-600'}`}
             >
-              Aujourd'hui
+              {t('admin.agenda.today_button')}
             </button>
           </div>
 
@@ -2415,7 +2430,7 @@ export default function AdminPage() {
             <button
               onClick={handlePreviousWeek}
               className={`p-2 ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300'} border ${isDark ? 'border-gray-700' : 'border-gray-300'} rounded-lg transition-all`}
-              title="Semaine précédente"
+              title={t('admin.agenda.settings.previous_week')}
             >
               <ChevronLeft className={`w-5 h-5 ${isDark ? 'text-white' : 'text-gray-900'}`} />
             </button>
@@ -2438,7 +2453,7 @@ export default function AdminPage() {
                     }`}
                   >
                     <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'} leading-tight`}>
-                      {day.toLocaleDateString('fr-FR', { weekday: 'short' })}
+                      {day.toLocaleDateString(getDateLocale(), { weekday: 'short' })}
                     </div>
                     <div className={`text-sm font-bold leading-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
                       {day.getDate()}
@@ -2452,7 +2467,7 @@ export default function AdminPage() {
             <button
               onClick={handleNextWeek}
               className={`p-2 ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300'} border ${isDark ? 'border-gray-700' : 'border-gray-300'} rounded-lg transition-all`}
-              title="Semaine suivante"
+              title={t('admin.agenda.settings.next_week')}
             >
               <ChevronRight className={`w-5 h-5 ${isDark ? 'text-white' : 'text-gray-900'}`} />
             </button>
@@ -2491,7 +2506,7 @@ export default function AdminPage() {
                 borderBottom: `2px solid ${isDark ? '#374151' : '#e5e7eb'}`
               }}>
                 <div className={`p-3 text-center font-medium ${isDark ? 'text-gray-400 bg-gray-900' : 'text-gray-600 bg-gray-50'}`}>
-                  Heure
+                  {t('admin.agenda.grid_headers.hour')}
                 </div>
                 {Array.from({ length: TOTAL_SLOTS }, (_, i) => (
                   <div key={`slot-${i}`} className={`p-3 text-center font-medium border-l ${isDark ? 'text-blue-400 bg-gray-900 border-gray-700' : 'text-blue-600 bg-gray-50 border-gray-200'}`}>
@@ -2669,15 +2684,15 @@ export default function AdminPage() {
                         }}
                         title={booking ? (() => {
                           const contactData = getContactDisplayData(booking)
-                          return `${contactData.firstName} ${contactData.lastName || ''}`.trim() || 'Sans nom'
-                        })() + ` - ${booking.participants_count} pers.` : ''}
+                          return `${contactData.firstName} ${contactData.lastName || ''}`.trim() || t('admin.agenda.booking.no_name')
+                        })() + ` - ${booking.participants_count} ${t('admin.agenda.booking.people')}` : ''}
                       >
                         {/* Badge OB supprimé - la colonne OB est la source de vérité */}
                         {booking && showDetails && (
                           <div className={`${getTextSizeClass(displayTextSize)} ${getTextWeightClass(displayTextWeight)} leading-tight ${isDark ? 'text-white' : 'text-white'}`} style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
                             {(() => {
                               const contactData = getContactDisplayData(booking)
-                              const name = contactData.firstName || 'Sans nom'
+                              const name = contactData.firstName || t('admin.agenda.booking.no_name')
                               return `${name}-${booking.participants_count}`
                             })()}
                           </div>
@@ -2899,8 +2914,8 @@ export default function AdminPage() {
                                         }}
                                         title={(() => {
                                           const contactData = getContactDisplayData(booking)
-                                          return `${contactData.firstName} ${contactData.lastName || ''}`.trim() || 'Sans nom'
-                                        })() + ` - ${booking.participants_count} pers.`}
+                                          return `${contactData.firstName} ${contactData.lastName || ''}`.trim() || t('admin.agenda.booking.no_name')
+                                        })() + ` - ${booking.participants_count} ${t('admin.agenda.booking.people')}`}
                                       >
                                         <div 
                                           className={`${getTextSizeClass(displayTextSize)} ${getTextWeightClass(displayTextWeight)} leading-tight text-white whitespace-nowrap overflow-hidden text-ellipsis px-1`}
@@ -2908,7 +2923,7 @@ export default function AdminPage() {
                                         >
                                           {(() => {
                                             const contactData = getContactDisplayData(booking)
-                                            const name = contactData.firstName || 'Sans nom'
+                                            const name = contactData.firstName || t('admin.agenda.booking.no_name')
                                             return `${name}-${booking.participants_count}`
                                           })()}
                                         </div>
@@ -2935,13 +2950,13 @@ export default function AdminPage() {
                 borderBottom: `2px solid ${isDark ? '#374151' : '#e5e7eb'}`
               }}>
                 <div className={`p-3 text-center font-medium ${isDark ? 'text-gray-400 bg-gray-900' : 'text-gray-600 bg-gray-50'}`}>
-                  Heure
+                  {t('admin.agenda.grid_headers.hour')}
                 </div>
                 {branchRooms
                   .filter(r => r.is_active)
                   .sort((a, b) => a.sort_order - b.sort_order)
                   .map((room, i) => {
-                    const roomName = room.name || `Salle ${i + 1}`
+                    const roomName = room.name || `${t('admin.agenda.grid_headers.room')} ${i + 1}`
                     return (
                       <div key={`room-${room.id}`} className={`p-3 text-center font-medium border-l ${isDark ? 'text-green-400 bg-gray-900 border-gray-700' : 'text-green-600 bg-gray-50 border-gray-200'}`}>
                         {roomName}
@@ -3088,19 +3103,19 @@ export default function AdminPage() {
                         }}
                         title={booking ? (() => {
                           const contactData = getContactDisplayData(booking)
-                          return `${contactData.firstName} ${contactData.lastName || ''}`.trim() || 'Sans nom'
-                        })() + ` - ${booking.participants_count} pers.` : ''}
+                          return `${contactData.firstName} ${contactData.lastName || ''}`.trim() || t('admin.agenda.booking.no_name')
+                        })() + ` - ${booking.participants_count} ${t('admin.agenda.booking.people')}` : ''}
                       >
                         {booking && (
                           <>
                             <div className={`${getTextSizeClass(displayTextSize)} ${getTextWeightClass(displayTextWeight)} leading-tight ${isDark ? 'text-white' : 'text-white'}`} style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
                               {(() => {
                                 const contactData = getContactDisplayData(booking)
-                                return contactData.firstName || 'Sans nom'
+                                return contactData.firstName || t('admin.agenda.booking.no_name')
                               })()}
                             </div>
                             <div className={`${getTextSizeClass(displayTextSize)} ${getTextWeightClass(displayTextWeight)} leading-tight ${isDark ? 'text-white/95' : 'text-white/95'}`} style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
-                              {booking.participants_count} pers.
+                              {booking.participants_count} {t('admin.agenda.booking.people')}
                             </div>
                             <div className={`${getTextSizeClass(displayTextSize)} ${getTextWeightClass(displayTextWeight)} leading-tight ${isDark ? 'text-white/90' : 'text-white/90'}`} style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
                               {roomDisplayTime}
@@ -3133,7 +3148,7 @@ export default function AdminPage() {
               <div className="p-4">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    Paramètres
+                    {t('admin.agenda.settings.settings_title')}
                   </h3>
                   <button
                     onClick={(e) => {
@@ -3151,7 +3166,7 @@ export default function AdminPage() {
               {/* Largeur ACTIVE */}
               <div className="mb-3">
                 <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Largeur ACTIVE: {gridWidths.active}%
+                  {t('admin.agenda.settings.active_width')}: {gridWidths.active}%
                 </label>
                 <input
                   type="range"
@@ -3174,15 +3189,15 @@ export default function AdminPage() {
                 />
                 <div className={`flex justify-between text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                   <span>5%</span>
-                  <span>100% (normal)</span>
+                  <span>100% ({t('admin.agenda.settings.normal')})</span>
                   <span>500%</span>
                 </div>
               </div>
-              
+
               {/* Largeur LASER */}
               <div className="mb-3">
                 <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Largeur LASER: {gridWidths.laser}%
+                  {t('admin.agenda.settings.laser_width')}: {gridWidths.laser}%
                 </label>
                 <input
                   type="range"
@@ -3205,15 +3220,15 @@ export default function AdminPage() {
                 />
                 <div className={`flex justify-between text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                   <span>5%</span>
-                  <span>100% (normal)</span>
+                  <span>100% ({t('admin.agenda.settings.normal')})</span>
                   <span>800%</span>
                 </div>
               </div>
-              
+
               {/* Largeur ROOMS */}
               <div className="mb-3">
                 <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Largeur ROOMS: {gridWidths.rooms}%
+                  {t('admin.agenda.settings.rooms_width')}: {gridWidths.rooms}%
                 </label>
                 <input
                   type="range"
@@ -3236,15 +3251,15 @@ export default function AdminPage() {
                 />
                 <div className={`flex justify-between text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                   <span>5%</span>
-                  <span>100% (normal)</span>
+                  <span>100% ({t('admin.agenda.settings.normal')})</span>
                   <span>500%</span>
                 </div>
               </div>
-              
+
               {/* Hauteur des lignes */}
               <div className="mb-4">
                 <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Hauteur lignes: {rowHeight}px
+                  {t('admin.agenda.settings.row_height')}: {rowHeight}px
                 </label>
                 <input
                   type="range"
@@ -3285,7 +3300,7 @@ export default function AdminPage() {
                     : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                 }`}
               >
-                Réinitialiser
+                {t('admin.agenda.settings.reset')}
               </button>
             </div>
           </div>

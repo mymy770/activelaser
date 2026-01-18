@@ -1,5 +1,5 @@
 /**
- * API Orders - Version 2.0 (RECONSTRUITE COMPLÈTEMENT)
+ * API Orders - Version 2.1 (EVENTS REFACTORISÉS)
  *
  * PHILOSOPHIE:
  * - Déléguer TOUT à des fonctions partagées avec l'admin
@@ -8,11 +8,17 @@
  *
  * Cette API est comme si l'utilisateur créait une réservation manuellement dans l'admin,
  * mais via l'interface du site public.
+ *
+ * VERSION 2.1: Gestion complète des EVENTS
+ * - event_room_id allocation
+ * - Séparation room timing vs game timing (15 min setup)
+ * - game_sessions selon event_type (AA, LL, AL)
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createIsraelDateTime } from '@/lib/dates'
+import type { EventRoom, LaserRoom } from '@/lib/supabase/types'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,6 +28,90 @@ const supabase = createClient(
 // Générer une référence courte unique (6 caractères)
 function generateShortReference(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase()
+}
+
+// Mapper event_type vers le plan de jeu (comme dans l'admin)
+// event_active = Active + Active (AA)
+// event_laser = Laser + Laser (LL)
+// event_mix = Active + Laser (AL)
+function getGameAreasForEventType(eventType: string | null): Array<'ACTIVE' | 'LASER'> {
+  switch (eventType) {
+    case 'event_active':
+      return ['ACTIVE', 'ACTIVE'] // AA
+    case 'event_laser':
+      return ['LASER', 'LASER'] // LL
+    case 'event_mix':
+      return ['ACTIVE', 'LASER'] // AL
+    default:
+      return ['ACTIVE', 'ACTIVE'] // Défaut AA
+  }
+}
+
+// Trouver la meilleure salle d'événement disponible
+// IDENTIQUE à findBestAvailableRoom dans admin/page.tsx
+async function findBestEventRoom(
+  branchId: string,
+  participants: number,
+  startDateTime: Date,
+  endDateTime: Date
+): Promise<string | null> {
+  // Récupérer les event_rooms de la branche
+  const { data: eventRooms } = await supabase
+    .from('event_rooms')
+    .select('*')
+    .eq('branch_id', branchId)
+    .eq('is_active', true)
+    .order('sort_order')
+
+  if (!eventRooms || eventRooms.length === 0) {
+    return null
+  }
+
+  // Récupérer les bookings EVENT existants sur cette période
+  const { data: existingBookings } = await supabase
+    .from('bookings')
+    .select('id, event_room_id, start_datetime, end_datetime')
+    .eq('branch_id', branchId)
+    .eq('type', 'EVENT')
+    .neq('status', 'CANCELLED')
+
+  // Trier les salles par capacité croissante (plus petite salle adaptée en premier)
+  const sortedRooms = [...eventRooms]
+    .filter(room => room.capacity >= participants)
+    .sort((a, b) => {
+      if (a.capacity !== b.capacity) {
+        return a.capacity - b.capacity
+      }
+      return a.sort_order - b.sort_order
+    })
+
+  // Trouver la première salle disponible
+  for (const room of sortedRooms) {
+    let isAvailable = true
+
+    for (const booking of (existingBookings || [])) {
+      if (booking.event_room_id === room.id) {
+        const bookingStart = new Date(booking.start_datetime)
+        const bookingEnd = new Date(booking.end_datetime)
+
+        // Vérifier le chevauchement
+        if (
+          (startDateTime >= bookingStart && startDateTime < bookingEnd) ||
+          (endDateTime > bookingStart && endDateTime <= bookingEnd) ||
+          (startDateTime <= bookingStart && endDateTime >= bookingEnd)
+        ) {
+          isAvailable = false
+          break
+        }
+      }
+    }
+
+    if (isAvailable) {
+      return room.id
+    }
+  }
+
+  return null
 }
 
 // Trouver ou créer un contact
@@ -116,7 +206,9 @@ export async function POST(request: NextRequest) {
       customer_email,
       customer_notes,
       game_area,
-      number_of_games = 1
+      number_of_games = 1,
+      event_type = null, // event_active, event_laser, event_mix
+      event_celebrant_age = null
     } = body
 
     // 1. Trouver ou créer le contact
@@ -145,10 +237,365 @@ export async function POST(request: NextRequest) {
 
     const gameDuration = settings.game_duration_minutes || 30
     const pauseDuration = 30 // 30 min de pause entre les jeux (comme admin)
+    const eventSetupPause = 15 // 15 min de pause entre début salle et premier jeu (comme admin)
 
     // 3. Construire les dates/heures du booking
     // Utiliser createIsraelDateTime pour interpreter correctement l'heure Israel
-    const startDateTime = createIsraelDateTime(requested_date, requested_time)
+    const requestedStartDateTime = createIsraelDateTime(requested_date, requested_time)
+
+    // ========================================================================
+    // GESTION DES ÉVÉNEMENTS (EVENT) - IDENTIQUE À L'ADMIN
+    // ========================================================================
+    if (order_type === 'EVENT') {
+      // Pour EVENT :
+      // - Durée de salle fixe = 2h (120 min) par défaut
+      // - 15 min de setup avant le premier jeu
+      // - 2 jeux de 30 min chacun avec 30 min de pause entre eux
+      // - Plan de jeu selon event_type: AA (event_active), LL (event_laser), AL (event_mix)
+
+      const roomDuration = 120 // 2 heures de salle par défaut
+      const eventNumberOfGames = 2 // Toujours 2 jeux pour les événements
+      const gameAreas = getGameAreasForEventType(event_type)
+
+      // Timing de la salle (start/end du booking)
+      const roomStartDateTime = new Date(requestedStartDateTime)
+      const roomEndDateTime = new Date(roomStartDateTime.getTime() + roomDuration * 60000)
+
+      // Timing des jeux (game_start/game_end) : 15 min après le début de la salle
+      const gameStartDateTime = new Date(roomStartDateTime.getTime() + eventSetupPause * 60000)
+
+      // Calculer la fin des jeux : jeux × durée + pauses entre jeux
+      // 2 jeux de 30 min + 1 pause de 30 min = 90 min total de jeu
+      const totalGameDuration = (eventNumberOfGames * gameDuration) + ((eventNumberOfGames - 1) * pauseDuration)
+      const gameEndDateTime = new Date(gameStartDateTime.getTime() + totalGameDuration * 60000)
+
+      // Trouver une salle d'événement disponible
+      const eventRoomId = await findBestEventRoom(
+        branch_id,
+        participants_count,
+        roomStartDateTime,
+        roomEndDateTime
+      )
+
+      if (!eventRoomId) {
+        // Pas de salle disponible → créer order en pending
+        const referenceCode = generateShortReference()
+
+        const { data: order, error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            branch_id,
+            order_type,
+            source: 'website',
+            status: 'pending',
+            contact_id: contactId,
+            request_reference: referenceCode,
+            customer_first_name,
+            customer_last_name: customer_last_name || '',
+            customer_phone,
+            customer_email: customer_email || null,
+            customer_notes: customer_notes || null,
+            requested_date,
+            requested_time,
+            participants_count,
+            game_area: game_area || null,
+            number_of_games: eventNumberOfGames,
+            pending_reason: 'room_unavailable',
+            pending_details: 'No event room available for this time slot',
+            terms_accepted: true
+          })
+          .select('id, request_reference')
+          .single()
+
+        if (orderError) {
+          return NextResponse.json(
+            { success: false, error: 'Failed to create order' },
+            { status: 500 }
+          )
+        }
+
+        return NextResponse.json({
+          success: true,
+          order_id: order.id,
+          reference: order.request_reference,
+          status: 'pending',
+          message: 'Your request has been received and is pending confirmation'
+        })
+      }
+
+      // Générer les game_sessions pour EVENT (comme dans BookingModal)
+      const eventGameSessions: Array<{
+        game_area: 'ACTIVE' | 'LASER'
+        start_datetime: string
+        end_datetime: string
+        laser_room_id: string | null
+        session_order: number
+        pause_before_minutes: number
+      }> = []
+
+      let currentStart = new Date(gameStartDateTime)
+
+      // Charger les données pour allocation laser si nécessaire
+      let laserRooms: LaserRoom[] = []
+      let allBookings: any[] = []
+
+      const hasLaserSession = gameAreas.some(area => area === 'LASER')
+      if (hasLaserSession) {
+        const { data: rooms } = await supabase
+          .from('laser_rooms')
+          .select('*')
+          .eq('branch_id', branch_id)
+          .eq('is_active', true)
+          .order('sort_order')
+
+        laserRooms = rooms || []
+
+        const { data: bookings } = await supabase
+          .from('bookings')
+          .select(`
+            id,
+            branch_id,
+            participants_count,
+            status,
+            game_sessions (
+              id,
+              game_area,
+              laser_room_id,
+              start_datetime,
+              end_datetime
+            )
+          `)
+          .eq('branch_id', branch_id)
+          .neq('status', 'CANCELLED')
+
+        allBookings = bookings || []
+      }
+
+      for (let i = 0; i < eventNumberOfGames; i++) {
+        const area = gameAreas[i]
+        const sessionStart = new Date(currentStart)
+        const sessionEnd = new Date(sessionStart.getTime() + gameDuration * 60000)
+
+        let laserRoomId: string | null = null
+
+        if (area === 'LASER') {
+          // Allocation Laser (comme dans BookingModal)
+          const { findBestLaserRoomsForBooking } = await import('@/lib/laser-allocation')
+
+          const allocation = await findBestLaserRoomsForBooking({
+            participants: participants_count,
+            startDateTime: sessionStart,
+            endDateTime: sessionEnd,
+            branchId: branch_id,
+            laserRooms,
+            settings: {
+              laser_exclusive_threshold: settings.laser_exclusive_threshold || 10,
+              laser_total_vests: settings.laser_total_vests || 30,
+              laser_spare_vests: settings.laser_spare_vests || 0
+            },
+            allBookings,
+            allocationMode: 'auto'
+          })
+
+          if (allocation && allocation.roomIds.length > 0) {
+            laserRoomId = allocation.roomIds[0]
+          } else {
+            // Pas de salle laser disponible → créer order en pending
+            const referenceCode = generateShortReference()
+
+            const { data: order, error: orderError } = await supabase
+              .from('orders')
+              .insert({
+                branch_id,
+                order_type,
+                source: 'website',
+                status: 'pending',
+                contact_id: contactId,
+                request_reference: referenceCode,
+                customer_first_name,
+                customer_last_name: customer_last_name || '',
+                customer_phone,
+                customer_email: customer_email || null,
+                customer_notes: customer_notes || null,
+                requested_date,
+                requested_time,
+                participants_count,
+                game_area: game_area || null,
+                number_of_games: eventNumberOfGames,
+                pending_reason: 'laser_unavailable',
+                pending_details: `No laser room available for game ${i + 1}`,
+                terms_accepted: true
+              })
+              .select('id, request_reference')
+              .single()
+
+            if (orderError) {
+              return NextResponse.json(
+                { success: false, error: 'Failed to create order' },
+                { status: 500 }
+              )
+            }
+
+            return NextResponse.json({
+              success: true,
+              order_id: order.id,
+              reference: order.request_reference,
+              status: 'pending',
+              message: 'Your request has been received and is pending confirmation'
+            })
+          }
+        }
+
+        eventGameSessions.push({
+          game_area: area,
+          start_datetime: sessionStart.toISOString(),
+          end_datetime: sessionEnd.toISOString(),
+          laser_room_id: laserRoomId,
+          session_order: i + 1,
+          pause_before_minutes: i === 0 ? eventSetupPause : pauseDuration
+        })
+
+        // Préparer le début du prochain jeu (après la pause)
+        if (i < eventNumberOfGames - 1) {
+          currentStart = new Date(sessionEnd.getTime() + pauseDuration * 60000)
+        }
+      }
+
+      // Créer le booking EVENT
+      const referenceCode = generateShortReference()
+      const color = '#22C55E' // Vert pour EVENT (comme dans l'admin)
+
+      // Notes avec alias si event_celebrant_age fourni
+      const eventNotes = event_celebrant_age
+        ? `Age: ${event_celebrant_age}${customer_notes ? '\n' + customer_notes : ''}`
+        : customer_notes || null
+
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .insert({
+          branch_id,
+          type: 'EVENT',
+          status: 'CONFIRMED',
+          // Room timing (salle complète)
+          start_datetime: roomStartDateTime.toISOString(),
+          end_datetime: roomEndDateTime.toISOString(),
+          // Game timing (jeux uniquement)
+          game_start_datetime: gameStartDateTime.toISOString(),
+          game_end_datetime: gameEndDateTime.toISOString(),
+          participants_count,
+          event_room_id: eventRoomId, // CRITIQUE : allocation de la salle
+          customer_first_name,
+          customer_last_name: customer_last_name || '',
+          customer_phone,
+          customer_email: customer_email || null,
+          customer_notes_at_booking: eventNotes,
+          primary_contact_id: contactId,
+          reference_code: referenceCode,
+          color
+        })
+        .select('id')
+        .single()
+
+      if (bookingError) {
+        console.error('Booking creation error:', bookingError)
+        return NextResponse.json(
+          { success: false, error: 'Failed to create booking' },
+          { status: 500 }
+        )
+      }
+
+      // Créer booking_contacts
+      await supabase.from('booking_contacts').insert({
+        booking_id: booking.id,
+        contact_id: contactId,
+        is_primary: true
+      })
+
+      // Créer les slots (uniquement pour les sessions ACTIVE, comme dans l'admin)
+      const eventSlots = eventGameSessions
+        .filter(session => session.game_area === 'ACTIVE')
+        .map(session => ({
+          booking_id: booking.id,
+          branch_id,
+          slot_start: session.start_datetime,
+          slot_end: session.end_datetime,
+          participants_count,
+          slot_type: 'game_zone'
+        }))
+
+      if (eventSlots.length > 0) {
+        await supabase.from('booking_slots').insert(eventSlots)
+      }
+
+      // Créer les game_sessions
+      const sessionsToInsert = eventGameSessions.map(s => ({
+        ...s,
+        booking_id: booking.id
+      }))
+
+      const { error: sessionsError } = await supabase
+        .from('game_sessions')
+        .insert(sessionsToInsert)
+
+      if (sessionsError) {
+        // Rollback booking
+        await supabase.from('bookings').delete().eq('id', booking.id)
+        console.error('Sessions creation error:', sessionsError)
+        return NextResponse.json(
+          { success: false, error: 'Failed to create game sessions' },
+          { status: 500 }
+        )
+      }
+
+      // Créer l'order
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          branch_id,
+          order_type: 'EVENT',
+          source: 'website',
+          status: 'auto_confirmed',
+          booking_id: booking.id,
+          contact_id: contactId,
+          request_reference: referenceCode,
+          customer_first_name,
+          customer_last_name: customer_last_name || '',
+          customer_phone,
+          customer_email: customer_email || null,
+          customer_notes: customer_notes || null,
+          requested_date,
+          requested_time,
+          participants_count,
+          game_area: game_area || null,
+          number_of_games: eventNumberOfGames,
+          terms_accepted: true
+        })
+        .select('id, request_reference')
+        .single()
+
+      if (orderError) {
+        // Rollback booking
+        await supabase.from('bookings').delete().eq('id', booking.id)
+        return NextResponse.json(
+          { success: false, error: 'Failed to create order' },
+          { status: 500 }
+        )
+      }
+
+      return NextResponse.json({
+        success: true,
+        order_id: order.id,
+        booking_id: booking.id,
+        reference: order.request_reference,
+        status: 'confirmed',
+        message: 'Event booking confirmed successfully'
+      })
+    }
+
+    // ========================================================================
+    // GESTION DES GAMES (GAME) - Code existant
+    // ========================================================================
+    const startDateTime = requestedStartDateTime
 
     // Calculer la durée totale incluant les pauses
     // Pour LASER : jeux × durée + (jeux - 1) × pause

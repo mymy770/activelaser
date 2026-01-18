@@ -31,6 +31,14 @@ interface FooterProps {
 }
 
 export default function Footer({ translations }: FooterProps) {
+  // Protection contre les traductions manquantes
+  const branches = translations?.branches?.items || []
+  const branch1 = branches[0]
+  const branch2 = branches[1]
+  const branchesTitle = translations?.branches?.title || 'Locations'
+  const contactPhone = translations?.contact?.info?.phone || ''
+  const contactEmail = translations?.contact?.info?.email || ''
+
   return (
     <footer className="bg-dark border-t border-dark-200 py-12">
       <div className="container mx-auto px-4">
@@ -51,9 +59,9 @@ export default function Footer({ translations }: FooterProps) {
                 }}
               />
             </Link>
-            <a 
-              href="https://laser-city.co.il" 
-              target="_blank" 
+            <a
+              href="https://laser-city.co.il"
+              target="_blank"
               rel="noopener noreferrer"
               className="block transition-opacity hover:opacity-90"
               style={{
@@ -75,21 +83,21 @@ export default function Footer({ translations }: FooterProps) {
           {/* First Branch (Rishon LeZion) */}
           <div>
             <h4 className="text-white font-bold mb-4 text-sm uppercase tracking-wider">
-              {translations.branches.items[0]?.name || translations.branches.title}
+              {branch1?.name || branchesTitle}
             </h4>
-            {translations.branches.items[0] && (
+            {branch1 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
-                  <p className="text-gray-400 text-sm">{translations.branches.items[0].address}</p>
+                  <p className="text-gray-400 text-sm">{branch1.address}</p>
                 </div>
-                <p className="text-primary text-sm pl-6">{translations.branches.items[0].venue}</p>
+                <p className="text-primary text-sm pl-6">{branch1.venue}</p>
                 <a
-                  href={`tel:${translations.branches.items[0].phone.replace(/[^\d]/g, '')}`}
+                  href={`tel:${branch1.phone?.replace(/[^\d]/g, '') || ''}`}
                   className="flex items-center gap-2 text-gray-400 hover:text-primary transition-colors text-sm pl-6"
                 >
                   <Phone className="w-3 h-3" />
-                  {translations.branches.items[0].phone}
+                  {branch1.phone}
                 </a>
               </div>
             )}
@@ -98,21 +106,21 @@ export default function Footer({ translations }: FooterProps) {
           {/* Second Branch (Petah Tikva) */}
           <div>
             <h4 className="text-white font-bold mb-4 text-sm uppercase tracking-wider">
-              {translations.branches.items[1]?.name || ''}
+              {branch2?.name || ''}
             </h4>
-            {translations.branches.items[1] && (
+            {branch2 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
-                  <p className="text-gray-400 text-sm">{translations.branches.items[1].address}</p>
+                  <p className="text-gray-400 text-sm">{branch2.address}</p>
                 </div>
-                <p className="text-primary text-sm pl-6">{translations.branches.items[1].venue}</p>
+                <p className="text-primary text-sm pl-6">{branch2.venue}</p>
                 <a
-                  href={`tel:${translations.branches.items[1].phone.replace(/[^\d]/g, '')}`}
+                  href={`tel:${branch2.phone?.replace(/[^\d]/g, '') || ''}`}
                   className="flex items-center gap-2 text-gray-400 hover:text-primary transition-colors text-sm pl-6"
                 >
                   <Phone className="w-3 h-3" />
-                  {translations.branches.items[1].phone}
+                  {branch2.phone}
                 </a>
               </div>
             )}
@@ -124,24 +132,28 @@ export default function Footer({ translations }: FooterProps) {
               Contact
             </h4>
             <ul className="space-y-3">
-              <li>
-                <a
-                  href={`tel:${translations.contact.info.phone.replace(/\s/g, '')}`}
-                  className="flex items-center gap-2 text-gray-400 hover:text-primary transition-colors text-sm"
-                >
-                  <Phone className="w-4 h-4" />
-                  {translations.contact.info.phone}
-                </a>
-              </li>
-              <li>
-                <a
-                  href={`mailto:${translations.contact.info.email}`}
-                  className="flex items-center gap-2 text-gray-400 hover:text-primary transition-colors text-sm"
-                >
-                  <Mail className="w-4 h-4" />
-                  {translations.contact.info.email}
-                </a>
-              </li>
+              {contactPhone && (
+                <li>
+                  <a
+                    href={`tel:${contactPhone.replace(/\s/g, '')}`}
+                    className="flex items-center gap-2 text-gray-400 hover:text-primary transition-colors text-sm"
+                  >
+                    <Phone className="w-4 h-4" />
+                    {contactPhone}
+                  </a>
+                </li>
+              )}
+              {contactEmail && (
+                <li>
+                  <a
+                    href={`mailto:${contactEmail}`}
+                    className="flex items-center gap-2 text-gray-400 hover:text-primary transition-colors text-sm"
+                  >
+                    <Mail className="w-4 h-4" />
+                    {contactEmail}
+                  </a>
+                </li>
+              )}
             </ul>
           </div>
         </div>

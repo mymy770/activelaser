@@ -5,133 +5,133 @@
     "contact": "CONTACT"
   },
   "hero": {
-    "subtitle": "Activités de loisirs nouvelle génération",
+    "subtitle": "Activites de loisirs nouvelle generation",
     "title": "Active Games",
-    "description": "Des arènes interactives totalement immersives, où éclairages néon, son et défis physiques se combinent pour créer des expériences uniques.",
-    "cta_games": "Découvrir nos jeux",
-    "cta_concept": "Découvrir le concept"
+    "description": "Des arenes interactives totalement immersives, ou eclairages neon, son et defis physiques se combinent pour creer des experiences uniques.",
+    "cta_games": "Decouvrir nos jeux",
+    "cta_concept": "Decouvrir le concept"
   },
   "games": {
     "title": "NOS JEUX",
-    "subtitle": "Chaque jeu offre une expérience unique combinant fun, défi et engagement physique. Que vous préfériez tester vos réflexes, améliorer votre coordination ou travailler ensemble en coopération : choisissez votre style et plongez dans l'action.",
+    "subtitle": "Chaque jeu offre une experience unique combinant fun, defi et engagement physique. Que vous preferiez tester vos reflexes, ameliorer votre coordination ou travailler ensemble en cooperation : choisissez votre style et plongez dans l'action.",
     "more_info": "Plus d'infos",
     "items": {
       "grid": {
         "name": "Grid",
-        "description": "Un système de sol interactif révolutionnaire avec lumières LED RGB et capteurs intégrés. Conçu pour les salles de sport, centres commerciaux, zones de jeux et parcs à thème, il crée une expérience dynamique et immersive pour tous les âges.",
-        "popup_description": "La Grille Active Games plonge les joueurs dans un défi captivant de logique et de raisonnement sur un plateau interactif. Ce jeu dynamique teste vos capacités d'analyse et votre stratégie pour compléter la grille et atteindre les objectifs.",
-        "features": ["5 modes de jeu", "50 niveaux à explorer"]
+        "description": "Un systeme de sol interactif revolutionnaire avec lumieres LED RGB et capteurs integres.",
+        "popup_description": "La Grille Active Games plonge les joueurs dans un defi captivant de logique et de raisonnement sur un plateau interactif.",
+        "features": ["5 modes de jeu", "50 niveaux a explorer"]
       },
       "arena": {
         "name": "Arena",
-        "description": "Le jeu ultime de cibles LED murales avec balles. Testez votre vitesse, précision et mémoire avec un scoring en temps réel, des tournois et des défis d'équipe.",
-        "popup_description": "Un mur de cibles hexagonales LED interactif où les joueurs utilisent des balles pour toucher des cibles lumineuses. Chaque match combine mémoire, agilité et vitesse. Touchez les bonnes couleurs et évitez les zones rouges pour maximiser votre score.",
-        "features": ["4 modes de jeu", "40 niveaux à explorer"]
+        "description": "Le jeu ultime de cibles LED murales avec balles. Testez votre vitesse, precision et memoire.",
+        "popup_description": "Un mur de cibles hexagonales LED interactif ou les joueurs utilisent des balles pour toucher des cibles lumineuses.",
+        "features": ["4 modes de jeu", "40 niveaux a explorer"]
       },
       "push": {
         "name": "Push",
-        "description": "Dans cette salle, les murs sont remplis de boutons qui changent de couleurs, avec différents modes de jeu qui testent la reconnaissance des couleurs et les capacités de mémorisation.",
-        "popup_description": "Push est un jeu de défi d'observation et de stratégie. Entouré de murs de boutons multicolores, les joueurs doivent rapidement identifier et trouver les différences et motifs, utiliser la stratégie, la mémoire et la collaboration pour appuyer sur les bons boutons dans le temps imparti.",
-        "features": ["5 modes de jeu", "50 niveaux à explorer"]
+        "description": "Dans cette salle, les murs sont remplis de boutons qui changent de couleurs.",
+        "popup_description": "Push est un jeu de defi d'observation et de strategie.",
+        "features": ["5 modes de jeu", "50 niveaux a explorer"]
       },
       "basketball": {
         "name": "Hoops Basketball",
-        "description": "Un jeu de basketball interactif et fitness qui combine fun, exercice et technologie — parfait pour les salles de sport, maisons et centres de divertissement.",
-        "popup_description": "Une expérience fitness entièrement interactive qui combine l'excitation du sport, le défi de la compétition et l'innovation de la technologie moderne. Chaque tir est enregistré en temps réel, créant un feedback instantané qui motive les joueurs.",
+        "description": "Un jeu de basketball interactif et fitness qui combine fun, exercice et technologie.",
+        "popup_description": "Une experience fitness entierement interactive.",
         "features": ["Cibles LED", "Suivi par capteurs intelligents"]
       },
       "climbing": {
         "name": "Climbing",
-        "description": "Un mur LED interactif conçu pour tester votre agilité, stratégie et fun en équipe. Cette attraction combine mouvement physique et réflexion rapide.",
-        "popup_description": "Un jeu de mur d'escalade LED interactif qui simule le frisson de l'escalade. Les joueurs doivent avancer prudemment le long d'un rebord étroit, attrapant les lumières vertes de sécurité pour avancer et éteignant les cibles bleues pour marquer des points.",
-        "features": ["Attrapez les lumières vertes", "Évitez les zones rouges dangereuses"]
+        "description": "Un mur LED interactif concu pour tester votre agilite, strategie et fun en equipe.",
+        "popup_description": "Un jeu de mur d'escalade LED interactif qui simule le frisson de l'escalade.",
+        "features": ["Attrapez les lumieres vertes", "Evitez les zones rouges dangereuses"]
       },
       "hide": {
         "name": "Hide Game Room",
-        "description": "Coopérez avec vos amis pour accomplir des tâches, évitez la détection des capteurs. Technologie interactive avec réactions en temps réel, garantissant une aventure pleine d'adrénaline.",
-        "popup_description": "Un mélange palpitant de furtivité, stratégie et travail d'équipe. Propulsé par une technologie avancée de détection de mouvement, le jeu défie les joueurs de déjouer les « yeux » lumineux tout en complétant des séquences lumineuses interactives.",
-        "features": ["4 modes de jeu", "40 niveaux à explorer"]
+        "description": "Cooperez avec vos amis pour accomplir des taches, evitez la detection des capteurs.",
+        "popup_description": "Un melange palpitant de furtivite, strategie et travail d'equipe.",
+        "features": ["4 modes de jeu", "40 niveaux a explorer"]
       },
       "flash": {
         "name": "Flash",
-        "description": "Deux joueurs ou plus doivent coopérer. Appuyez sur la lumière circulaire avant que le courant décroissant aléatoire n'atteigne la lumière cible. Le courant reviendra et sera envoyé aléatoirement aux autres joueurs.",
-        "popup_description": "Flash est un jeu de défis de réaction rapide. Des tubes lumineux distribués de manière tortueuse couvrent les murs et un éclair d'électricité tombe du plafond, vous devez réagir rapidement pour intercepter chaque éclair avant qu'il n'atteigne la fin.",
-        "features": ["4 modes de jeu", "40 niveaux à explorer"]
+        "description": "Deux joueurs ou plus doivent cooperer. Appuyez sur la lumiere circulaire avant que le courant n'atteigne la cible.",
+        "popup_description": "Flash est un jeu de defis de reaction rapide.",
+        "features": ["4 modes de jeu", "40 niveaux a explorer"]
       },
       "laser": {
         "name": "Laser",
-        "description": "Une expérience d'escape room palpitante où les joueurs esquivent les faisceaux laser en courant, sautant, rampant et roulant. Avec plusieurs modes de jeu.",
-        "popup_description": "Crée un défi d'action réel où les joueurs doivent esquiver, ramper et se faufiler à travers un réseau de faisceaux laser. Ce labyrinthe excitant teste vos réflexes, agilité et stratégie pour atteindre l'objectif à temps.",
-        "features": ["Modes de difficulté dynamiques", "Pour enfants, ados et adultes"]
+        "description": "Une experience d'escape room palpitante ou les joueurs esquivent les faisceaux laser.",
+        "popup_description": "Cree un defi d'action reel ou les joueurs doivent esquiver, ramper et se faufiler a travers un reseau de faisceaux laser.",
+        "features": ["Modes de difficulte dynamiques", "Pour enfants, ados et adultes"]
       },
       "control": {
         "name": "Control",
-        "description": "Dans Control, les joueurs se tiennent devant la console et contrôlent le mouvement des blocs lumineux en tapant sur les boutons de la console ou en marchant sur les dalles LED.",
-        "popup_description": "Contrôlez le mouvement des blocs lumineux via une console interactive. Testez votre coordination et vos réflexes dans cette expérience de jeu unique.",
-        "features": ["Console interactive", "Intégration dalles LED"]
+        "description": "Dans Control, les joueurs controlent le mouvement des blocs lumineux via une console interactive.",
+        "popup_description": "Controlez le mouvement des blocs lumineux via une console interactive.",
+        "features": ["Console interactive", "Integration dalles LED"]
       }
     }
   },
   "whyChooseUs": {
     "title": "POURQUOI NOUS CHOISIR ?",
-    "subtitle": "Active Games s'engage à offrir des expériences interactives uniques conçues pour surprendre, engager et immerger totalement vos visiteurs.",
+    "subtitle": "Active Games s'engage a offrir des experiences interactives uniques.",
     "reasons": [
       {
-        "title": "20 ans d'expérience dans l'industrie du divertissement",
-        "description": "Nous comprenons le business de l'intérieur — conception de jeux, opérations, flux clients, sécurité, rentabilité. Rien n'est théorique."
+        "title": "20 ans d'experience dans l'industrie du divertissement",
+        "description": "Nous comprenons le business de l'interieur."
       },
       {
-        "title": "Support complet de la recherche de local à l'ouverture",
-        "description": "Nous vous aidons à choisir le bon espace, concevoir l'agencement, optimiser la circulation, planifier l'électricité et le réseau, et préparer le lieu pour l'installation."
+        "title": "Support complet de la recherche de local a l'ouverture",
+        "description": "Nous vous aidons a choisir le bon espace."
       },
       {
-        "title": "Service après-vente fiable",
-        "description": "Assistance à distance, conseils de maintenance, fourniture de pièces détachées, mises à jour — vous n'êtes jamais seul après l'installation."
+        "title": "Service apres-vente fiable",
+        "description": "Assistance a distance, conseils de maintenance."
       },
       {
         "title": "Un seul contact pour tout",
-        "description": "Pas besoin de coordonner entre ingénieurs, designers, électriciens, architectes, fournisseurs. Nous gérons tout avec un point de contact unique et clair."
+        "description": "Pas besoin de coordonner entre ingenieurs, designers, electriciens."
       },
       {
-        "title": "Design personnalisé et adaptation",
-        "description": "Nous adaptons le concept à votre espace, votre marché et votre budget. Chaque projet est unique, mais construit sur la même base solide."
+        "title": "Design personnalise et adaptation",
+        "description": "Nous adaptons le concept a votre espace."
       }
     ]
   },
   "franchise": {
     "title": "REJOIGNEZ ACTIVE GAMES",
-    "subtitle": "Une opportunité de franchise construite pour l'avenir.",
-    "description": "Active Games est conçu comme un modèle commercial haute performance et faible complexité qui offre des marges solides et une croissance évolutive. Notre concept combine des salles interactives modulaires, des cycles de jeu automatisés et des besoins minimaux en personnel — en faisant l'un des formats de divertissement les plus efficaces du marché.",
+    "subtitle": "Une opportunite de franchise construite pour l'avenir.",
+    "description": "Active Games est concu comme un modele commercial haute performance.",
     "benefits": [
       {
-        "title": "Un marché mondial en croissance",
-        "description": "Les lieux de jeux interactifs se développent rapidement dans le monde entier, offrant un fort retour sur investissement et une trajectoire de croissance à long terme."
+        "title": "Un marche mondial en croissance",
+        "description": "Les lieux de jeux interactifs se developpent rapidement."
       },
       {
         "title": "Retour sur investissement rapide",
-        "description": "Nos calculs sont basés sur les performances réelles des centres, pas sur des promesses marketing. Nous savons ce qui génère des revenus et ce qui ne le fait pas."
+        "description": "Nos calculs sont bases sur les performances reelles."
       },
       {
-        "title": "Démarrez rapidement",
-        "description": "Notre système standardisé, nos composants préfabriqués et notre installation guidée vous permettent d'ouvrir rapidement avec des délais prévisibles et des coûts maîtrisés."
+        "title": "Demarrez rapidement",
+        "description": "Notre systeme standardise vous permet d'ouvrir rapidement."
       },
       {
-        "title": "Un modèle qui fonctionne partout",
-        "description": "Des centres commerciaux premium aux emplacements du centre-ville, centres de divertissement familial, hôtels, complexes de loisirs et même pop-ups petit format — Active Games s'adapte à l'espace et au marché."
+        "title": "Un modele qui fonctionne partout",
+        "description": "Active Games s'adapte a l'espace et au marche."
       },
       {
-        "title": "Coûts d'exploitation faibles, débit élevé",
-        "description": "Grâce à l'automatisation, aux cycles de réinitialisation rapides et à la maintenance modulaire, le lieu fonctionne sans problème avec un personnel très limité et un flux continu de joueurs."
+        "title": "Couts d'exploitation faibles, debit eleve",
+        "description": "Grace a l'automatisation, le lieu fonctionne sans probleme."
       },
       {
-        "title": "Soyez le premier dans votre région",
-        "description": "Active Games offre des territoires exclusifs aux opérateurs sérieux qui veulent mener la prochaine génération de divertissement immersif."
+        "title": "Soyez le premier dans votre region",
+        "description": "Active Games offre des territoires exclusifs."
       }
     ]
   },
   "contact": {
-    "title": "Active Games : Étude de cas partenaire",
-    "subtitle": "Contactez-nous pour toute information complémentaire ou demande spécifique.",
+    "title": "Active Games : Etude de cas partenaire",
+    "subtitle": "Contactez-nous pour toute information complementaire.",
     "form": {
       "name": "Nom",
       "email": "Email",
@@ -148,157 +148,826 @@
     "concept_title": "CONCEPT",
     "pricing_title": "TARIFS"
   },
+  "branches": {
+    "title": "NOS SUCCURSALES",
+    "subtitle": "Trouvez la succursale la plus proche de chez vous",
+    "items": [
+      {
+        "name": "Rishon LeZion",
+        "slug": "rishon-lezion",
+        "address": "Aliyat HaNoar 1, Centre Bar-On - Etage 5",
+        "city": "Rishon LeZion",
+        "phone": "03-5512277 (Ext. 1)",
+        "venue": "Au complexe Laser City"
+      },
+      {
+        "name": "Petah Tikva",
+        "slug": "petah-tikva",
+        "address": "Amal 37",
+        "city": "Petah Tikva",
+        "phone": "03-5512277 (Ext. 3)",
+        "venue": "Au complexe Laser City"
+      }
+    ]
+  },
   "booking": {
-    "order_now": "Réserver maintenant",
-    "title": "Réservez votre session",
+    "order_now": "Reserver maintenant",
+    "title": "Reservez votre session",
     "step1": {
-      "title": "Sélectionner la succursale",
-      "subtitle": "Choisissez l'emplacement où vous souhaitez jouer"
+      "title": "Selectionner la succursale",
+      "subtitle": "Choisissez l'emplacement ou vous souhaitez jouer"
     },
     "step2": {
-      "title": "Type de réservation",
-      "subtitle": "Choisissez le type d'activité"
+      "title": "Type de reservation",
+      "subtitle": "Choisissez le type d'activite"
     },
     "step3": {
-      "title": "Sélectionner la date",
+      "title": "Selectionner la date",
       "subtitle": "Choisissez le jour pour votre session"
     },
     "step4": {
-      "title": "Sélectionner l'heure",
-      "subtitle": "Choisissez le créneau horaire"
+      "title": "Selectionner l'heure",
+      "subtitle": "Choisissez le creneau horaire"
     },
     "step5": {
       "title": "Informations de contact",
-      "subtitle": "Veuillez remplir vos coordonnées",
-      "title_event": "Informations événement & contact",
-      "subtitle_event": "Veuillez remplir vos coordonnées et les détails de votre commande d'événement"
+      "subtitle": "Veuillez remplir vos coordonnees",
+      "title_event": "Informations evenement & contact",
+      "subtitle_event": "Veuillez remplir vos coordonnees et les details de votre commande"
     },
     "contact": {
-      "first_name": "Prénom",
+      "first_name": "Prenom",
       "last_name": "Nom",
-      "phone": "Numéro de téléphone",
+      "phone": "Numero de telephone",
       "email": "Email",
-      "special_request": "Demande particulière",
-      "first_name_placeholder": "Entrez le prénom",
+      "special_request": "Demande particuliere",
+      "first_name_placeholder": "Entrez le prenom",
       "last_name_placeholder": "Entrez le nom",
-      "phone_placeholder": "Entrez le numéro de téléphone",
+      "phone_placeholder": "Entrez le numero de telephone",
       "email_placeholder": "Entrez l'email (optionnel)",
-      "special_request_placeholder": "Si vous avez des demandes particulières, veuillez les mentionner ici (optionnel)",
+      "special_request_placeholder": "Si vous avez des demandes particulieres (optionnel)",
       "terms": {
-        "label": "J'ai lu et j'accepte les conditions et règles",
-        "read_terms": "Lire les conditions et règles",
-        "title": "Conditions et Règles",
+        "label": "J'ai lu et j'accepte les conditions et regles",
+        "read_terms": "Lire les conditions et regles",
+        "title": "Conditions et Regles",
         "close": "Fermer",
         "booking_info": {
-          "title": "Informations de réservation",
+          "title": "Informations de reservation",
           "items": [
-            "Veuillez arriver au moins 10 minutes avant l'heure prévue",
-            "Les réservations sont confirmées lors du paiement",
-            "Les modifications ou annulations doivent être effectuées au moins 24 heures à l'avance",
-            "Les retards peuvent entraîner une réduction du temps de jeu"
+            "Veuillez arriver au moins 10 minutes avant l'heure prevue",
+            "Les reservations sont confirmees lors du paiement",
+            "Les modifications ou annulations doivent etre effectuees au moins 24 heures a l'avance",
+            "Les retards peuvent entrainer une reduction du temps de jeu"
           ]
         },
         "rules": {
-          "title": "Règles et Règlements",
+          "title": "Regles et Reglements",
           "items": [
-            "Suivez toutes les instructions de sécurité fournies par le personnel",
+            "Suivez toutes les instructions de securite fournies par le personnel",
             "Respectez les autres joueurs et maintenez un environnement amical",
             "Pas de nourriture ni de boissons dans les salles de jeu",
             "Le tabagisme est strictement interdit",
-            "Les enfants de moins de 12 ans doivent être accompagnés d'un adulte",
-            "Tout dommage à l'équipement entraînera des frais supplémentaires"
+            "Les enfants de moins de 12 ans doivent etre accompagnes d'un adulte",
+            "Tout dommage a l'equipement entrainera des frais supplementaires"
           ]
         },
         "payment": {
-          "title": "Détails de paiement",
+          "title": "Details de paiement",
           "items": [
-            "Le paiement est requis au moment de la réservation",
-            "Modes de paiement acceptés : Espèces, Carte de crédit, Virement bancaire",
-            "Les remboursements sont disponibles uniquement pour les annulations effectuées 24 heures ou plus à l'avance",
-            "Frais de bracelet intelligent : 10₪ (unique, réutilisable)",
-            "Les forfaits événement incluent le bracelet intelligent dans le prix"
+            "Le paiement est requis au moment de la reservation",
+            "Modes de paiement acceptes : Especes, Carte de credit, Virement bancaire",
+            "Les remboursements sont disponibles uniquement pour les annulations effectuees 24 heures ou plus a l'avance"
           ]
         },
         "contact": {
           "title": "Informations de contact",
-          "description": "Pour toute question ou demande spéciale, veuillez nous contacter :",
+          "description": "Pour toute question ou demande speciale, veuillez nous contacter :",
           "items": [
-            "Téléphone : 03-551-2277",
-            "Email : contact@activegames.co.il",
-            "WhatsApp : Disponible sur notre site web"
+            "Telephone : 03-551-2277",
+            "Email : contact@activegames.co.il"
           ]
         },
-        "acknowledgment": "En cochant la case, vous reconnaissez avoir lu, compris et accepté toutes les conditions générales énoncées ci-dessus."
+        "acknowledgment": "En cochant la case, vous reconnaissez avoir lu, compris et accepte toutes les conditions generales."
       },
       "event": {
         "booking_info": {
-          "title": "Informations de réservation d'événement",
+          "title": "Informations de reservation d'evenement",
           "items": [
-            "Les réservations d'événement nécessitent un minimum de 15 participants",
-            "Veuillez arriver au moins 15 minutes avant l'heure prévue pour la configuration",
-            "Les réservations sont confirmées lors du paiement",
-            "Les modifications ou annulations doivent être effectuées au moins 48 heures à l'avance"
+            "Les reservations d'evenement necessitent un minimum de 15 participants",
+            "Veuillez arriver au moins 15 minutes avant l'heure prevue",
+            "Les modifications ou annulations doivent etre effectuees au moins 48 heures a l'avance"
           ]
         },
         "rules": {
-          "title": "Règles et Règlements pour Événements",
+          "title": "Regles et Reglements pour Evenements",
           "items": [
-            "Suivez toutes les instructions de sécurité fournies par le personnel",
+            "Suivez toutes les instructions de securite fournies par le personnel",
             "Respectez les autres participants et maintenez un environnement amical",
-            "Pas de nourriture ni de boissons dans les salles de jeu sans autorisation",
-            "Le tabagisme est strictement interdit",
-            "Les enfants de moins de 12 ans doivent être accompagnés d'un adulte",
-            "Tout dommage à l'équipement entraînera des frais supplémentaires"
+            "Pas de nourriture ni de boissons dans les salles de jeu sans autorisation"
           ]
         },
         "payment": {
-          "title": "Détails de paiement pour Événements",
+          "title": "Details de paiement pour Evenements",
           "items": [
-            "Le paiement est requis au moment de la réservation",
-            "Modes de paiement acceptés : Espèces, Carte de crédit, Virement bancaire",
-            "Les remboursements sont disponibles uniquement pour les annulations effectuées 48 heures ou plus à l'avance",
-            "Les forfaits événement incluent le bracelet intelligent dans le prix"
+            "Le paiement est requis au moment de la reservation",
+            "Les remboursements sont disponibles uniquement pour les annulations effectuees 48 heures ou plus a l'avance"
           ]
         },
-        "acknowledgment": "En cochant la case, vous reconnaissez avoir lu, compris et accepté toutes les conditions générales pour les événements énoncées ci-dessus."
+        "acknowledgment": "En cochant la case, vous reconnaissez avoir lu, compris et accepte toutes les conditions pour les evenements."
       }
     },
     "type": {
       "game": {
         "title": "Jeu",
-        "description": "Jeux illimités pendant une heure"
+        "description": "Jeux illimites pendant une heure"
       },
       "event": {
-        "title": "Événement",
-        "description": "Forfait événement avec salle privée",
-        "min_players_note": "Minimum 15 joueurs requis pour les événements"
+        "title": "Evenement",
+        "description": "Forfait evenement avec salle privee",
+        "min_players_note": "Minimum 15 joueurs requis pour les evenements"
       },
       "players": {
         "label": "Nombre de joueurs",
-        "placeholder": "Sélectionnez ou entrez un nombre",
+        "placeholder": "Selectionnez ou entrez un nombre",
         "info_event": "Minimum 15 joueurs requis"
       }
     },
+    "game_type": {
+      "title": "Type de jeu",
+      "subtitle": "Choisissez votre activite",
+      "active": "Active Games",
+      "laser": "Laser City",
+      "custom": "Formule Sur Mesure",
+      "custom_description": "Combinaison Active Games + Laser City"
+    },
+    "game_duration": {
+      "title": "Duree de jeu",
+      "description": "Jeux illimites pendant la duree choisie",
+      "minutes": "minutes"
+    },
+    "game_count": {
+      "title": "Nombre de parties",
+      "game": "partie",
+      "games": "parties"
+    },
     "next": "Suivant",
-    "previous": "Précédent",
-    "confirm": "Confirmer la réservation",
+    "previous": "Precedent",
+    "confirm": "Confirmer la reservation",
     "loading": "Chargement...",
     "confirmation": {
-      "title": "Réservation confirmée !",
-      "subtitle": "Merci pour votre réservation",
-      "reservation_number": "Numéro de réservation",
+      "title": "Reservation confirmee !",
+      "subtitle": "Merci pour votre reservation",
+      "reservation_number": "Numero de reservation",
       "back_to_site": "Retour au site",
-      "finished": "Terminé",
-      "download_reservation": "Télécharger la réservation",
-      "download_order": "Télécharger la commande"
+      "finished": "Termine"
     },
-    "arrival_note": "Veuillez arriver au moins 10 minutes avant l'heure prévue",
+    "arrival_note": "Veuillez arriver au moins 10 minutes avant l'heure prevue",
     "summary": {
-      "title": "Résumé de la réservation",
+      "title": "Resume de la reservation",
       "branch": "Succursale:",
       "type": "Type:",
       "date": "Date:",
-      "time": "Heure:"
+      "time": "Heure:",
+      "players": "Joueurs:",
+      "duration": "Duree:",
+      "games": "Parties:"
+    }
+  },
+  "admin": {
+    "common": {
+      "loading": "Chargement...",
+      "saving": "Enregistrement...",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "confirm": "Confirmer",
+      "yes": "Oui",
+      "no": "Non",
+      "ok": "OK",
+      "close": "Fermer",
+      "edit": "Modifier",
+      "view": "Voir",
+      "details": "Details",
+      "error": "Erreur",
+      "success": "Succes",
+      "warning": "Attention",
+      "info": "Information",
+      "search": "Rechercher",
+      "filter": "Filtrer",
+      "refresh": "Actualiser",
+      "export": "Exporter",
+      "add": "Ajouter",
+      "create": "Creer",
+      "update": "Mettre a jour",
+      "remove": "Supprimer",
+      "action": "Action",
+      "actions": "Actions",
+      "or": "ou",
+      "and": "et",
+      "all": "Tous",
+      "none": "Aucun",
+      "select": "Selectionner",
+      "required": "Requis",
+      "optional": "Optionnel",
+      "players": "joueurs",
+      "player": "joueur",
+      "minutes": "minutes",
+      "hours": "heures",
+      "days": "jours",
+      "of": "sur",
+      "total": "total",
+      "first_name": "Prenom",
+      "last_name": "Nom",
+      "updated_at": "Mis a jour",
+      "at": "a",
+      "page": "Page",
+      "show": "Afficher",
+      "rows": "lignes"
+    },
+    "layout": {
+      "loading": "Chargement...",
+      "redirecting": "Redirection vers la connexion..."
+    },
+    "login": {
+      "title": "Connectez-vous pour acceder au tableau de bord",
+      "email_label": "Email",
+      "email_placeholder": "admin@example.com",
+      "password_label": "Mot de passe",
+      "password_placeholder": "Votre mot de passe",
+      "submit": "Se connecter",
+      "submitting": "Connexion en cours...",
+      "error_invalid": "Email ou mot de passe incorrect",
+      "error_email_not_confirmed": "Veuillez confirmer votre email avant de vous connecter",
+      "error_generic": "Une erreur est survenue. Veuillez reessayer.",
+      "footer": "Active Games World"
+    },
+    "header": {
+      "agenda": "Agenda",
+      "clients": "Clients",
+      "orders": "Commandes",
+      "users": "Utilisateurs",
+      "settings": "Parametres",
+      "sign_out": "Deconnexion",
+      "theme_light": "Mode clair",
+      "theme_dark": "Mode sombre",
+      "language": "Langue",
+      "pending_orders": "commandes en attente"
+    },
+    "roles": {
+      "super_admin": "Super Admin",
+      "branch_admin": "Admin Agence",
+      "agent": "Agent"
+    },
+    "agenda": {
+      "title": "Agenda",
+      "no_branch": "Aucune branche selectionnee",
+      "add_booking": "Ajouter une reservation",
+      "today": "Aujourd'hui",
+      "today_button": "Aujourd'hui",
+      "view": {
+        "day": "Jour",
+        "week": "Semaine",
+        "month": "Mois"
+      },
+      "week": "Semaine",
+      "month": "Mois",
+      "delete_all_title": "ATTENTION",
+      "delete_all_message": "Cette action va supprimer TOUTES les reservations de cette branche. Cette action est irreversible.\n\nEtes-vous sur de vouloir continuer ?",
+      "delete_all_success": "Toutes les reservations ont ete supprimees.",
+      "delete_all_error": "Erreur lors de la suppression des reservations.",
+      "grids": {
+        "active_games": "Active Games",
+        "laser_city": "Laser City",
+        "birthday_rooms": "Salles Anniversaire"
+      },
+      "time_slot": "Creneau",
+      "available": "Disponible",
+      "occupied": "Occupe",
+      "partial": "Partiel",
+      "search_placeholder": "Rechercher un rendez-vous (nom client, date, heure, reference)...",
+      "results_found": "resultat(s) trouve(s)",
+      "no_results": "Aucun rendez-vous trouve",
+      "ref": "Ref",
+      "stats": {
+        "with_room": "Avec salle",
+        "without_room": "Sans salle",
+        "total_people": "Total personnes"
+      },
+      "settings": {
+        "branch_title": "Parametres de la branche",
+        "grid_title": "Parametres d'affichage de la grille",
+        "refresh": "Rafraichir l'agenda",
+        "open_calendar": "Ouvrir le calendrier",
+        "previous_year": "Annee precedente",
+        "next_year": "Annee suivante",
+        "previous_month": "Mois precedent",
+        "next_month": "Mois suivant",
+        "previous_week": "Semaine precedente",
+        "next_week": "Semaine suivante",
+        "settings_title": "Parametres",
+        "active_width": "Largeur ACTIVE",
+        "laser_width": "Largeur LASER",
+        "rooms_width": "Largeur ROOMS",
+        "row_height": "Hauteur lignes",
+        "normal": "normal",
+        "reset": "Reinitialiser"
+      },
+      "grid_headers": {
+        "hour": "Heure",
+        "room": "Salle"
+      },
+      "booking": {
+        "no_name": "Sans nom",
+        "people": "pers."
+      },
+      "months": {
+        "january": "Janvier",
+        "february": "Fevrier",
+        "march": "Mars",
+        "april": "Avril",
+        "may": "Mai",
+        "june": "Juin",
+        "july": "Juillet",
+        "august": "Aout",
+        "september": "Septembre",
+        "october": "Octobre",
+        "november": "Novembre",
+        "december": "Decembre"
+      },
+      "days_short": ["L", "M", "M", "J", "V", "S", "D"]
+    },
+    "orders": {
+      "title": "Commandes",
+      "search_placeholder": "Rechercher une commande (nom, telephone, email, reference)...",
+      "stats": {
+        "total": "Total",
+        "pending": "En attente",
+        "auto_confirmed": "Confirmes auto",
+        "manually_confirmed": "Confirmes manuel",
+        "cancelled": "Annules",
+        "conversion_rate": "Taux de conversion"
+      },
+      "filter": {
+        "label": "Filtrer :",
+        "all": "Toutes",
+        "pending": "En attente",
+        "auto_confirmed": "Confirmes auto",
+        "manually_confirmed": "Confirmes manuel",
+        "cancelled": "Annulees"
+      },
+      "status": {
+        "pending": "En attente",
+        "auto_confirmed": "Confirme auto",
+        "manually_confirmed": "Confirme manuel",
+        "cancelled": "Annule"
+      },
+      "type": {
+        "game": "Jeu",
+        "event": "Evenement"
+      },
+      "table": {
+        "reference": "Reference",
+        "date": "Date",
+        "time": "Heure",
+        "customer": "Client",
+        "type": "Type",
+        "players": "Joueurs",
+        "status": "Statut",
+        "actions": "Actions",
+        "branch": "Agence",
+        "created": "Cree le",
+        "notes": "Notes"
+      },
+      "actions": {
+        "view": "Voir",
+        "confirm": "Confirmer",
+        "cancel": "Annuler",
+        "reactivate": "Reactiver",
+        "delete": "Supprimer"
+      },
+      "modal": {
+        "cancel_title": "Annuler la commande",
+        "cancel_message": "Voulez-vous vraiment annuler cette commande ? Cette action est reversible.",
+        "reactivate_title": "Reactiver la reservation",
+        "reactivate_message": "Vous allez etre redirige vers l'agenda pour verifier les disponibilites et confirmer la reactivation.",
+        "delete_title": "Supprimer la commande",
+        "delete_message": "Voulez-vous vraiment supprimer cette commande ? Cette action est irreversible."
+      },
+      "no_orders": "Aucune commande trouvee",
+      "loading_error": "Erreur lors du chargement des commandes",
+      "games_plural": "parties",
+      "game_singular": "partie",
+      "order_ref": "Commande",
+      "reason": "Raison",
+      "quick_access": "Acces rapide",
+      "view_in_agenda": "Voir dans l'agenda",
+      "booking_cancelled_or_deleted": "Reservation annulee ou supprimee",
+      "reactivate_booking": "Reactiver la reservation",
+      "reactivate_description": "Remettre en statut confirme (meme reference)",
+      "open_booking": "Ouvrir la reservation",
+      "client_card": "Fiche client",
+      "view_in_crm": "Voir dans le CRM",
+      "informations": "Informations",
+      "created_on": "Cree le",
+      "source_website": "Site internet",
+      "branch": "Agence",
+      "results": "resultat(s)",
+      "orders_count": "commande(s)",
+      "no_matching_orders": "Aucune commande ne correspond aux filtres"
+    },
+    "users": {
+      "title": "Gestion des utilisateurs",
+      "subtitle": "Gerez les acces et les permissions des utilisateurs",
+      "create": "Creer un utilisateur",
+      "access_denied": "Acces refuse",
+      "access_denied_message": "Vous n'avez pas les permissions necessaires.",
+      "search_placeholder": "Rechercher par nom ou telephone...",
+      "no_branch": "Aucune branche",
+      "cannot_delete_self": "Vous ne pouvez pas vous supprimer vous-meme",
+      "created_by": "Cree par",
+      "filter": {
+        "all_roles": "Tous les roles",
+        "by_role": "Filtrer par role",
+        "all_branches": "Toutes les branches",
+        "by_branch": "Filtrer par branche"
+      },
+      "table": {
+        "user": "Utilisateur",
+        "name": "Nom",
+        "email": "Email",
+        "phone": "Telephone",
+        "role": "Role",
+        "branches": "Agences",
+        "created": "Cree le",
+        "created_by": "Cree par",
+        "actions": "Actions"
+      },
+      "actions": {
+        "edit": "Modifier",
+        "delete": "Supprimer",
+        "reset_password": "Reinitialiser le mot de passe"
+      },
+      "modal": {
+        "create_title": "Creer un utilisateur",
+        "edit_title": "Modifier l'utilisateur",
+        "delete_title": "Supprimer l'utilisateur ?",
+        "delete_warning": "Action irreversible",
+        "delete_message": "Le compte et tous les acces de cet utilisateur seront definitivement supprimes.",
+        "delete_confirm": "Supprimer definitivement",
+        "first_name": "Prenom",
+        "last_name": "Nom",
+        "email": "Email",
+        "phone": "Telephone",
+        "password": "Mot de passe",
+        "password_placeholder": "Laisser vide pour generer automatiquement",
+        "role": "Role",
+        "branches": "Agences",
+        "select_branches": "Selectionnez les agences",
+        "temp_password": "Mot de passe temporaire",
+        "copy_password": "Copier"
+      },
+      "no_users": "Aucun utilisateur trouve",
+      "loading_error": "Erreur lors du chargement des utilisateurs"
+    },
+    "clients": {
+      "title": "Gestion des Clients",
+      "search_placeholder": "Rechercher par nom, telephone, email...",
+      "include_archived": "Inclure les archives",
+      "advanced_filters": "Filtres avances",
+      "detect_duplicates": "Detecter doublons",
+      "export_csv": "Export CSV",
+      "new_contact": "Nouveau contact",
+      "no_contacts": "Aucun contact trouve",
+      "table": {
+        "name": "Nom",
+        "phone": "Telephone",
+        "email": "Email",
+        "notes": "Notes",
+        "source": "Source",
+        "status": "Statut",
+        "created": "Cree le",
+        "actions": "Actions"
+      },
+      "actions": {
+        "view": "Voir details",
+        "edit": "Modifier",
+        "archive": "Archiver",
+        "unarchive": "Restaurer"
+      },
+      "status": {
+        "all": "Tous",
+        "active": "Actifs",
+        "archived": "Archives"
+      },
+      "source": {
+        "all": "Toutes",
+        "admin_agenda": "Admin Agenda",
+        "public_booking": "Reservation publique",
+        "agenda": "Agenda",
+        "public": "Public"
+      },
+      "reset_filters": "Reinitialiser les filtres",
+      "pagination": "Page {{page}} sur {{totalPages}} ({{total}} contact{{plural}})",
+      "duplicate_not_found": "Aucun doublon",
+      "duplicate_not_found_message": "Aucun doublon trouve dans les contacts affiches.",
+      "archive_title": "Archiver le contact",
+      "archive_message": "Voulez-vous vraiment archiver ce contact ?",
+      "csv_filename": "clients_{{branch}}_{{date}}.csv",
+      "contact_no_name": "Contact sans nom",
+      "contact_details": "Details du contact",
+      "full_name": "Nom complet",
+      "statistics": "Statistiques",
+      "stats": {
+        "total_bookings": "Reservations totales",
+        "upcoming": "A venir",
+        "total_participants": "Participants totaux",
+        "games_events": "Jeux / Evenements",
+        "last_activity": "Derniere activite"
+      },
+      "linked_bookings": "Reservations liees",
+      "no_linked_bookings": "Aucune reservation liee a ce contact"
+    },
+    "booking_modal": {
+      "title_new": "Nouvelle reservation",
+      "title_edit": "Modifier la reservation",
+      "title_view": "Details de la reservation",
+      "order_number": "Numero de commande",
+      "order_number_help_edit": "Numero unique de la reservation",
+      "order_number_help_new": "Sera genere automatiquement a la creation",
+      "creating": "Creation en cours...",
+      "type_label": "Type de reservation",
+      "branch": "Branche",
+      "edit_branch": "Modifier la branche",
+      "type": {
+        "game": "Jeu",
+        "event": "Evenement"
+      },
+      "game_area": {
+        "active": "Active Games",
+        "laser": "Laser",
+        "custom": "Sur mesure"
+      },
+      "game_area_label": "Zone de jeu",
+      "game_time": "Temps de jeu",
+      "start": "Debut",
+      "end": "Fin",
+      "fields": {
+        "date": "Date",
+        "time": "Heure",
+        "end_time": "Heure de fin",
+        "duration": "Duree",
+        "duration_min": "Duree (min)",
+        "players": "Nombre de joueurs",
+        "participants": "Participants",
+        "games": "Nombre de parties",
+        "games_count": "Nombre de jeux",
+        "game_number": "Jeu",
+        "first_name": "Prenom",
+        "last_name": "Nom",
+        "phone": "Telephone",
+        "email": "Email",
+        "notes": "Notes",
+        "notes_additional": "Notes additionnelles...",
+        "color": "Couleur",
+        "room": "Salle",
+        "laser_room": "Salle Laser",
+        "alias": "Alias",
+        "alias_placeholder": "Ex: Marie, Lucas"
+      },
+      "event": {
+        "room_title": "Salle d'evenement",
+        "room_start": "Debut salle",
+        "room_end": "Fin salle",
+        "event_notes": "Notes de l'evenement",
+        "event_notes_placeholder": "Notes concernant l'evenement et la salle...",
+        "game_plan": "Plan de jeu",
+        "predefined_plan": "Plan predefini",
+        "custom_plan": "Sur mesure",
+        "games_2": "2 jeux",
+        "first_game_start": "Heure de debut du premier jeu",
+        "game_type": "Zone de jeu",
+        "pause_after": "Pause apres (min)",
+        "modify_event": "Modifier evenement"
+      },
+      "game": {
+        "config_title": "Configuration des jeux",
+        "game_n": "Jeu {{n}}",
+        "game_n_zone": "Jeu {{n}} - Zone de jeu",
+        "slots_info": "{{slots}} slot(s) seront reserves ({{places}} places max)",
+        "max_capacity": "Capacite max"
+      },
+      "laser": {
+        "allocation_title": "Allocation des labyrinthes",
+        "auto": "Auto",
+        "auto_desc": "Allocation automatique",
+        "petit": "Petit laby",
+        "petit_desc": "Petit seul",
+        "grand": "Grand laby",
+        "grand_desc": "Grand seul",
+        "maxi": "Maxi",
+        "maxi_desc": "Les deux labys",
+        "single_room_notice": "Une seule salle disponible. Mode Auto uniquement.",
+        "room_allocation": "Salle laser (allocation automatique selon nombre de participants)",
+        "default_l1": "Par defaut : L1",
+        "default_l2": "Par defaut : L2",
+        "needs_both": "Necessite : L1 + L2"
+      },
+      "custom": {
+        "config_title": "Configuration sur mesure"
+      },
+      "contact": {
+        "modify_client": "Modifier client",
+        "change_contact": "Changer contact",
+        "first_name_required": "Prenom *",
+        "first_name_placeholder": "Prenom",
+        "last_name_optional": "Nom (optionnel)",
+        "phone_required": "Telephone *",
+        "phone_placeholder": "05X XXX XXXX",
+        "email_placeholder": "email@exemple.com"
+      },
+      "colors": {
+        "blue": "Bleu",
+        "green": "Vert",
+        "red": "Rouge",
+        "orange": "Orange",
+        "purple": "Violet",
+        "pink": "Rose",
+        "cyan": "Cyan",
+        "yellow": "Jaune",
+        "indigo": "Indigo",
+        "emerald": "Emeraude"
+      },
+      "actions": {
+        "delete": "Supprimer",
+        "cancel": "Annuler",
+        "create": "Creer la reservation",
+        "modify": "Modifier",
+        "creating": "Creation...",
+        "modifying": "Modification...",
+        "deleting": "Suppression...",
+        "processing": "En cours...",
+        "close": "Fermer"
+      },
+      "modals": {
+        "insufficient_capacity": "Capacite insuffisante",
+        "no_room_for_participants": "Aucune salle disponible pour {{count}} participants.",
+        "capacity_insufficient": "La capacite maximale des salles disponibles est insuffisante.",
+        "continue_anyway": "Voulez-vous continuer quand meme avec la salle actuelle (si elle existe) ?",
+        "continue_button": "Continuer quand meme",
+        "no_room_available": "Aucune salle disponible",
+        "no_room_at_period": "Aucune salle disponible pour {{count}} participants a cette periode.",
+        "reduce_participants": "Veuillez reduire le nombre de participants ou choisir une autre periode.",
+        "lower_capacity": "Capacite inferieure disponible",
+        "requested_vs_available": "Vous avez demande {{requested}} participants, mais la plus grande salle disponible a une capacite de {{available}} participants.",
+        "exceeds_by": "Cette salle depasse sa capacite maximale de {{count}} participants.",
+        "use_this_room": "Voulez-vous utiliser cette salle quand meme ?",
+        "use_room_button": "Utiliser cette salle",
+        "duplicate_detected": "Doublon detecte",
+        "duplicate_exists": "Un ou plusieurs contacts existent deja avec :",
+        "create_anyway_question": "Voulez-vous creer un nouveau contact quand meme ? Ce contact sera cree meme si des donnees similaires existent deja.",
+        "create_anyway_button": "Creer quand meme",
+        "overbooking_warning": "Avertissement : Overbooking detecte",
+        "destination_branch": "Branche de destination",
+        "unknown_branch": "Branche inconnue",
+        "will_create_overbooking": "Cette reservation va creer un overbooking dans la branche de destination :",
+        "maximum": "Maximum",
+        "persons_surplus": "personnes en surplus",
+        "slots": "slots",
+        "affected_slots": "Tranches horaires affectees",
+        "and_more": "... et {{count}} autre(s) tranche(s)",
+        "manual_auth_required": "Autorisation manuelle requise pour continuer.",
+        "authorize_continue": "Autoriser et continuer",
+        "confirm_delete": "Confirmer la suppression",
+        "delete_irreversible": "Etes-vous sur de vouloir supprimer definitivement cette reservation ? Cette action est irreversible.",
+        "vests_limit": "Limite de vestes atteinte",
+        "vests_limit_reached": "La limite principale de {{max}} vestes est atteinte.",
+        "spare_vests_available": "Les {{spare}} vestes de spare sont-elles disponibles ?",
+        "no_cancel": "Non - Annuler",
+        "yes_authorize": "Oui - Autoriser"
+      },
+      "calendar": {
+        "previous_year": "Annee precedente",
+        "next_year": "Annee suivante",
+        "previous_month": "Mois precedent",
+        "next_month": "Mois suivant"
+      },
+      "delete_title": "Supprimer la reservation",
+      "delete_message": "Etes-vous sur de vouloir supprimer cette reservation ?",
+      "save_error": "Erreur lors de l'enregistrement de la reservation",
+      "delete_error": "Erreur lors de la suppression de la reservation",
+      "conflict_error": "Ce creneau n'est plus disponible",
+      "validation": {
+        "required_fields": "Veuillez remplir tous les champs obligatoires",
+        "invalid_phone": "Numero de telephone invalide",
+        "invalid_email": "Adresse email invalide",
+        "min_players": "Minimum {{min}} joueurs requis",
+        "min_participants": "Le nombre de participants doit etre au moins 1",
+        "min_duration": "La duree minimum est de 15 minutes",
+        "max_players": "Maximum {{max}} joueurs autorises"
+      },
+      "errors": {
+        "no_laser_room": "Aucune salle laser disponible pour {{participants}} participants a {{time}}{{mode}}. Capacite insuffisante. Veuillez choisir un autre creneau, reduire le nombre de participants{{modeHint}}.",
+        "no_room_for_quantity": "Aucune salle disponible pour cette quantite. Veuillez reduire le nombre de participants.",
+        "vests_constraint": "Contrainte vestes violee : {{current}} > {{max}} (REFUS). {{message}}",
+        "booking_cancelled": "Reservation annulee. Veuillez reduire le nombre de participants ou choisir une autre periode.",
+        "create_error": "Erreur lors de la creation de la reservation",
+        "generic_error": "Une erreur est survenue"
+      }
+    },
+    "settings_modal": {
+      "title": "Parametres",
+      "tabs": {
+        "general": "General",
+        "active": "Active Games",
+        "laser": "Laser",
+        "rooms": "Salles Anniversaire",
+        "pricing": "Tarifs"
+      },
+      "general": {
+        "branch_name": "Nom de l'agence",
+        "phone": "Telephone",
+        "email": "Email",
+        "address": "Adresse",
+        "opening_hours": "Horaires d'ouverture"
+      },
+      "active": {
+        "title": "Parametres Active Games",
+        "players_per_slot": "Joueurs par creneau",
+        "total_slots": "Nombre de creneaux",
+        "max_concurrent": "Joueurs simultanes max",
+        "game_duration": "Duree d'une partie (min)"
+      },
+      "laser": {
+        "title": "Parametres Laser City",
+        "enabled": "Activer Laser City",
+        "total_vests": "Nombre total de gilets",
+        "exclusive_threshold": "Seuil salle exclusive",
+        "rooms": "Salles Laser",
+        "add_room": "Ajouter une salle",
+        "room_name": "Nom de la salle",
+        "room_capacity": "Capacite"
+      },
+      "rooms": {
+        "title": "Salles Anniversaire",
+        "add_room": "Ajouter une salle",
+        "room_name": "Nom de la salle",
+        "room_capacity": "Capacite"
+      },
+      "display": {
+        "title": "Affichage",
+        "text_size": "Taille du texte",
+        "text_weight": "Epaisseur du texte",
+        "size_xs": "Tres petit",
+        "size_sm": "Petit",
+        "size_base": "Normal",
+        "size_lg": "Grand",
+        "weight_normal": "Normal",
+        "weight_semibold": "Semi-gras",
+        "weight_bold": "Gras"
+      },
+      "success": "Parametres enregistres avec succes",
+      "error": "Erreur lors de l'enregistrement des parametres"
+    },
+    "contact_modal": {
+      "title": "Details du contact",
+      "edit_title": "Modifier le contact",
+      "create_title": "Nouveau contact",
+      "full_name": "Nom complet",
+      "phone": "Telephone",
+      "email": "Email",
+      "notes": "Notes client",
+      "statistics": {
+        "title": "Statistiques",
+        "total_bookings": "Reservations totales",
+        "upcoming_bookings": "A venir",
+        "total_participants": "Participants totaux",
+        "last_visit": "Derniere visite",
+        "first_visit": "Premiere visite"
+      },
+      "history": {
+        "title": "Historique des reservations",
+        "no_bookings": "Aucune reservation"
+      }
+    },
+    "confirmation_modal": {
+      "confirm": "Confirmer",
+      "cancel": "Annuler"
+    },
+    "errors": {
+      "loading": "Erreur lors du chargement des donnees",
+      "saving": "Erreur lors de la sauvegarde",
+      "deleting": "Erreur lors de la suppression",
+      "network": "Une erreur reseau s'est produite",
+      "unauthorized": "Vous n'etes pas autorise a effectuer cette action",
+      "not_found": "Element non trouve",
+      "generic": "Une erreur est survenue"
+    },
+    "validation": {
+      "required": "Ce champ est requis",
+      "email_invalid": "Adresse email invalide",
+      "phone_invalid": "Numero de telephone invalide (format: 05XXXXXXXX)",
+      "min_length": "Minimum {{min}} caracteres",
+      "max_length": "Maximum {{max}} caracteres"
     }
   }
 }

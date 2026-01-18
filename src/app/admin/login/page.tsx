@@ -3,15 +3,25 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getClient } from '@/lib/supabase/client'
-import { Loader2, Lock as LockIcon, Mail, AlertCircle } from 'lucide-react'
+import { Loader2, Lock as LockIcon, Mail, AlertCircle, Globe, ChevronDown } from 'lucide-react'
 import Image from 'next/image'
+import { useTranslation } from '@/contexts/LanguageContext'
+import type { Locale } from '@/i18n'
+
+const languageFlags: Record<Locale, { flag: string; label: string }> = {
+  fr: { flag: '🇫🇷', label: 'Français' },
+  en: { flag: '🇬🇧', label: 'English' },
+  he: { flag: '🇮🇱', label: 'עברית' }
+}
 
 export default function LoginPage() {
   const router = useRouter()
+  const { t, locale, setLocale } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [showLanguageMenu, setShowLanguageMenu] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,9 +37,9 @@ export default function LoginPage() {
 
       if (authError) {
         if (authError.message.includes('Invalid login credentials')) {
-          setError('Email ou mot de passe incorrect')
+          setError(t('admin.login.error_invalid'))
         } else if (authError.message.includes('Email not confirmed')) {
-          setError('Veuillez confirmer votre email avant de vous connecter')
+          setError(t('admin.login.error_generic'))
         } else {
           setError(authError.message)
         }
@@ -42,13 +52,49 @@ export default function LoginPage() {
       router.refresh()
     } catch (err) {
       console.error('Login error:', err)
-      setError('Une erreur est survenue. Veuillez réessayer.')
+      setError(t('admin.login.error_generic'))
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4 relative">
+      {/* Language Selector - Top Right */}
+      <div className="absolute top-4 right-4">
+        <div className="relative">
+          <button
+            onClick={() => setShowLanguageMenu(!showLanguageMenu)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors"
+          >
+            <Globe className="w-4 h-4" />
+            <span>{languageFlags[locale].flag}</span>
+            <ChevronDown className={`w-3 h-3 transition-transform ${showLanguageMenu ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showLanguageMenu && (
+            <div className="absolute right-0 top-full mt-2 w-40 rounded-lg shadow-xl z-50 overflow-hidden bg-gray-800 border border-gray-700">
+              {(Object.keys(languageFlags) as Locale[]).map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => {
+                    setLocale(lang)
+                    setShowLanguageMenu(false)
+                  }}
+                  className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors ${
+                    locale === lang
+                      ? 'bg-blue-600/20 text-blue-400'
+                      : 'text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  <span className="text-lg">{languageFlags[lang].flag}</span>
+                  <span>{languageFlags[lang].label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="w-full max-w-md">
         {/* Logo/Title */}
         <div className="text-center mb-8">
@@ -62,7 +108,7 @@ export default function LoginPage() {
               priority
             />
           </div>
-          <p className="text-gray-400 mt-2">Connectez-vous pour accéder au tableau de bord</p>
+          <p className="text-gray-400 mt-2">{t('admin.login.subtitle')}</p>
         </div>
 
         {/* Login Form */}
@@ -78,7 +124,7 @@ export default function LoginPage() {
           {/* Email Field */}
           <div className="mb-4">
             <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-              Email
+              {t('admin.login.email')}
             </label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
@@ -89,7 +135,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                placeholder="admin@example.com"
+                placeholder={t('admin.login.email_placeholder')}
                 className="w-full pl-11 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-colors"
               />
             </div>
@@ -98,7 +144,7 @@ export default function LoginPage() {
           {/* Password Field */}
           <div className="mb-6">
             <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-              Mot de passe
+              {t('admin.login.password')}
             </label>
             <div className="relative">
               <LockIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
@@ -124,10 +170,10 @@ export default function LoginPage() {
             {loading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Connexion en cours...
+                {t('admin.login.logging_in')}
               </>
             ) : (
-              'Se connecter'
+              t('admin.login.submit')
             )}
           </button>
         </form>

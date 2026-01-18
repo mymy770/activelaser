@@ -1,12 +1,12 @@
 'use client'
 
-import { 
-  X, 
-  Calendar, 
-  Clock, 
-  Users, 
-  Phone, 
-  Mail, 
+import {
+  X,
+  Calendar,
+  Clock,
+  Users,
+  Phone,
+  Mail,
   MessageSquare,
   Gamepad2,
   Target,
@@ -19,6 +19,7 @@ import {
   Zap,
   RefreshCw
 } from 'lucide-react'
+import { useTranslation } from '@/contexts/LanguageContext'
 import type { OrderWithRelations } from '@/lib/supabase/types'
 
 interface OrderDetailModalProps {
@@ -40,9 +41,19 @@ export function OrderDetailModal({
   onGoToClient,
   isDark,
 }: OrderDetailModalProps) {
-  
+  const { t, locale } = useTranslation()
+
+  // Helper pour obtenir la locale de date en fonction de la langue
+  const getDateLocale = () => {
+    switch (locale) {
+      case 'he': return 'he-IL'
+      case 'en': return 'en-US'
+      default: return 'fr-FR'
+    }
+  }
+
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('fr-FR', {
+    return new Date(date).toLocaleDateString(getDateLocale(), {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -57,36 +68,36 @@ export function OrderDetailModal({
   const getStatusInfo = () => {
     switch (order.status) {
       case 'pending':
-        return { 
-          icon: AlertCircle, 
-          color: 'text-amber-500', 
+        return {
+          icon: AlertCircle,
+          color: 'text-amber-500',
           bg: 'bg-amber-500/10',
           border: 'border-amber-500/30',
-          label: 'En attente de confirmation'
+          label: t('admin.orders.status.pending')
         }
       case 'auto_confirmed':
-        return { 
-          icon: CheckCircle, 
-          color: 'text-green-500', 
+        return {
+          icon: CheckCircle,
+          color: 'text-green-500',
           bg: 'bg-green-500/10',
           border: 'border-green-500/30',
-          label: 'Confirmée automatiquement'
+          label: t('admin.orders.status.auto_confirmed')
         }
       case 'manually_confirmed':
-        return { 
-          icon: CheckCircle, 
-          color: 'text-blue-500', 
+        return {
+          icon: CheckCircle,
+          color: 'text-blue-500',
           bg: 'bg-blue-500/10',
           border: 'border-blue-500/30',
-          label: 'Confirmée manuellement'
+          label: t('admin.orders.status.manually_confirmed')
         }
       case 'cancelled':
-        return { 
-          icon: XCircle, 
-          color: 'text-gray-500', 
+        return {
+          icon: XCircle,
+          color: 'text-gray-500',
           bg: 'bg-gray-500/10',
           border: 'border-gray-500/30',
-          label: 'Annulée'
+          label: t('admin.orders.status.cancelled')
         }
       default:
         return { icon: AlertCircle, color: 'text-gray-500', bg: 'bg-gray-500/10', border: 'border-gray-500/30', label: order.status }
@@ -164,7 +175,7 @@ export function OrderDetailModal({
                 </span>
                 {order.number_of_games && order.order_type === 'GAME' && (
                   <span className="px-3 py-1 bg-white/20 rounded-full text-white text-sm">
-                    {order.number_of_games} partie{order.number_of_games > 1 ? 's' : ''}
+                    {order.number_of_games} {order.number_of_games > 1 ? t('admin.orders.games_plural') : t('admin.orders.game_singular')}
                   </span>
                 )}
               </div>
@@ -172,7 +183,7 @@ export function OrderDetailModal({
                 {order.customer_first_name} {order.customer_last_name || ''}
               </h2>
               <p className="text-white/80 text-sm">
-                Commande {order.booking?.reference_code || order.request_reference}
+                {t('admin.orders.order_ref')} {order.booking?.reference_code || order.request_reference}
               </p>
             </div>
           </div>
@@ -185,7 +196,7 @@ export function OrderDetailModal({
         </div>
         {order.pending_reason && (
           <p className={`mx-6 mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Raison: {order.pending_details || order.pending_reason}
+            {t('admin.orders.reason')}: {order.pending_details || order.pending_reason}
           </p>
         )}
 
@@ -196,7 +207,7 @@ export function OrderDetailModal({
             {/* Date & Heure */}
             <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
               <h3 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                Date & Heure
+                {t('admin.orders.table.date')} & {t('admin.orders.table.time')}
               </h3>
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-3">
@@ -225,7 +236,7 @@ export function OrderDetailModal({
             {/* Participants */}
             <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
               <h3 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                Participants
+                {t('admin.orders.table.players')}
               </h3>
               <div className="flex items-center gap-3">
                 <div className={`p-3 rounded-xl ${isDark ? 'bg-gray-700' : 'bg-white'}`}>
@@ -234,7 +245,7 @@ export function OrderDetailModal({
                 <p className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {order.participants_count}
                 </p>
-                <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>personnes</span>
+                <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>{t('admin.common.players')}</span>
               </div>
             </div>
 
@@ -265,7 +276,7 @@ export function OrderDetailModal({
             {order.customer_notes && (
               <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
                 <h3 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Notes du client
+                  {t('admin.orders.table.notes')}
                 </h3>
                 <div className="flex items-start gap-3">
                   <MessageSquare className="w-4 h-4 text-gray-400 mt-1" />
@@ -282,7 +293,7 @@ export function OrderDetailModal({
             {/* Actions rapides */}
             <div className={`p-4 rounded-xl border-2 border-dashed ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
               <h3 className={`text-sm font-semibold uppercase tracking-wider mb-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                Accès rapide
+                {t('admin.orders.quick_access')}
               </h3>
               
               {/* Bouton vers Agenda - grisé si annulé */}
@@ -297,9 +308,9 @@ export function OrderDetailModal({
                   >
                     <Calendar className="w-5 h-5" />
                     <div className="text-left flex-1">
-                      <p className="font-medium">Voir dans l'agenda</p>
+                      <p className="font-medium">{t('admin.orders.view_in_agenda')}</p>
                       <p className={`text-xs ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
-                        Réservation annulée ou supprimée
+                        {t('admin.orders.booking_cancelled_or_deleted')}
                       </p>
                     </div>
                   </div>
@@ -316,9 +327,9 @@ export function OrderDetailModal({
                     >
                       <RefreshCw className="w-5 h-5" />
                       <div className="text-left flex-1">
-                        <p className="font-medium">Réactiver la réservation</p>
+                        <p className="font-medium">{t('admin.orders.reactivate_booking')}</p>
                         <p className={`text-xs ${isDark ? 'text-green-400/70' : 'text-green-500/70'}`}>
-                          Remettre en statut confirmé (même référence)
+                          {t('admin.orders.reactivate_description')}
                         </p>
                       </div>
                     </button>
@@ -335,9 +346,9 @@ export function OrderDetailModal({
                 >
                   <Calendar className="w-5 h-5" />
                   <div className="text-left flex-1">
-                    <p className="font-medium">Voir dans l'agenda</p>
+                    <p className="font-medium">{t('admin.orders.view_in_agenda')}</p>
                     <p className={`text-xs ${isDark ? 'text-blue-400/70' : 'text-blue-500/70'}`}>
-                      Ouvrir la réservation
+                      {t('admin.orders.open_booking')}
                     </p>
                   </div>
                   <ExternalLink className="w-4 h-4" />
@@ -356,9 +367,9 @@ export function OrderDetailModal({
                 >
                   <User className="w-5 h-5" />
                   <div className="text-left flex-1">
-                    <p className="font-medium">Fiche client</p>
+                    <p className="font-medium">{t('admin.orders.client_card')}</p>
                     <p className={`text-xs ${isDark ? 'text-purple-400/70' : 'text-purple-500/70'}`}>
-                      Voir dans le CRM
+                      {t('admin.orders.view_in_crm')}
                     </p>
                   </div>
                   <ExternalLink className="w-4 h-4" />
@@ -370,7 +381,7 @@ export function OrderDetailModal({
             {order.status === 'pending' && (
               <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
                 <h3 className={`text-sm font-semibold uppercase tracking-wider mb-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Actions
+                  {t('admin.common.actions')}
                 </h3>
                 <div className="space-y-2">
                   {onRecreate && (
@@ -382,7 +393,7 @@ export function OrderDetailModal({
                       className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
                     >
                       <RefreshCw className="w-5 h-5" />
-                      Valider dans l'agenda
+                      {t('admin.orders.actions.confirm')}
                     </button>
                   )}
                   <button
@@ -393,7 +404,7 @@ export function OrderDetailModal({
                     className="w-full py-3 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
                   >
                     <XCircle className="w-5 h-5" />
-                    Annuler la commande
+                    {t('admin.orders.actions.cancel')}
                   </button>
                 </div>
               </div>
@@ -402,28 +413,28 @@ export function OrderDetailModal({
             {/* Infos supplémentaires */}
             <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
               <h3 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                Informations
+                {t('admin.orders.informations')}
               </h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Créée le</span>
+                  <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>{t('admin.orders.created_on')}</span>
                   <span className={isDark ? 'text-white' : 'text-gray-900'}>
-                    {new Date(order.created_at).toLocaleDateString('fr-FR')}
+                    {new Date(order.created_at).toLocaleDateString(getDateLocale())}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Source</span>
+                  <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>{t('admin.orders.table.source')}</span>
                   <span className={`px-2 py-0.5 rounded text-xs ${
                     order.source === 'admin_agenda'
                       ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
                       : 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
                   }`}>
-                    {order.source === 'admin_agenda' ? 'Admin' : 'Site internet'}
+                    {order.source === 'admin_agenda' ? 'Admin' : t('admin.orders.source_website')}
                   </span>
                 </div>
                 {order.branch?.name && (
                   <div className="flex justify-between">
-                    <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Branche</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>{t('admin.orders.branch')}</span>
                     <span className={isDark ? 'text-white' : 'text-gray-900'}>
                       {order.branch.name}
                     </span>

@@ -6,6 +6,7 @@ import { Search, Edit2, Archive, User, Phone, Mail, Loader2, Eye, ChevronLeft, C
 import { useContacts, type SearchContactsResult } from '@/hooks/useContacts'
 import { useBranches } from '@/hooks/useBranches'
 import { useAuth } from '@/hooks/useAuth'
+import { useTranslation } from '@/contexts/LanguageContext'
 import { AdminHeader } from '../components/AdminHeader'
 import { ContactDetailsModal } from '../components/ContactDetailsModal'
 import { ClientModal } from './components/ClientModal'
@@ -17,7 +18,17 @@ import type { Contact } from '@/lib/supabase/types'
 
 export default function ClientsPage() {
   const router = useRouter()
+  const { t, locale } = useTranslation()
   const { user, loading: authLoading, signOut } = useAuth()
+
+  // Helper pour obtenir la locale de date en fonction de la langue
+  const getDateLocale = () => {
+    switch (locale) {
+      case 'he': return 'he-IL'
+      case 'en': return 'en-US'
+      default: return 'fr-FR'
+    }
+  }
   const { branches, selectedBranch, selectBranch, loading: branchesLoading } = useBranches()
   const { searchContacts, archiveContact, unarchiveContact } = useContacts(selectedBranch?.id || null)
 
@@ -125,8 +136,8 @@ export default function ClientsPage() {
   const handleArchive = (contact: Contact) => {
     setConfirmationModal({
       isOpen: true,
-      title: 'Archiver le contact',
-      message: `Êtes-vous sûr de vouloir archiver le contact ${contact.first_name} ${contact.last_name || ''} ?`,
+      title: t('admin.clients.archive_title'),
+      message: t('admin.clients.archive_message'),
       type: 'warning',
       onConfirm: async () => {
         const success = await archiveContact(contact.id)
@@ -153,17 +164,27 @@ export default function ClientsPage() {
 
   // Export CSV
   const handleExportCSV = () => {
-    const headers = ['Prénom', 'Nom', 'Téléphone', 'Email', 'Notes', 'Source', 'Statut', 'Créé le', 'Dernière mise à jour']
+    const headers = [
+      t('admin.common.first_name') || 'First Name',
+      t('admin.common.last_name') || 'Last Name',
+      t('admin.clients.table.phone'),
+      t('admin.clients.table.email'),
+      t('admin.clients.table.notes'),
+      t('admin.clients.table.source'),
+      t('admin.clients.table.status'),
+      t('admin.clients.table.created'),
+      t('admin.common.updated_at') || 'Updated'
+    ]
     const rows = contacts.map(contact => [
       contact.first_name || '',
       contact.last_name || '',
       contact.phone || '',
       contact.email || '',
       contact.notes_client || '',
-      contact.source === 'admin_agenda' ? 'Agenda' : 'Public',
-      contact.status === 'active' ? 'Actif' : 'Archivé',
-      new Date(contact.created_at).toLocaleDateString('fr-FR'),
-      new Date(contact.updated_at).toLocaleDateString('fr-FR'),
+      contact.source === 'admin_agenda' ? t('admin.clients.source.agenda') : t('admin.clients.source.public'),
+      contact.status === 'active' ? t('admin.clients.status.active') : t('admin.clients.status.archived'),
+      new Date(contact.created_at).toLocaleDateString(getDateLocale()),
+      new Date(contact.updated_at).toLocaleDateString(getDateLocale()),
     ])
 
     const csvContent = [
@@ -269,7 +290,7 @@ export default function ClientsPage() {
           <div className="flex items-center gap-4">
             <h1 className={`text-2xl font-bold ${
               isDark ? 'text-white' : 'text-gray-900'
-            }`}>Gestion des Clients</h1>
+            }`}>{t('admin.clients.title')}</h1>
             <span className={`px-3 py-1 text-sm rounded-full ${
               isDark
                 ? 'bg-blue-600/20 text-blue-400'
@@ -297,8 +318,8 @@ export default function ClientsPage() {
                 } else {
                   setConfirmationModal({
                     isOpen: true,
-                    title: 'Aucun doublon',
-                    message: 'Aucun doublon trouvé dans les contacts affichés.',
+                    title: t('admin.clients.duplicate_not_found'),
+                    message: t('admin.clients.duplicate_not_found_message'),
                     type: 'info',
                     onConfirm: () => {
                       setConfirmationModal({ ...confirmationModal, isOpen: false })
@@ -310,7 +331,7 @@ export default function ClientsPage() {
               className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <GitMerge className="w-4 h-4" />
-              Détecter doublons
+              {t('admin.clients.detect_duplicates')}
             </button>
             <button
               onClick={handleExportCSV}
@@ -322,14 +343,14 @@ export default function ClientsPage() {
               }`}
             >
               <Download className="w-4 h-4" />
-              Export CSV
+              {t('admin.clients.export_csv')}
             </button>
             <button
               onClick={() => handleOpenEditModal(null)}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
-              Nouveau contact
+              {t('admin.clients.new_contact')}
             </button>
           </div>
         </div>
@@ -351,7 +372,7 @@ export default function ClientsPage() {
                 setSearchQuery(e.target.value)
                 setPage(1)
               }}
-              placeholder="Rechercher par nom, téléphone, email..."
+              placeholder={t('admin.clients.search_placeholder')}
               className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 isDark
                   ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500'
@@ -375,7 +396,7 @@ export default function ClientsPage() {
             />
             <span className={`text-sm ${
               isDark ? 'text-gray-300' : 'text-gray-700'
-            }`}>Inclure les archivés</span>
+            }`}>{t('admin.clients.include_archived')}</span>
           </label>
           <button
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
@@ -386,7 +407,7 @@ export default function ClientsPage() {
             }`}
           >
             <Settings className="w-4 h-4" />
-            <span className="hidden sm:inline">Filtres avancés</span>
+            <span className="hidden sm:inline">{t('admin.clients.advanced_filters')}</span>
           </button>
         </div>
       </div>
@@ -401,7 +422,7 @@ export default function ClientsPage() {
             <div>
               <label className={`block text-sm mb-2 ${
                 isDark ? 'text-gray-300' : 'text-gray-700'
-              }`}>Statut</label>
+              }`}>{t('admin.clients.table.status')}</label>
               <CustomSelect
                 value={filterStatus}
                 onChange={(value) => {
@@ -409,9 +430,9 @@ export default function ClientsPage() {
                   setPage(1)
                 }}
                 options={[
-                  { value: 'all', label: 'Tous' },
-                  { value: 'active', label: 'Actifs' },
-                  { value: 'archived', label: 'Archivés' },
+                  { value: 'all', label: t('admin.clients.status.all') },
+                  { value: 'active', label: t('admin.clients.status.active') },
+                  { value: 'archived', label: t('admin.clients.status.archived') },
                 ]}
                 placeholder="Sélectionner un statut"
                 isDark={isDark}
@@ -422,7 +443,7 @@ export default function ClientsPage() {
             <div>
               <label className={`block text-sm mb-2 ${
                 isDark ? 'text-gray-300' : 'text-gray-700'
-              }`}>Source</label>
+              }`}>{t('admin.clients.table.source')}</label>
               <CustomSelect
                 value={filterSource}
                 onChange={(value) => {
@@ -430,9 +451,9 @@ export default function ClientsPage() {
                   setPage(1)
                 }}
                 options={[
-                  { value: 'all', label: 'Toutes' },
-                  { value: 'admin_agenda', label: 'Admin Agenda' },
-                  { value: 'public_booking', label: 'Réservation publique' },
+                  { value: 'all', label: t('admin.clients.source.all') },
+                  { value: 'admin_agenda', label: t('admin.clients.source.admin_agenda') },
+                  { value: 'public_booking', label: t('admin.clients.source.public_booking') },
                 ]}
                 placeholder="Sélectionner une source"
                 isDark={isDark}
@@ -453,7 +474,7 @@ export default function ClientsPage() {
               }`}
             >
               <X className="w-4 h-4" />
-              Réinitialiser les filtres
+              {t('admin.clients.reset_filters')}
             </button>
           )}
         </div>
@@ -469,7 +490,7 @@ export default function ClientsPage() {
           <div className={`text-center py-12 ${
             isDark ? 'text-gray-400' : 'text-gray-600'
           }`}>
-            Aucun contact trouvé
+            {t('admin.clients.no_contacts')}
           </div>
         ) : (
           <>
@@ -479,7 +500,7 @@ export default function ClientsPage() {
               <table className="w-full">
                 <thead className={isDark ? 'bg-gray-700/50' : 'bg-gray-50'}>
                   <tr>
-                    <th 
+                    <th
                       className={`px-4 py-3 text-left text-sm font-medium cursor-pointer transition-colors ${
                         isDark
                           ? 'text-gray-300 hover:bg-gray-700'
@@ -488,26 +509,26 @@ export default function ClientsPage() {
                       onClick={() => handleSort('name')}
                     >
                       <div className="flex items-center">
-                        Nom
+                        {t('admin.clients.table.name')}
                         {getSortIcon('name')}
                       </div>
                     </th>
                     <th className={`px-4 py-3 text-left text-sm font-medium ${
                       isDark ? 'text-gray-300' : 'text-gray-700'
-                    }`}>Téléphone</th>
+                    }`}>{t('admin.clients.table.phone')}</th>
                     <th className={`px-4 py-3 text-left text-sm font-medium ${
                       isDark ? 'text-gray-300' : 'text-gray-700'
-                    }`}>Email</th>
+                    }`}>{t('admin.clients.table.email')}</th>
                     <th className={`px-4 py-3 text-left text-sm font-medium ${
                       isDark ? 'text-gray-300' : 'text-gray-700'
-                    }`}>Notes</th>
+                    }`}>{t('admin.clients.table.notes')}</th>
                     <th className={`px-4 py-3 text-left text-sm font-medium ${
                       isDark ? 'text-gray-300' : 'text-gray-700'
-                    }`}>Source</th>
+                    }`}>{t('admin.clients.table.source')}</th>
                     <th className={`px-4 py-3 text-left text-sm font-medium ${
                       isDark ? 'text-gray-300' : 'text-gray-700'
-                    }`}>Statut</th>
-                    <th 
+                    }`}>{t('admin.clients.table.status')}</th>
+                    <th
                       className={`px-4 py-3 text-left text-sm font-medium cursor-pointer transition-colors ${
                         isDark
                           ? 'text-gray-300 hover:bg-gray-700'
@@ -516,13 +537,13 @@ export default function ClientsPage() {
                       onClick={() => handleSort('created_at')}
                     >
                       <div className="flex items-center">
-                        Créé le
+                        {t('admin.clients.table.created')}
                         {getSortIcon('created_at')}
                       </div>
                     </th>
                     <th className={`px-4 py-3 text-right text-sm font-medium ${
                       isDark ? 'text-gray-300' : 'text-gray-700'
-                    }`}>Actions</th>
+                    }`}>{t('admin.clients.table.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className={`divide-y ${
@@ -565,24 +586,24 @@ export default function ClientsPage() {
                             ? 'bg-gray-700 text-gray-300'
                             : 'bg-gray-200 text-gray-700'
                         }`}>
-                          {contact.source === 'admin_agenda' ? 'Agenda' : 'Public'}
+                          {contact.source === 'admin_agenda' ? t('admin.clients.source.agenda') : t('admin.clients.source.public')}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         {contact.status === 'archived' ? (
                           <span className="px-2 py-1 text-xs rounded-full bg-yellow-600/20 text-yellow-400">
-                            Archivé
+                            {t('admin.clients.status.archived')}
                           </span>
                         ) : (
                           <span className="px-2 py-1 text-xs rounded-full bg-green-600/20 text-green-400">
-                            Actif
+                            {t('admin.clients.status.active')}
                           </span>
                         )}
                       </td>
                       <td className={`px-4 py-3 text-sm ${
                         isDark ? 'text-gray-400' : 'text-gray-600'
                       }`}>
-                        {new Date(contact.created_at).toLocaleDateString('fr-FR', {
+                        {new Date(contact.created_at).toLocaleDateString(getDateLocale(), {
                           day: 'numeric',
                           month: 'short',
                           year: 'numeric',
@@ -595,7 +616,7 @@ export default function ClientsPage() {
                             className={`p-2 rounded-lg transition-colors ${
                               isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                             }`}
-                            title="Voir détails"
+                            title={t('admin.clients.actions.view')}
                           >
                             <Eye className="w-4 h-4 text-blue-400" />
                           </button>
@@ -604,7 +625,7 @@ export default function ClientsPage() {
                             className={`p-2 rounded-lg transition-colors ${
                               isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                             }`}
-                            title="Modifier"
+                            title={t('admin.clients.actions.edit')}
                           >
                             <Edit2 className={`w-4 h-4 ${
                               isDark ? 'text-gray-400' : 'text-gray-600'
@@ -616,7 +637,7 @@ export default function ClientsPage() {
                               className={`p-2 rounded-lg transition-colors ${
                                 isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                               }`}
-                              title="Restaurer"
+                              title={t('admin.clients.actions.unarchive')}
                             >
                               <Archive className="w-4 h-4 text-green-400" />
                             </button>
@@ -626,7 +647,7 @@ export default function ClientsPage() {
                               className={`p-2 rounded-lg transition-colors ${
                                 isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                               }`}
-                              title="Archiver"
+                              title={t('admin.clients.actions.archive')}
                             >
                               <Archive className="w-4 h-4 text-yellow-400" />
                             </button>
@@ -645,7 +666,7 @@ export default function ClientsPage() {
                 <div className={`text-sm ${
                   isDark ? 'text-gray-400' : 'text-gray-600'
                 }`}>
-                  Page {page} sur {totalPages} ({total} contact{total !== 1 ? 's' : ''})
+                  {t('admin.clients.pagination').replace('{{page}}', String(page)).replace('{{totalPages}}', String(totalPages)).replace('{{total}}', String(total)).replace('{{plural}}', total !== 1 ? 's' : '')}
                 </div>
                 <div className="flex items-center gap-2">
                   <button

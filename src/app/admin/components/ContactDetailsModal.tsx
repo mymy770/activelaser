@@ -2,18 +2,19 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { 
-  X, 
-  Loader2, 
-  Calendar, 
-  TrendingUp, 
-  Gamepad2, 
-  PartyPopper, 
+import {
+  X,
+  Loader2,
+  Calendar,
+  TrendingUp,
+  Gamepad2,
+  PartyPopper,
   Clock,
   Zap,
   Target
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useTranslation } from '@/contexts/LanguageContext'
 import type { Contact } from '@/lib/supabase/types'
 
 interface ContactDetailsModalProps {
@@ -38,7 +39,17 @@ export function ContactDetailsModal({
   isDark,
 }: ContactDetailsModalProps) {
   const router = useRouter()
+  const { t, locale } = useTranslation()
   const [contact, setContact] = useState<Contact | null>(null)
+
+  // Helper pour obtenir la locale de date en fonction de la langue
+  const getDateLocale = () => {
+    switch (locale) {
+      case 'he': return 'he-IL'
+      case 'en': return 'en-US'
+      default: return 'fr-FR'
+    }
+  }
   const [contactStats, setContactStats] = useState<ContactStats | null>(null)
   const [linkedBookings, setLinkedBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -48,7 +59,7 @@ export function ContactDetailsModal({
     if (c.first_name || c.last_name) {
       return `${c.first_name || ''} ${c.last_name || ''}`.trim()
     }
-    return c.phone || 'Contact sans nom'
+    return c.phone || t('admin.clients.contact_no_name')
   }
 
   const loadContactData = useCallback(async () => {
@@ -207,7 +218,7 @@ export function ContactDetailsModal({
           <div className="flex items-center justify-between mb-4">
             <h2 className={`text-xl font-bold ${
               isDark ? 'text-white' : 'text-gray-900'
-            }`}>Détails du contact</h2>
+            }`}>{t('admin.clients.contact_details')}</h2>
             <button
               onClick={onClose}
               className={`p-2 rounded-lg transition-colors ${
@@ -225,7 +236,7 @@ export function ContactDetailsModal({
               <div>
                 <label className={`text-sm ${
                   isDark ? 'text-gray-400' : 'text-gray-600'
-                }`}>Nom complet</label>
+                }`}>{t('admin.clients.full_name')}</label>
                 <p className={`font-medium text-lg ${
                   isDark ? 'text-white' : 'text-gray-900'
                 }`}>{getDisplayName(contact)}</p>
@@ -234,14 +245,14 @@ export function ContactDetailsModal({
                 <div>
                   <label className={`text-sm ${
                     isDark ? 'text-gray-400' : 'text-gray-600'
-                  }`}>Téléphone</label>
+                  }`}>{t('admin.clients.table.phone')}</label>
                   <p className={isDark ? 'text-white' : 'text-gray-900'}>{contact.phone}</p>
                 </div>
                 {contact.email && (
                   <div>
                     <label className={`text-sm ${
                       isDark ? 'text-gray-400' : 'text-gray-600'
-                    }`}>Email</label>
+                    }`}>{t('admin.clients.table.email')}</label>
                     <p className={isDark ? 'text-white' : 'text-gray-900'}>{contact.email}</p>
                   </div>
                 )}
@@ -250,7 +261,7 @@ export function ContactDetailsModal({
                 <div>
                   <label className={`text-sm ${
                     isDark ? 'text-gray-400' : 'text-gray-600'
-                  }`}>Notes client</label>
+                  }`}>{t('admin.clients.table.notes')}</label>
                   <p className={`whitespace-pre-wrap p-3 rounded-lg ${
                     isDark
                       ? 'text-white bg-gray-700/50'
@@ -269,7 +280,7 @@ export function ContactDetailsModal({
                   isDark ? 'text-white' : 'text-gray-900'
                 }`}>
                   <TrendingUp className="w-5 h-5" />
-                  Statistiques
+                  {t('admin.clients.statistics')}
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className={`p-4 rounded-lg ${
@@ -278,7 +289,7 @@ export function ContactDetailsModal({
                     <div className="text-2xl font-bold text-blue-400">{contactStats.totalBookings}</div>
                     <div className={`text-sm mt-1 ${
                       isDark ? 'text-gray-400' : 'text-gray-600'
-                    }`}>Réservations totales</div>
+                    }`}>{t('admin.clients.stats.total_bookings')}</div>
                   </div>
                   <div className={`p-4 rounded-lg ${
                     isDark ? 'bg-gray-700/50' : 'bg-gray-100'
@@ -286,7 +297,7 @@ export function ContactDetailsModal({
                     <div className="text-2xl font-bold text-green-400">{contactStats.upcomingBookings}</div>
                     <div className={`text-sm mt-1 ${
                       isDark ? 'text-gray-400' : 'text-gray-600'
-                    }`}>À venir</div>
+                    }`}>{t('admin.clients.stats.upcoming')}</div>
                   </div>
                   <div className={`p-4 rounded-lg ${
                     isDark ? 'bg-gray-700/50' : 'bg-gray-100'
@@ -294,7 +305,7 @@ export function ContactDetailsModal({
                     <div className="text-2xl font-bold text-purple-400">{contactStats.totalParticipants}</div>
                     <div className={`text-sm mt-1 ${
                       isDark ? 'text-gray-400' : 'text-gray-600'
-                    }`}>Participants totaux</div>
+                    }`}>{t('admin.clients.stats.total_participants')}</div>
                   </div>
                   <div className={`p-4 rounded-lg ${
                     isDark ? 'bg-gray-700/50' : 'bg-gray-100'
@@ -309,7 +320,7 @@ export function ContactDetailsModal({
                     </div>
                     <div className={`text-sm mt-1 ${
                       isDark ? 'text-gray-400' : 'text-gray-600'
-                    }`}>Jeux / Événements</div>
+                    }`}>{t('admin.clients.stats.games_events')}</div>
                   </div>
                 </div>
                 {contactStats.lastActivity && (
@@ -317,7 +328,7 @@ export function ContactDetailsModal({
                     isDark ? 'text-gray-400' : 'text-gray-600'
                   }`}>
                     <Clock className="w-4 h-4" />
-                    Dernière activité: {new Date(contactStats.lastActivity).toLocaleDateString('fr-FR', {
+                    {t('admin.clients.stats.last_activity')}: {new Date(contactStats.lastActivity).toLocaleDateString(getDateLocale(), {
                       day: 'numeric',
                       month: 'long',
                       year: 'numeric',
@@ -338,7 +349,7 @@ export function ContactDetailsModal({
               isDark ? 'text-white' : 'text-gray-900'
             }`}>
               <Calendar className="w-5 h-5" />
-              Réservations liées ({linkedBookings.length})
+              {t('admin.clients.linked_bookings')} ({linkedBookings.length})
             </h3>
             {loadingBookings ? (
               <div className="flex items-center justify-center py-8">
@@ -349,7 +360,7 @@ export function ContactDetailsModal({
             ) : linkedBookings.length === 0 ? (
               <p className={`text-sm ${
                 isDark ? 'text-gray-400' : 'text-gray-600'
-              }`}>Aucune réservation liée à ce contact</p>
+              }`}>{t('admin.clients.no_linked_bookings')}</p>
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {linkedBookings.map((booking) => {
@@ -408,11 +419,11 @@ export function ContactDetailsModal({
                               isDark ? 'text-gray-400' : 'text-gray-600'
                             }`}>
                               <span>
-                                {bookingDate.toLocaleDateString('fr-FR', {
+                                {bookingDate.toLocaleDateString(getDateLocale(), {
                                   day: 'numeric',
                                   month: 'short',
                                   year: 'numeric'
-                                })} à {bookingDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                })} {t('admin.common.at')} {bookingDate.toLocaleTimeString(getDateLocale(), { hour: '2-digit', minute: '2-digit' })}
                               </span>
                               {booking.source && (
                                 <span className={`text-xs px-1.5 py-0.5 rounded ${
@@ -429,12 +440,12 @@ export function ContactDetailsModal({
                         <div className="flex items-center gap-2">
                           {isCancelled && (
                             <span className="px-2 py-1 text-xs rounded bg-red-500/20 text-red-400">
-                              Annulé
+                              {t('admin.orders.status.cancelled')}
                             </span>
                           )}
                           {isPending && (
                             <span className="px-2 py-1 text-xs rounded bg-yellow-500/20 text-yellow-400">
-                              En attente
+                              {t('admin.orders.status.pending')}
                             </span>
                           )}
                         </div>

@@ -26,12 +26,8 @@
     },
     "description": [
       "The experience is designed for groups of up to 6 players and lasts 60 minutes of non-stop action.",
-      "Upon arrival, each player receives a smart bracelet and registers with their name. The bracelet identifies you throughout the game – every point, achievement, and challenge is saved on it.",
-      "Before entering each room, the group scans the bracelet, and the system automatically identifies participants and activates the selected game.",
-      "The complex includes 8 different rooms, each with its own world, concept, and unique challenges. Each room offers multiple games with varying difficulty levels, so every group can choose the challenges that suit them.",
-      "You can play in competitive mode or team mode – compete against each other or cooperate with friends and partners, choosing in each game whether to play as rivals or as one team.",
-      "There's no fixed route and no required order – you choose where to enter, when to switch rooms, and which strategy will lead you to maximum points.",
-      "Active Games is a dynamic, immersive, and adrenaline-filled experience where cooperation, speed, and sharp thinking are the keys to victory."
+      "Upon arrival, each player receives a smart bracelet and registers with their name.",
+      "The complex includes 8 different rooms, each with its own world, concept, and unique challenges."
     ]
   },
   "games": {
@@ -41,51 +37,57 @@
     "items": {
       "grid": {
         "name": "Grid",
-        "description": "A revolutionary interactive flooring system with built-in RGB LED lights and sensors. Designed for all ages, it creates a dynamic and immersive experience.",
-        "popup_description": "The Active Games Grid immerses players in a captivating challenge of logic and reasoning on an interactive board. This dynamic game tests your analytical skills and strategy to complete the grid and achieve the objectives.",
+        "description": "A revolutionary interactive flooring system with built-in RGB LED lights and sensors.",
+        "popup_description": "The Active Games Grid immerses players in a captivating challenge of logic and reasoning.",
         "features": ["5 game modes", "50 levels to explore"]
       },
       "arena": {
         "name": "Arena",
-        "description": "The ultimate dodgeball LED target wall game. Test speed, accuracy & memory with real-time scoring, tournaments & team challenges.",
-        "popup_description": "An interactive LED hexagon target wall where players use dodgeballs to hit glowing targets. Each match combines memory, agility, and speed. Hit the right colors and avoid the red zones to maximize your score.",
+        "description": "The ultimate dodgeball LED target wall game. Test speed, accuracy & memory.",
+        "popup_description": "An interactive LED hexagon target wall where players use dodgeballs to hit glowing targets.",
         "features": ["4 game modes", "40 levels to explore"]
       },
       "push": {
         "name": "Push",
-        "description": "In this room, the walls are filled with buttons that can change colors. Various game modes test color recognition and memory abilities.",
-        "popup_description": "Push is an observation and strategy challenge game. Surrounded by multi-colored button walls, players need to quickly identify patterns and use strategy, memory, and collaboration to press the right buttons within the time limit.",
+        "description": "In this room, the walls are filled with buttons that can change colors.",
+        "popup_description": "Push is an observation and strategy challenge game.",
         "features": ["5 game modes", "50 levels to explore"]
       },
       "basketball": {
         "name": "Hoops Basketball",
-        "description": "An interactive basketball fitness game that combines fun, exercise, and technology—perfect for entertainment centers.",
-        "popup_description": "A fully interactive fitness experience that combines the excitement of sports, the challenge of competition, and the innovation of modern technology. Every shot is recorded in real time.",
+        "description": "An interactive basketball fitness game that combines fun, exercise, and technology.",
+        "popup_description": "A fully interactive fitness experience.",
         "features": ["LED-lit targets", "Smart sensor tracking"]
       },
       "climbing": {
         "name": "Climbing",
-        "description": "An interactive LED wall designed to test your agility, strategy, and team fun. This attraction combines physical movement with quick thinking.",
-        "popup_description": "An interactive LED climbing wall game that simulates the thrill of cliff climbing. Players must step carefully along a narrow edge, grabbing green safe lights to move forward.",
+        "description": "An interactive LED wall designed to test your agility, strategy, and team fun.",
+        "popup_description": "An interactive LED climbing wall game that simulates the thrill of cliff climbing.",
         "features": ["Grab green safe lights", "Avoid dangerous red zones"]
       },
       "hide": {
         "name": "Digital Hide Room",
-        "description": "In this room, sensor eyes track your every movement. Use strategic pillars for cover, complete light sequences, and work with your team to win.",
-        "popup_description": "A thrilling blend of stealth, strategy, and teamwork. Powered by advanced motion-sensing technology, the game challenges players to outsmart glowing « eyes » while completing interactive light sequences.",
+        "description": "In this room, sensor eyes track your every movement.",
+        "popup_description": "A thrilling blend of stealth, strategy, and teamwork.",
         "features": ["4 game modes", "40 levels to explore"]
       },
       "flash": {
         "name": "Flash",
-        "description": "Two or more players must cooperate. Press the circular light before the randomly decreasing current reaches the target. The higher the level, the faster the current speed.",
-        "popup_description": "Flash is a game of quick reaction challenges. Light tubes cover the walls and a flash of electricity falls from the ceiling – you need to react quickly to intercept each flash before it reaches the end.",
+        "description": "Two or more players must cooperate. Press the circular light before the current reaches the target.",
+        "popup_description": "Flash is a game of quick reaction challenges.",
         "features": ["4 game modes", "40 levels to explore"]
       },
       "laser": {
         "name": "Laser",
-        "description": "A thrilling escape room experience where players dodge laser beams by running, jumping, crawling, and rolling. Multiple game modes available.",
-        "popup_description": "Creates a real-life action challenge where players must dodge, crawl, and weave through an array of laser beams. This exciting maze tests your reflexes, agility, and strategy.",
+        "description": "A thrilling escape room experience where players dodge laser beams.",
+        "popup_description": "Creates a real-life action challenge where players must dodge, crawl, and weave through laser beams.",
         "features": ["Dynamic difficulty modes", "For kids, teens, and adults"]
+      },
+      "control": {
+        "name": "Control",
+        "description": "In Control, players control the movement of light blocks via an interactive console.",
+        "popup_description": "Control the movement of light blocks via an interactive console.",
+        "features": ["Interactive console", "LED tile integration"]
       }
     }
   },
@@ -95,12 +97,12 @@
     "single": {
       "title": "Unlimited Games",
       "price": "100",
-      "currency": "₪",
+      "currency": "NIS",
       "duration": "One hour per participant",
       "features": [
         "Access to all 8 rooms",
         "Unlimited games",
-        "Smart bracelet: 10₪ first-time fee (reusable)"
+        "Smart bracelet: 10 NIS first-time fee (reusable)"
       ]
     },
     "packages": {
@@ -110,32 +112,24 @@
           "name": "Package 15+",
           "minParticipants": "From 15 participants",
           "price": "130",
-          "currency": "₪ / person",
+          "currency": "NIS / person",
           "features": [
             "Unlimited games for one hour",
             "Private event room for 2 hours",
             "Sound and lighting system",
-            "Game tables",
-            "Unlimited snacks and drinks",
-            "Two pizza slices per participant",
-            "Smart bracelet included in package price",
-            "Collector gold bracelet for the birthday person"
+            "Smart bracelet included"
           ]
         },
         {
           "name": "Package 30+",
           "minParticipants": "From 30 participants",
           "price": "120",
-          "currency": "₪ / person",
+          "currency": "NIS / person",
           "features": [
             "Unlimited games for one hour",
             "Private event room for 2 hours",
             "Sound and lighting system",
-            "Game tables",
-            "Unlimited snacks and drinks",
-            "Two pizza slices per participant",
-            "Smart bracelet included in package price",
-            "Collector gold bracelet for the birthday person"
+            "Smart bracelet included"
           ]
         }
       ]
@@ -147,13 +141,15 @@
     "items": [
       {
         "name": "Rishon LeZion",
-        "address": "Aliyat HaNoar 1, Bar-On Center – Floor 5",
+        "slug": "rishon-lezion",
+        "address": "Aliyat HaNoar 1, Bar-On Center - Floor 5",
         "city": "Rishon LeZion",
         "phone": "03-5512277 (Ext. 1)",
         "venue": "At Laser City complex"
       },
       {
         "name": "Petah Tikva",
+        "slug": "petah-tikva",
         "address": "Amal 37",
         "city": "Petah Tikva",
         "phone": "03-5512277 (Ext. 3)",
@@ -215,7 +211,7 @@
       "last_name_placeholder": "Enter last name",
       "phone_placeholder": "Enter phone number",
       "email_placeholder": "Enter email (optional)",
-      "special_request_placeholder": "If you have any special requests, please mention them here (optional)",
+      "special_request_placeholder": "If you have any special requests (optional)",
       "terms": {
         "label": "I have read and agree to the terms and rules",
         "read_terms": "Read terms and rules",
@@ -246,9 +242,7 @@
           "items": [
             "Payment is required at the time of booking",
             "Accepted payment methods: Cash, Credit Card, Bank Transfer",
-            "Refunds are available only for cancellations made 24+ hours in advance",
-            "Smart bracelet fee: 10₪ (one-time, reusable)",
-            "Event packages include smart bracelet in the price"
+            "Refunds are available only for cancellations made 24+ hours in advance"
           ]
         },
         "contact": {
@@ -256,19 +250,17 @@
           "description": "For questions or special requests, please contact us:",
           "items": [
             "Phone: 03-551-2277",
-            "Email: contact@activegames.co.il",
-            "WhatsApp: Available on our website"
+            "Email: contact@activegames.co.il"
           ]
         },
-        "acknowledgment": "By checking the box, you acknowledge that you have read, understood, and agree to all terms and conditions stated above."
+        "acknowledgment": "By checking the box, you acknowledge that you have read, understood, and agree to all terms and conditions."
       },
       "event": {
         "booking_info": {
           "title": "Event Booking Information",
           "items": [
             "Event reservations require a minimum of 15 participants",
-            "Please arrive at least 15 minutes before your scheduled time for setup",
-            "Reservations are confirmed upon payment",
+            "Please arrive at least 15 minutes before your scheduled time",
             "Changes or cancellations must be made at least 48 hours in advance"
           ]
         },
@@ -277,22 +269,17 @@
           "items": [
             "Follow all safety instructions provided by staff",
             "Respect other participants and maintain a friendly environment",
-            "No food or drinks inside the game rooms without authorization",
-            "Smoking is strictly prohibited",
-            "Children under 12 must be accompanied by an adult",
-            "Any damage to equipment will result in additional charges"
+            "No food or drinks inside the game rooms without authorization"
           ]
         },
         "payment": {
           "title": "Event Payment Details",
           "items": [
             "Payment is required at the time of booking",
-            "Accepted payment methods: Cash, Credit Card, Bank Transfer",
-            "Refunds are available only for cancellations made 48+ hours in advance",
-            "Event packages include smart bracelet in the price"
+            "Refunds are available only for cancellations made 48+ hours in advance"
           ]
         },
-        "acknowledgment": "By checking the box, you acknowledge that you have read, understood, and agree to all event terms and conditions stated above."
+        "acknowledgment": "By checking the box, you acknowledge that you have read, understood, and agree to all event terms and conditions."
       }
     },
     "type": {
@@ -311,6 +298,24 @@
         "info_event": "Minimum 15 players required"
       }
     },
+    "game_type": {
+      "title": "Game Type",
+      "subtitle": "Choose your activity",
+      "active": "Active Games",
+      "laser": "Laser City",
+      "custom": "Custom Package",
+      "custom_description": "Active Games + Laser City combination"
+    },
+    "game_duration": {
+      "title": "Game Duration",
+      "description": "Unlimited games for the chosen duration",
+      "minutes": "minutes"
+    },
+    "game_count": {
+      "title": "Number of Games",
+      "game": "game",
+      "games": "games"
+    },
     "next": "Next",
     "previous": "Previous",
     "confirm": "Confirm booking",
@@ -320,9 +325,7 @@
       "subtitle": "Thank you for your reservation",
       "reservation_number": "Reservation Number",
       "back_to_site": "Back to Site",
-      "finished": "Finished",
-      "download_reservation": "Download Reservation",
-      "download_order": "Download Order"
+      "finished": "Finished"
     },
     "arrival_note": "Please arrive at least 10 minutes before your scheduled time",
     "summary": {
@@ -330,7 +333,650 @@
       "branch": "Branch:",
       "type": "Type:",
       "date": "Date:",
-      "time": "Time:"
+      "time": "Time:",
+      "players": "Players:",
+      "duration": "Duration:",
+      "games": "Games:"
+    }
+  },
+  "admin": {
+    "common": {
+      "loading": "Loading...",
+      "saving": "Saving...",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "confirm": "Confirm",
+      "yes": "Yes",
+      "no": "No",
+      "ok": "OK",
+      "close": "Close",
+      "edit": "Edit",
+      "view": "View",
+      "details": "Details",
+      "error": "Error",
+      "success": "Success",
+      "warning": "Warning",
+      "info": "Information",
+      "search": "Search",
+      "filter": "Filter",
+      "refresh": "Refresh",
+      "export": "Export",
+      "add": "Add",
+      "create": "Create",
+      "update": "Update",
+      "remove": "Remove",
+      "action": "Action",
+      "actions": "Actions",
+      "or": "or",
+      "and": "and",
+      "all": "All",
+      "none": "None",
+      "select": "Select",
+      "required": "Required",
+      "optional": "Optional",
+      "players": "players",
+      "player": "player",
+      "minutes": "minutes",
+      "hours": "hours",
+      "days": "days",
+      "of": "of",
+      "total": "total",
+      "first_name": "First name",
+      "last_name": "Last name",
+      "updated_at": "Updated",
+      "at": "at",
+      "page": "Page",
+      "show": "Show",
+      "rows": "rows"
+    },
+    "layout": {
+      "loading": "Loading...",
+      "redirecting": "Redirecting to login..."
+    },
+    "login": {
+      "title": "Sign in to access the dashboard",
+      "email_label": "Email",
+      "email_placeholder": "admin@example.com",
+      "password_label": "Password",
+      "password_placeholder": "Your password",
+      "submit": "Sign in",
+      "submitting": "Signing in...",
+      "error_invalid": "Invalid email or password",
+      "error_email_not_confirmed": "Please confirm your email before signing in",
+      "error_generic": "An error occurred. Please try again.",
+      "footer": "Active Games World"
+    },
+    "header": {
+      "agenda": "Agenda",
+      "clients": "Clients",
+      "orders": "Orders",
+      "users": "Users",
+      "settings": "Settings",
+      "sign_out": "Sign out",
+      "theme_light": "Light mode",
+      "theme_dark": "Dark mode",
+      "language": "Language",
+      "pending_orders": "pending orders"
+    },
+    "roles": {
+      "super_admin": "Super Admin",
+      "branch_admin": "Branch Admin",
+      "agent": "Agent"
+    },
+    "agenda": {
+      "title": "Agenda",
+      "no_branch": "No branch selected",
+      "add_booking": "Add booking",
+      "today": "Today",
+      "today_button": "Today",
+      "view": {
+        "day": "Day",
+        "week": "Week",
+        "month": "Month"
+      },
+      "week": "Week",
+      "month": "Month",
+      "delete_all_title": "WARNING",
+      "delete_all_message": "This action will delete ALL bookings for this branch. This action is irreversible.\n\nAre you sure you want to continue?",
+      "delete_all_success": "All bookings have been deleted.",
+      "delete_all_error": "Error deleting bookings.",
+      "grids": {
+        "active_games": "Active Games",
+        "laser_city": "Laser City",
+        "birthday_rooms": "Birthday Rooms"
+      },
+      "time_slot": "Time slot",
+      "available": "Available",
+      "occupied": "Occupied",
+      "partial": "Partial",
+      "search_placeholder": "Search appointment (customer name, date, time, reference)...",
+      "results_found": "result(s) found",
+      "no_results": "No appointments found",
+      "ref": "Ref",
+      "stats": {
+        "with_room": "With room",
+        "without_room": "Without room",
+        "total_people": "Total people"
+      },
+      "settings": {
+        "branch_title": "Branch settings",
+        "grid_title": "Grid display settings",
+        "refresh": "Refresh agenda",
+        "open_calendar": "Open calendar",
+        "previous_year": "Previous year",
+        "next_year": "Next year",
+        "previous_month": "Previous month",
+        "next_month": "Next month",
+        "previous_week": "Previous week",
+        "next_week": "Next week",
+        "settings_title": "Settings",
+        "active_width": "ACTIVE width",
+        "laser_width": "LASER width",
+        "rooms_width": "ROOMS width",
+        "row_height": "Row height",
+        "normal": "normal",
+        "reset": "Reset"
+      },
+      "grid_headers": {
+        "hour": "Hour",
+        "room": "Room"
+      },
+      "booking": {
+        "no_name": "No name",
+        "people": "ppl"
+      },
+      "months": {
+        "january": "January",
+        "february": "February",
+        "march": "March",
+        "april": "April",
+        "may": "May",
+        "june": "June",
+        "july": "July",
+        "august": "August",
+        "september": "September",
+        "october": "October",
+        "november": "November",
+        "december": "December"
+      },
+      "days_short": ["M", "T", "W", "T", "F", "S", "S"]
+    },
+    "orders": {
+      "title": "Orders",
+      "search_placeholder": "Search order (name, phone, email, reference)...",
+      "stats": {
+        "total": "Total",
+        "pending": "Pending",
+        "auto_confirmed": "Auto confirmed",
+        "manually_confirmed": "Manually confirmed",
+        "cancelled": "Cancelled",
+        "conversion_rate": "Conversion rate"
+      },
+      "filter": {
+        "label": "Filter:",
+        "all": "All",
+        "pending": "Pending",
+        "auto_confirmed": "Auto confirmed",
+        "manually_confirmed": "Manually confirmed",
+        "cancelled": "Cancelled"
+      },
+      "status": {
+        "pending": "Pending",
+        "auto_confirmed": "Auto confirmed",
+        "manually_confirmed": "Manually confirmed",
+        "cancelled": "Cancelled"
+      },
+      "type": {
+        "game": "Game",
+        "event": "Event"
+      },
+      "table": {
+        "reference": "Reference",
+        "date": "Date",
+        "time": "Time",
+        "customer": "Customer",
+        "type": "Type",
+        "players": "Players",
+        "status": "Status",
+        "actions": "Actions",
+        "branch": "Branch",
+        "created": "Created",
+        "notes": "Notes"
+      },
+      "actions": {
+        "view": "View",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "reactivate": "Reactivate",
+        "delete": "Delete"
+      },
+      "modal": {
+        "cancel_title": "Cancel order",
+        "cancel_message": "Are you sure you want to cancel this order? This action is reversible.",
+        "reactivate_title": "Reactivate booking",
+        "reactivate_message": "You will be redirected to the agenda to check availability and confirm reactivation.",
+        "delete_title": "Delete order",
+        "delete_message": "Are you sure you want to delete this order? This action is irreversible."
+      },
+      "no_orders": "No orders found",
+      "loading_error": "Error loading orders",
+      "games_plural": "games",
+      "game_singular": "game",
+      "order_ref": "Order",
+      "reason": "Reason",
+      "quick_access": "Quick access",
+      "view_in_agenda": "View in agenda",
+      "booking_cancelled_or_deleted": "Booking cancelled or deleted",
+      "reactivate_booking": "Reactivate booking",
+      "reactivate_description": "Set back to confirmed (same reference)",
+      "open_booking": "Open booking",
+      "client_card": "Client card",
+      "view_in_crm": "View in CRM",
+      "informations": "Information",
+      "created_on": "Created on",
+      "source_website": "Website",
+      "branch": "Branch",
+      "results": "result(s)",
+      "orders_count": "order(s)",
+      "no_matching_orders": "No orders match the filters",
+      "table": {
+        "source": "Source"
+      }
+    },
+    "users": {
+      "title": "User Management",
+      "subtitle": "Manage user access and permissions",
+      "create": "Create user",
+      "access_denied": "Access denied",
+      "access_denied_message": "You do not have the required permissions.",
+      "search_placeholder": "Search by name or phone...",
+      "no_branch": "No branch",
+      "cannot_delete_self": "You cannot delete yourself",
+      "created_by": "Created by",
+      "filter": {
+        "all_roles": "All roles",
+        "by_role": "Filter by role",
+        "all_branches": "All branches",
+        "by_branch": "Filter by branch"
+      },
+      "table": {
+        "user": "User",
+        "name": "Name",
+        "email": "Email",
+        "phone": "Phone",
+        "role": "Role",
+        "branches": "Branches",
+        "created": "Created",
+        "created_by": "Created by",
+        "actions": "Actions"
+      },
+      "actions": {
+        "edit": "Edit",
+        "delete": "Delete",
+        "reset_password": "Reset password"
+      },
+      "modal": {
+        "create_title": "Create user",
+        "edit_title": "Edit user",
+        "delete_title": "Delete user?",
+        "delete_warning": "Irreversible action",
+        "delete_message": "The user account and all access will be permanently deleted.",
+        "delete_confirm": "Delete permanently",
+        "first_name": "First name",
+        "last_name": "Last name",
+        "email": "Email",
+        "phone": "Phone",
+        "password": "Password",
+        "password_placeholder": "Leave empty to auto-generate",
+        "role": "Role",
+        "branches": "Branches",
+        "select_branches": "Select branches",
+        "temp_password": "Temporary password",
+        "copy_password": "Copy"
+      },
+      "no_users": "No users found",
+      "loading_error": "Error loading users"
+    },
+    "clients": {
+      "title": "Client Management",
+      "search_placeholder": "Search by name, phone, email...",
+      "include_archived": "Include archived",
+      "advanced_filters": "Advanced filters",
+      "detect_duplicates": "Detect duplicates",
+      "export_csv": "Export CSV",
+      "new_contact": "New contact",
+      "no_contacts": "No contacts found",
+      "table": {
+        "name": "Name",
+        "phone": "Phone",
+        "email": "Email",
+        "notes": "Notes",
+        "source": "Source",
+        "status": "Status",
+        "created": "Created",
+        "actions": "Actions"
+      },
+      "actions": {
+        "view": "View details",
+        "edit": "Edit",
+        "archive": "Archive",
+        "unarchive": "Restore"
+      },
+      "status": {
+        "all": "All",
+        "active": "Active",
+        "archived": "Archived"
+      },
+      "source": {
+        "all": "All",
+        "admin_agenda": "Admin Agenda",
+        "public_booking": "Public booking",
+        "agenda": "Agenda",
+        "public": "Public"
+      },
+      "reset_filters": "Reset filters",
+      "pagination": "Page {{page}} of {{totalPages}} ({{total}} contact{{plural}})",
+      "duplicate_not_found": "No duplicates",
+      "duplicate_not_found_message": "No duplicates found in displayed contacts.",
+      "archive_title": "Archive contact",
+      "archive_message": "Are you sure you want to archive this contact?",
+      "csv_filename": "clients_{{branch}}_{{date}}.csv",
+      "contact_no_name": "Contact without name",
+      "contact_details": "Contact details",
+      "full_name": "Full name",
+      "statistics": "Statistics",
+      "stats": {
+        "total_bookings": "Total bookings",
+        "upcoming": "Upcoming",
+        "total_participants": "Total participants",
+        "games_events": "Games / Events",
+        "last_activity": "Last activity"
+      },
+      "linked_bookings": "Linked bookings",
+      "no_linked_bookings": "No bookings linked to this contact"
+    },
+    "booking_modal": {
+      "title_new": "New booking",
+      "title_edit": "Edit booking",
+      "title_view": "Booking details",
+      "order_number": "Order number",
+      "order_number_help_edit": "Unique booking number",
+      "order_number_help_new": "Will be generated automatically upon creation",
+      "creating": "Creating...",
+      "type_label": "Booking type",
+      "branch": "Branch",
+      "edit_branch": "Edit branch",
+      "type": {
+        "game": "Game",
+        "event": "Event"
+      },
+      "game_area": {
+        "active": "Active Games",
+        "laser": "Laser",
+        "custom": "Custom"
+      },
+      "game_area_label": "Game area",
+      "game_time": "Game time",
+      "start": "Start",
+      "end": "End",
+      "fields": {
+        "date": "Date",
+        "time": "Time",
+        "end_time": "End time",
+        "duration": "Duration",
+        "duration_min": "Duration (min)",
+        "players": "Number of players",
+        "participants": "Participants",
+        "games": "Number of games",
+        "games_count": "Number of games",
+        "game_number": "Game",
+        "first_name": "First name",
+        "last_name": "Last name",
+        "phone": "Phone",
+        "email": "Email",
+        "notes": "Notes",
+        "notes_additional": "Additional notes...",
+        "color": "Color",
+        "room": "Room",
+        "laser_room": "Laser room",
+        "alias": "Alias",
+        "alias_placeholder": "E.g.: Marie, Lucas"
+      },
+      "event": {
+        "room_title": "Event room",
+        "room_start": "Room start",
+        "room_end": "Room end",
+        "event_notes": "Event notes",
+        "event_notes_placeholder": "Notes about the event and room...",
+        "game_plan": "Game plan",
+        "predefined_plan": "Predefined plan",
+        "custom_plan": "Custom",
+        "games_2": "2 games",
+        "first_game_start": "First game start time",
+        "game_type": "Game area",
+        "pause_after": "Pause after (min)",
+        "modify_event": "Edit event"
+      },
+      "game": {
+        "config_title": "Game configuration",
+        "game_n": "Game {{n}}",
+        "game_n_zone": "Game {{n}} - Game area",
+        "slots_info": "{{slots}} slot(s) will be reserved ({{places}} max places)",
+        "max_capacity": "Max capacity"
+      },
+      "laser": {
+        "allocation_title": "Labyrinth allocation",
+        "auto": "Auto",
+        "auto_desc": "Automatic allocation",
+        "petit": "Small laby",
+        "petit_desc": "Small only",
+        "grand": "Large laby",
+        "grand_desc": "Large only",
+        "maxi": "Maxi",
+        "maxi_desc": "Both labyrinths",
+        "single_room_notice": "Only one room available. Auto mode only.",
+        "room_allocation": "Laser room (automatic allocation based on participants)",
+        "default_l1": "Default: L1",
+        "default_l2": "Default: L2",
+        "needs_both": "Requires: L1 + L2"
+      },
+      "custom": {
+        "config_title": "Custom configuration"
+      },
+      "contact": {
+        "modify_client": "Edit client",
+        "change_contact": "Change contact",
+        "first_name_required": "First name *",
+        "first_name_placeholder": "First name",
+        "last_name_optional": "Last name (optional)",
+        "phone_required": "Phone *",
+        "phone_placeholder": "05X XXX XXXX",
+        "email_placeholder": "email@example.com"
+      },
+      "colors": {
+        "blue": "Blue",
+        "green": "Green",
+        "red": "Red",
+        "orange": "Orange",
+        "purple": "Purple",
+        "pink": "Pink",
+        "cyan": "Cyan",
+        "yellow": "Yellow",
+        "indigo": "Indigo",
+        "emerald": "Emerald"
+      },
+      "actions": {
+        "delete": "Delete",
+        "cancel": "Cancel",
+        "create": "Create booking",
+        "modify": "Modify",
+        "creating": "Creating...",
+        "modifying": "Modifying...",
+        "deleting": "Deleting...",
+        "processing": "Processing...",
+        "close": "Close"
+      },
+      "modals": {
+        "insufficient_capacity": "Insufficient capacity",
+        "no_room_for_participants": "No room available for {{count}} participants.",
+        "capacity_insufficient": "The maximum capacity of available rooms is insufficient.",
+        "continue_anyway": "Do you want to continue anyway with the current room (if it exists)?",
+        "continue_button": "Continue anyway",
+        "no_room_available": "No room available",
+        "no_room_at_period": "No room available for {{count}} participants at this time.",
+        "reduce_participants": "Please reduce the number of participants or choose another time slot.",
+        "lower_capacity": "Lower capacity available",
+        "requested_vs_available": "You requested {{requested}} participants, but the largest available room has a capacity of {{available}} participants.",
+        "exceeds_by": "This room exceeds its maximum capacity by {{count}} participants.",
+        "use_this_room": "Do you want to use this room anyway?",
+        "use_room_button": "Use this room",
+        "duplicate_detected": "Duplicate detected",
+        "duplicate_exists": "One or more contacts already exist with:",
+        "create_anyway_question": "Do you want to create a new contact anyway? This contact will be created even if similar data already exists.",
+        "create_anyway_button": "Create anyway",
+        "overbooking_warning": "Warning: Overbooking detected",
+        "destination_branch": "Destination branch",
+        "unknown_branch": "Unknown branch",
+        "will_create_overbooking": "This booking will create an overbooking in the destination branch:",
+        "maximum": "Maximum",
+        "persons_surplus": "persons in surplus",
+        "slots": "slots",
+        "affected_slots": "Affected time slots",
+        "and_more": "... and {{count}} other slot(s)",
+        "manual_auth_required": "Manual authorization required to continue.",
+        "authorize_continue": "Authorize and continue",
+        "confirm_delete": "Confirm deletion",
+        "delete_irreversible": "Are you sure you want to permanently delete this booking? This action is irreversible.",
+        "vests_limit": "Vest limit reached",
+        "vests_limit_reached": "The main limit of {{max}} vests has been reached.",
+        "spare_vests_available": "Are the {{spare}} spare vests available?",
+        "no_cancel": "No - Cancel",
+        "yes_authorize": "Yes - Authorize"
+      },
+      "calendar": {
+        "previous_year": "Previous year",
+        "next_year": "Next year",
+        "previous_month": "Previous month",
+        "next_month": "Next month"
+      },
+      "delete_title": "Delete booking",
+      "delete_message": "Are you sure you want to delete this booking?",
+      "save_error": "Error saving booking",
+      "delete_error": "Error deleting booking",
+      "conflict_error": "This time slot is no longer available",
+      "validation": {
+        "required_fields": "Please fill in all required fields",
+        "invalid_phone": "Invalid phone number",
+        "invalid_email": "Invalid email address",
+        "min_players": "Minimum {{min}} players required",
+        "min_participants": "Number of participants must be at least 1",
+        "min_duration": "Minimum duration is 15 minutes",
+        "max_players": "Maximum {{max}} players allowed"
+      },
+      "errors": {
+        "no_laser_room": "No laser room available for {{participants}} participants at {{time}}{{mode}}. Insufficient capacity. Please choose another time slot, reduce the number of participants{{modeHint}}.",
+        "no_room_for_quantity": "No room available for this quantity. Please reduce the number of participants.",
+        "vests_constraint": "Vest constraint violated: {{current}} > {{max}} (REJECTED). {{message}}",
+        "booking_cancelled": "Booking cancelled. Please reduce the number of participants or choose another time slot.",
+        "create_error": "Error creating booking",
+        "generic_error": "An error occurred"
+      }
+    },
+    "settings_modal": {
+      "title": "Settings",
+      "tabs": {
+        "general": "General",
+        "active": "Active Games",
+        "laser": "Laser",
+        "rooms": "Birthday Rooms",
+        "pricing": "Pricing"
+      },
+      "general": {
+        "branch_name": "Branch name",
+        "phone": "Phone",
+        "email": "Email",
+        "address": "Address",
+        "opening_hours": "Opening hours"
+      },
+      "active": {
+        "title": "Active Games Settings",
+        "players_per_slot": "Players per slot",
+        "total_slots": "Total slots",
+        "max_concurrent": "Max concurrent players",
+        "game_duration": "Game duration (min)"
+      },
+      "laser": {
+        "title": "Laser City Settings",
+        "enabled": "Enable Laser City",
+        "total_vests": "Total vests",
+        "exclusive_threshold": "Exclusive room threshold",
+        "rooms": "Laser Rooms",
+        "add_room": "Add room",
+        "room_name": "Room name",
+        "room_capacity": "Capacity"
+      },
+      "rooms": {
+        "title": "Birthday Rooms",
+        "add_room": "Add room",
+        "room_name": "Room name",
+        "room_capacity": "Capacity"
+      },
+      "display": {
+        "title": "Display",
+        "text_size": "Text size",
+        "text_weight": "Text weight",
+        "size_xs": "Extra small",
+        "size_sm": "Small",
+        "size_base": "Normal",
+        "size_lg": "Large",
+        "weight_normal": "Normal",
+        "weight_semibold": "Semi-bold",
+        "weight_bold": "Bold"
+      },
+      "success": "Settings saved successfully",
+      "error": "Error saving settings"
+    },
+    "contact_modal": {
+      "title": "Contact details",
+      "edit_title": "Edit contact",
+      "create_title": "New contact",
+      "full_name": "Full name",
+      "phone": "Phone",
+      "email": "Email",
+      "notes": "Client notes",
+      "statistics": {
+        "title": "Statistics",
+        "total_bookings": "Total bookings",
+        "upcoming_bookings": "Upcoming",
+        "total_participants": "Total participants",
+        "last_visit": "Last visit",
+        "first_visit": "First visit"
+      },
+      "history": {
+        "title": "Booking history",
+        "no_bookings": "No bookings"
+      }
+    },
+    "confirmation_modal": {
+      "confirm": "Confirm",
+      "cancel": "Cancel"
+    },
+    "errors": {
+      "loading": "Error loading data",
+      "saving": "Error saving",
+      "deleting": "Error deleting",
+      "network": "A network error occurred",
+      "unauthorized": "You are not authorized to perform this action",
+      "not_found": "Item not found",
+      "generic": "An error occurred"
+    },
+    "validation": {
+      "required": "This field is required",
+      "email_invalid": "Invalid email address",
+      "phone_invalid": "Invalid phone number (format: 05XXXXXXXX)",
+      "min_length": "Minimum {{min}} characters",
+      "max_length": "Maximum {{max}} characters"
     }
   }
 }

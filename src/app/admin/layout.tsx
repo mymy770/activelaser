@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { getClient } from '@/lib/supabase/client'
 import { Loader2 } from 'lucide-react'
+import { LanguageProvider, useTranslation } from '@/contexts/LanguageContext'
 
-export default function AdminLayout({
+function AdminLayoutContent({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
@@ -82,7 +84,7 @@ export default function AdminLayout({
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
-          <p className="text-gray-400">Chargement...</p>
+          <p className="text-gray-400">{t('admin.common.loading')}</p>
         </div>
       </div>
     )
@@ -95,7 +97,7 @@ export default function AdminLayout({
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
-          <p className="text-gray-400">Redirection vers la connexion...</p>
+          <p className="text-gray-400">{t('admin.common.loading')}</p>
         </div>
       </div>
     )
@@ -103,4 +105,16 @@ export default function AdminLayout({
 
   // Authentifié - afficher le contenu
   return <>{children}</>
+}
+
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <LanguageProvider isAdmin={true}>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </LanguageProvider>
+  )
 }

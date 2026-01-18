@@ -6,6 +6,7 @@ import type { CreateBookingData, BookingWithSlots } from '@/hooks/useBookings'
 import { ContactFieldAutocomplete } from './ContactFieldAutocomplete'
 import { useContacts } from '@/hooks/useContacts'
 import type { Contact, GameArea, LaserRoom } from '@/lib/supabase/types'
+import { useTranslation } from '@/contexts/LanguageContext'
 
 interface OverbookingInfo {
   willCauseOverbooking: boolean
@@ -92,6 +93,28 @@ export function BookingModal({
   maxPlayersPerSlot = 6,
   totalSlots = 14
 }: BookingModalProps) {
+  const { t, locale } = useTranslation()
+
+  // Helper pour obtenir la locale de date en fonction de la langue
+  const getDateLocale = () => {
+    switch (locale) {
+      case 'he': return 'he-IL'
+      case 'en': return 'en-US'
+      default: return 'fr-FR'
+    }
+  }
+
+  // Helper pour obtenir le nom du mois traduit
+  const getMonthName = (monthIndex: number) => {
+    const monthKeys = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
+    return t(`admin.agenda.months.${monthKeys[monthIndex]}`)
+  }
+
+  // Helper pour obtenir les jours de la semaine traduits
+  const getDaysShort = () => {
+    return t('admin.agenda.days_short') as unknown as string[]
+  }
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -835,7 +858,7 @@ export function BookingModal({
     return days
   }
 
-  const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+  // monthNames est maintenant dynamique via getMonthName()
 
   const handleCalendarDateClick = (date: Date) => {
     setLocalDate(date)
@@ -1616,11 +1639,11 @@ export function BookingModal({
           onClose()
         }
       } else {
-        setError('Erreur lors de la création de la réservation')
+        setError(t('admin.booking_modal.errors.create_error'))
       }
     } catch (err) {
       console.error('Error creating booking:', err)
-      setError('Une erreur est survenue')
+      setError(t('admin.booking_modal.errors.generic_error'))
     } finally {
       setLoading(false)
     }
@@ -1639,21 +1662,21 @@ export function BookingModal({
 
     // Validations
     if (!firstName.trim()) {
-      setError('Le prénom est requis')
+      setError(t('admin.booking_modal.validation.required_fields'))
       return
     }
     
     if (!phone.trim()) {
-      setError('Le numéro de téléphone est requis')
+      setError(t('admin.booking_modal.validation.required_fields'))
       return
     }
     if (parsedParticipants < 1) {
-      setError('Le nombre de participants doit être au moins 1')
+      setError(t('admin.booking_modal.validation.min_participants'))
       return
     }
     // Plus de limitation de capacité : le système d'overbooking gère les dépassements
     if (parsedDuration < 15) {
-      setError('La durée minimum est de 15 minutes')
+      setError(t('admin.booking_modal.validation.min_duration'))
       return
     }
 
@@ -1824,7 +1847,7 @@ export function BookingModal({
         return
       } else {
         // Cas de secours (ne devrait pas arriver)
-        setError('Aucune salle disponible pour cette quantité. Veuillez réduire le nombre de participants.')
+        setError(t('admin.booking_modal.errors.no_room_for_quantity'))
         return
       }
     } else if (bookingType === 'EVENT' && findBestAvailableRoom) {
@@ -1950,7 +1973,7 @@ export function BookingModal({
 
   const handleOverCapacityCancel = () => {
     setShowOverCapacityConfirm(false)
-    setError('Réservation annulée. Veuillez réduire le nombre de participants ou choisir une autre période.')
+    setError(t('admin.booking_modal.errors.booking_cancelled'))
     setPendingRoomId(null)
   }
 
@@ -2012,7 +2035,7 @@ export function BookingModal({
 
   const handleOverbookingCancel = () => {
     setShowOverbookingWarning(false)
-    setError('Réservation annulée. Veuillez réduire le nombre de participants ou choisir une autre période.')
+    setError(t('admin.booking_modal.errors.booking_cancelled'))
     setOverbookingInfo(null)
   }
 
@@ -2030,12 +2053,12 @@ export function BookingModal({
         setShowDeleteConfirm(false)
         onClose()
       } else {
-        setError('Erreur lors de la suppression de la réservation')
+        setError(t('admin.booking_modal.delete_error'))
         setShowDeleteConfirm(false)
       }
     } catch (err) {
       console.error('Error deleting booking:', err)
-      setError('Erreur lors de la suppression de la réservation')
+      setError(t('admin.booking_modal.delete_error'))
       setShowDeleteConfirm(false)
     } finally {
       setLoading(false)
@@ -2094,7 +2117,7 @@ export function BookingModal({
         <div className={`flex items-center justify-between p-6 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
           <div>
             <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {editingBooking ? 'Modifier la réservation' : 'Nouvelle réservation'}
+              {editingBooking ? t('admin.booking_modal.title_edit') : t('admin.booking_modal.title_new')}
             </h2>
             <div className="flex items-center gap-6 mt-1">
               {/* Date - complètement à gauche */}
@@ -2105,7 +2128,7 @@ export function BookingModal({
                   className={`text-sm font-medium ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'} flex items-center gap-1 cursor-pointer transition-colors`}
                 >
                   <Calendar className="w-4 h-4" />
-                  {localDate.toLocaleDateString('fr-FR', {
+                  {localDate.toLocaleDateString(getDateLocale(), {
                     weekday: 'long',
                     day: 'numeric',
                     month: 'long',
@@ -2127,7 +2150,7 @@ export function BookingModal({
                         type="button"
                         onClick={handlePreviousYear}
                         className={`p-1 ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} rounded hover:opacity-80 transition-all`}
-                        title="Année précédente"
+                        title={t('admin.booking_modal.calendar.previous_year')}
                       >
                         <div className="relative w-4 h-4">
                           <ChevronLeft className={`w-4 h-4 ${isDark ? 'text-white' : 'text-gray-900'} absolute`} />
@@ -2138,18 +2161,18 @@ export function BookingModal({
                         type="button"
                         onClick={handlePreviousMonth}
                         className={`p-1 ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} rounded hover:opacity-80 transition-all`}
-                        title="Mois précédent"
+                        title={t('admin.booking_modal.calendar.previous_month')}
                       >
                         <ChevronLeft className={`w-4 h-4 ${isDark ? 'text-white' : 'text-gray-900'}`} />
                       </button>
                       <div className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'} px-4`}>
-                        {monthNames[calendarMonth]} {calendarYear}
+                        {getMonthName(calendarMonth)} {calendarYear}
                       </div>
                       <button
                         type="button"
                         onClick={handleNextMonth}
                         className={`p-1 ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} rounded hover:opacity-80 transition-all`}
-                        title="Mois suivant"
+                        title={t('admin.booking_modal.calendar.next_month')}
                       >
                         <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white' : 'text-gray-900'}`} />
                       </button>
@@ -2157,7 +2180,7 @@ export function BookingModal({
                         type="button"
                         onClick={handleNextYear}
                         className={`p-1 ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} rounded hover:opacity-80 transition-all`}
-                        title="Année suivante"
+                        title={t('admin.booking_modal.calendar.next_year')}
                       >
                         <div className="relative w-4 h-4">
                           <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white' : 'text-gray-900'} absolute`} />
@@ -2169,7 +2192,7 @@ export function BookingModal({
                     {/* Grille calendrier */}
                     <div className="grid grid-cols-7 gap-1">
                       {/* En-têtes jours */}
-                      {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((day, i) => (
+                      {getDaysShort().map((day, i) => (
                         <div key={i} className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'} text-center p-1 font-bold`}>
                           {day}
                         </div>
@@ -2211,13 +2234,13 @@ export function BookingModal({
                   // Mode gelé pour réservation existante : afficher la branche avec bouton modification
                   <div className="flex items-center gap-2">
                     <span className={`text-xs px-2 py-1 rounded ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                      {branches.find(b => b.id === bookingBranchId)?.name || 'Branche'}
+                      {branches.find(b => b.id === bookingBranchId)?.name || t('admin.booking_modal.branch')}
                     </span>
                     <button
                       type="button"
                       onClick={() => setIsEditingBranch(true)}
                       className={`p-1 rounded ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
-                      title="Modifier la branche"
+                      title={t('admin.booking_modal.edit_branch')}
                     >
                       <Edit2 className="w-3 h-3" />
                     </button>
@@ -2233,7 +2256,7 @@ export function BookingModal({
                           ? 'bg-gray-800 hover:bg-gray-700 text-white'
                           : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
                       }`}
-                      title="Modifier la branche"
+                      title={t('admin.booking_modal.edit_branch')}
                     >
                       <Building2 className={`w-4 h-4 ${
                         isDark ? 'text-blue-400' : 'text-blue-600'
@@ -2299,24 +2322,24 @@ export function BookingModal({
           {/* Reference Code / Numéro de commande */}
           <div>
             <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-              Numéro de commande
+              {t('admin.booking_modal.order_number')}
             </label>
             <div className={`px-3 py-2 rounded-lg border text-sm font-mono ${
               isDark
                 ? 'bg-gray-700/50 border-gray-600 text-gray-300'
                 : 'bg-gray-100 border-gray-300 text-gray-700'
             }`}>
-              {editingBooking?.reference_code || 'Création en cours...'}
+              {editingBooking?.reference_code || t('admin.booking_modal.creating')}
             </div>
             <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-              {editingBooking ? 'Numéro unique de la réservation' : 'Sera généré automatiquement à la création'}
+              {editingBooking ? t('admin.booking_modal.order_number_help_edit') : t('admin.booking_modal.order_number_help_new')}
             </p>
           </div>
 
           {/* Type de réservation + Couleur */}
           <div>
             <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-              Type de réservation
+              {t('admin.booking_modal.type_label')}
             </label>
             <div className="grid grid-cols-2 gap-3 mb-3">
               <button
@@ -2376,12 +2399,12 @@ export function BookingModal({
             <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
               <div className="flex items-center gap-2 mb-3">
                 <Home className="w-5 h-5 text-green-400" />
-                <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Salle d'événement</span>
+                <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{t('admin.booking_modal.event.room_title')}</span>
               </div>
               <div className="grid grid-cols-4 gap-3">
                 <div>
                   <label className={`block text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Début salle
+                    {t('admin.booking_modal.event.room_start')}
                   </label>
                   <div className="flex gap-1">
                     <select
@@ -2414,7 +2437,7 @@ export function BookingModal({
                 </div>
                 <div>
                   <label className={`block text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Durée (min)
+                    {t('admin.booking_modal.fields.duration_min')}
                   </label>
                   <input
                     type="number"
@@ -2432,7 +2455,7 @@ export function BookingModal({
                 </div>
                 <div>
                   <label className={`block text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Fin salle
+                    {t('admin.booking_modal.event.room_end')}
                   </label>
                   <div className={`px-2 py-2 rounded-lg border text-sm ${
                     isDark ? 'bg-gray-700/50 border-gray-600 text-gray-400' : 'bg-gray-100 border-gray-300 text-gray-600'
@@ -2442,7 +2465,7 @@ export function BookingModal({
                 </div>
                 <div>
                   <label className={`block text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Participants
+                    {t('admin.booking_modal.fields.participants')}
                   </label>
                   <input
                     type="number"
@@ -2467,7 +2490,7 @@ export function BookingModal({
                 <div className="col-span-1">
                   <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                     <User className="w-3 h-3 inline mr-1" />
-                    Alias
+                    {t('admin.booking_modal.fields.alias')}
                   </label>
                   <input
                     type="text"
@@ -2478,13 +2501,13 @@ export function BookingModal({
                         ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500'
                         : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
                     }`}
-                    placeholder="Ex: Marie, Lucas"
+                    placeholder={t('admin.booking_modal.fields.alias_placeholder')}
                   />
                 </div>
                 <div className="col-span-3">
                   <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                     <MessageSquare className="w-3 h-3 inline mr-1" />
-                    Notes de l'événement
+                    {t('admin.booking_modal.event.event_notes')}
                   </label>
                   <textarea
                     value={eventNotes}
@@ -2502,7 +2525,7 @@ export function BookingModal({
                         ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500'
                         : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
                     }`}
-                    placeholder="Notes concernant l'événement et la salle..."
+                    placeholder={t('admin.booking_modal.event.event_notes_placeholder')}
                     style={{ minHeight: '48px', maxHeight: '120px' }}
                   />
                 </div>
@@ -2516,7 +2539,7 @@ export function BookingModal({
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <PartyPopper className="w-5 h-5 text-green-400" />
-                  <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Plan de jeu</span>
+                  <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{t('admin.booking_modal.event.game_plan')}</span>
                 </div>
                 {/* Bouton Modifier événement (uniquement en mode édition) */}
                 {editingBooking && !isEditingEvent && (
@@ -2530,7 +2553,7 @@ export function BookingModal({
                     }`}
                   >
                     <Edit2 className="w-3 h-3" />
-                    Modifier événement
+                    {t('admin.booking_modal.event.modify_event')}
                   </button>
                 )}
               </div>
@@ -2544,7 +2567,7 @@ export function BookingModal({
               {/* Sélection du nombre de jeux (2 jeux ou sur mesure) */}
               <div className="mb-4">
                 <label className={`block text-xs mb-2 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Plan de jeu
+                  {t('admin.booking_modal.event.game_plan')}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {(['2', 'CUSTOM'] as EventGamePlanType[]).map(planType => (
@@ -2577,7 +2600,7 @@ export function BookingModal({
                           : isDark ? 'border-gray-700 hover:border-gray-600 text-gray-300' : 'border-gray-200 hover:border-gray-300 text-gray-700'
                       }`}
                     >
-                      {planType === 'CUSTOM' ? 'Sur mesure' : `${planType} jeux`}
+                      {planType === 'CUSTOM' ? t('admin.booking_modal.event.custom_plan') : `${planType} ${t('admin.booking_modal.fields.games')}`}
                     </button>
                   ))}
                 </div>
@@ -2587,7 +2610,7 @@ export function BookingModal({
               {eventGamePlanType !== 'CUSTOM' && (
                 <div className="mb-4">
                   <label className={`block text-xs mb-2 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Plan prédéfini
+                    {t('admin.booking_modal.event.predefined_plan')}
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     {getAvailableQuickPlans(eventGamePlanType).map(plan => (
@@ -2620,7 +2643,7 @@ export function BookingModal({
                 <div className="space-y-3">
                   <div className="mb-3">
                     <label className={`block text-xs mb-2 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Heure de début du premier jeu
+                      {t('admin.booking_modal.event.first_game_start')}
                     </label>
                     <div className="flex gap-1 w-fit">
                       <select
@@ -2658,7 +2681,7 @@ export function BookingModal({
                       <div key={index} className={`p-3 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-white'} border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                         <div className="flex items-center justify-between mb-2">
                           <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            Jeu {gameNumber} ({area === 'ACTIVE' ? 'Active' : 'Laser'})
+                            {t('admin.booking_modal.fields.game_number')} {gameNumber} ({area === 'ACTIVE' ? 'Active' : 'Laser'})
                           </span>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
@@ -2718,7 +2741,7 @@ export function BookingModal({
                 <div className="space-y-3">
                   <div className="mb-3">
                     <label className={`block text-xs mb-2 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Heure de début du premier jeu
+                      {t('admin.booking_modal.event.first_game_start')}
                     </label>
                     <div className="flex gap-1 w-fit">
                       <select
@@ -2763,7 +2786,7 @@ export function BookingModal({
                             : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
                         }`}
                       >
-                        <span>{eventCustomNumberOfGames} jeu{eventCustomNumberOfGames > 1 ? 'x' : ''}</span>
+                        <span>{eventCustomNumberOfGames} {t('admin.booking_modal.fields.games')}</span>
                         <ChevronDown className={`w-3 h-3 transition-transform ${
                           isDark ? 'text-gray-400' : 'text-gray-600'
                         } ${showCustomGamesDropdown ? 'rotate-180' : ''}`} />
@@ -2799,7 +2822,7 @@ export function BookingModal({
                                   : 'text-gray-900 hover:bg-gray-100'
                               }`}
                             >
-                              {n} jeu{n > 1 ? 'x' : ''}
+                              {n} {t('admin.booking_modal.fields.games')}
                             </button>
                           ))}
                         </div>
@@ -2811,7 +2834,7 @@ export function BookingModal({
                     <div key={index} className={`p-3 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-white'} border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                       <div className="mb-2">
                         <label className={`block text-xs mb-1 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                          Jeu {index + 1} - Zone de jeu
+                          {t('admin.booking_modal.fields.game_number')} {index + 1} - {t('admin.booking_modal.event.game_type')}
                         </label>
                         <div className="grid grid-cols-2 gap-2">
                           <button
@@ -2871,7 +2894,7 @@ export function BookingModal({
                         {index < eventCustomNumberOfGames - 1 && (
                           <div>
                             <label className={`block text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                              Pause après (min)
+                              {t('admin.booking_modal.event.pause_after')}
                             </label>
                             <input
                               type="number"
@@ -2907,7 +2930,7 @@ export function BookingModal({
           {bookingType === 'GAME' && laserRooms.length > 0 && (
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Zone de jeu
+                {t('admin.booking_modal.game_area_label')}
               </label>
               <div className="grid grid-cols-3 gap-3">
                 <button
@@ -2971,7 +2994,7 @@ export function BookingModal({
                 >
                   <Gamepad2 className={`w-6 h-6 ${gameArea === 'CUSTOM' ? 'text-green-500' : isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                   <span className={`font-medium ${gameArea === 'CUSTOM' ? 'text-green-500' : isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Sur mesure
+                    {t('admin.booking_modal.game_area.custom')}
                   </span>
                 </button>
               </div>
@@ -2983,12 +3006,12 @@ export function BookingModal({
             <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
               <div className="flex items-center gap-2 mb-3">
                 <Gamepad2 className="w-5 h-5 text-blue-400" />
-                <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Temps de jeu</span>
+                <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{t('admin.booking_modal.game_time')}</span>
               </div>
               <div className={`grid gap-3 ${(gameArea as string) === 'CUSTOM' ? 'grid-cols-2' : (numberOfGames === 1 && (gameArea as string) !== 'CUSTOM' ? 'grid-cols-3' : 'grid-cols-2')}`}>
                 <div>
                   <label className={`block text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Début
+                    {t('admin.booking_modal.start')}
                   </label>
                   <div className="flex gap-1">
                     <select
@@ -3045,7 +3068,7 @@ export function BookingModal({
                 )}
                 <div>
                   <label className={`block text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Participants
+                    {t('admin.booking_modal.fields.participants')}
                   </label>
                   <input
                     type="number"
@@ -3066,9 +3089,8 @@ export function BookingModal({
               {/* Info slots Tetris */}
               {parsedParticipants > 0 && bookingType === 'GAME' && gameArea === 'ACTIVE' && (
                 <div className={`mt-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  <span className="text-blue-400">{slotsNeeded} slot{slotsNeeded > 1 ? 's' : ''}</span>
-                  {' '}seront réservés ({slotsNeeded * MAX_PLAYERS_PER_SLOT} places max)
-                  {isOverCapacity && <span className="text-red-400 ml-2">Capacité max: {TOTAL_CAPACITY}</span>}
+                  {t('admin.booking_modal.game.slots_info', { slots: slotsNeeded, places: slotsNeeded * MAX_PLAYERS_PER_SLOT })}
+                  {isOverCapacity && <span className="text-red-400 ml-2">{t('admin.booking_modal.game.max_capacity')}: {TOTAL_CAPACITY}</span>}
                 </div>
               )}
             </div>
@@ -3079,7 +3101,7 @@ export function BookingModal({
             <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
               <div className="flex items-center gap-2 mb-3">
                 <Target className="w-5 h-5 text-purple-400" />
-                <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Allocation des labyrinthes</span>
+                <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{t('admin.booking_modal.laser.allocation_title')}</span>
               </div>
               {(() => {
                 const activeLaserRooms = laserRooms?.filter(r => r.is_active) || []
@@ -3096,8 +3118,8 @@ export function BookingModal({
                             : isDark ? 'border-gray-700 hover:border-gray-600 text-gray-300' : 'border-gray-200 hover:border-gray-300 text-gray-700'
                         }`}
                       >
-                        <div className="font-medium">Auto</div>
-                        <div className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Allocation automatique</div>
+                        <div className="font-medium">{t('admin.booking_modal.laser.auto')}</div>
+                        <div className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('admin.booking_modal.laser.auto_desc')}</div>
                       </button>
                       <button
                         type="button"
@@ -3111,8 +3133,8 @@ export function BookingModal({
                               : isDark ? 'border-gray-700 hover:border-gray-600 text-gray-300' : 'border-gray-200 hover:border-gray-300 text-gray-700'
                         }`}
                       >
-                        <div className="font-medium">Petit laby</div>
-                        <div className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Petit seul</div>
+                        <div className="font-medium">{t('admin.booking_modal.laser.petit')}</div>
+                        <div className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('admin.booking_modal.laser.petit_desc')}</div>
                       </button>
                       <button
                         type="button"
@@ -3126,8 +3148,8 @@ export function BookingModal({
                               : isDark ? 'border-gray-700 hover:border-gray-600 text-gray-300' : 'border-gray-200 hover:border-gray-300 text-gray-700'
                         }`}
                       >
-                        <div className="font-medium">Grand laby</div>
-                        <div className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Grand seul</div>
+                        <div className="font-medium">{t('admin.booking_modal.laser.grand')}</div>
+                        <div className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('admin.booking_modal.laser.grand_desc')}</div>
                       </button>
                       <button
                         type="button"
@@ -3141,13 +3163,13 @@ export function BookingModal({
                               : isDark ? 'border-gray-700 hover:border-gray-600 text-gray-300' : 'border-gray-200 hover:border-gray-300 text-gray-700'
                         }`}
                       >
-                        <div className="font-medium">Maxi</div>
-                        <div className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Les deux labys</div>
+                        <div className="font-medium">{t('admin.booking_modal.laser.maxi')}</div>
+                        <div className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('admin.booking_modal.laser.maxi_desc')}</div>
                       </button>
                     </div>
                     {!hasMultipleRooms && (
                       <p className={`text-xs mt-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                        Une seule salle disponible. Mode Auto uniquement.
+                        {t('admin.booking_modal.laser.single_room_notice')}
                       </p>
                     )}
                   </>
@@ -3166,14 +3188,14 @@ export function BookingModal({
                   <Target className="w-5 h-5 text-purple-400" />
                 )}
                 <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  Configuration des jeux ({gameArea === 'ACTIVE' ? 'Active' : 'Laser'})
+                  {t('admin.booking_modal.game.config_title')} ({gameArea === 'ACTIVE' ? 'Active' : 'Laser'})
                 </span>
               </div>
               
               {/* Nombre de jeux (1/2/3/4) */}
               <div className="mb-3">
                 <label className={`block text-xs mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Nombre de jeux
+                  {t('admin.booking_modal.fields.games_count')}
                 </label>
                 <div className="flex gap-2">
                   {[1, 2, 3, 4].map(num => (
@@ -3207,13 +3229,13 @@ export function BookingModal({
               {numberOfGames > 1 && (
                 <div className="space-y-3">
                   <label className={`block text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Configuration des jeux
+                    {t('admin.booking_modal.game.config_title')}
                   </label>
                   {Array.from({ length: numberOfGames }, (_, i) => (
                     <div key={i} className={`p-3 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-white'} border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                       <div className="flex items-center gap-2 mb-2">
                         <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                          Jeu {i + 1}
+                          {t('admin.booking_modal.fields.game_number')} {i + 1}
                         </span>
                       </div>
                       <div className={`grid gap-2 ${i < numberOfGames - 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
@@ -3242,7 +3264,7 @@ export function BookingModal({
                         {i < numberOfGames - 1 && (
                           <div>
                             <label className={`block text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                              Pause après (min)
+                              {t('admin.booking_modal.event.pause_after')}
                             </label>
                             <input
                               type="number"
@@ -3272,12 +3294,12 @@ export function BookingModal({
               {gameArea === 'LASER' && laserRooms.length > 0 && (
                 <div className="mt-3">
                   <label className={`block text-xs mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Salle laser (allocation automatique selon nombre de participants)
+                    {t('admin.booking_modal.laser.room_allocation')}
                   </label>
                   <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {parsedParticipants <= 15 && 'Par défaut : L1'}
-                    {parsedParticipants > 15 && parsedParticipants <= 20 && 'Par défaut : L2'}
-                    {parsedParticipants > 20 && 'Nécessite : L1 + L2'}
+                    {parsedParticipants <= 15 && t('admin.booking_modal.laser.default_l1')}
+                    {parsedParticipants > 15 && parsedParticipants <= 20 && t('admin.booking_modal.laser.default_l2')}
+                    {parsedParticipants > 20 && t('admin.booking_modal.laser.needs_both')}
                   </div>
                 </div>
               )}
@@ -3289,13 +3311,13 @@ export function BookingModal({
             <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
               <div className="flex items-center gap-2 mb-3">
                 <Gamepad2 className="w-5 h-5 text-green-400" />
-                <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Configuration sur mesure</span>
+                <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{t('admin.booking_modal.custom.config_title')}</span>
               </div>
               
               <div className="space-y-3">
                 <div className="mb-3">
                   <label className={`block text-xs mb-2 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Nombre de jeux
+                    {t('admin.booking_modal.fields.games_count')}
                   </label>
                   <div ref={gameCustomGamesDropdownRef} className="relative">
                     <button
@@ -3307,7 +3329,7 @@ export function BookingModal({
                           : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
                       }`}
                     >
-                      <span>{gameCustomNumberOfGames} jeu{gameCustomNumberOfGames > 1 ? 'x' : ''}</span>
+                      <span>{gameCustomNumberOfGames} {t('admin.booking_modal.fields.games')}</span>
                       <ChevronDown className={`w-3 h-3 transition-transform ${
                         isDark ? 'text-gray-400' : 'text-gray-600'
                       } ${showGameCustomGamesDropdown ? 'rotate-180' : ''}`} />
@@ -3343,7 +3365,7 @@ export function BookingModal({
                                 : 'text-gray-900 hover:bg-gray-100'
                             }`}
                           >
-                            {n} jeu{n > 1 ? 'x' : ''}
+                            {n} {t('admin.booking_modal.fields.games')}
                           </button>
                         ))}
                       </div>
@@ -3355,7 +3377,7 @@ export function BookingModal({
                   <div key={index} className={`p-3 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-white'} border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                     <div className="mb-2">
                       <label className={`block text-xs mb-1 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        Jeu {index + 1} - Zone de jeu
+                        {t('admin.booking_modal.fields.game_number')} {index + 1} - {t('admin.booking_modal.event.game_type')}
                       </label>
                       <div className="grid grid-cols-2 gap-2">
                         <button
@@ -3415,7 +3437,7 @@ export function BookingModal({
                       {index < gameCustomNumberOfGames - 1 && (
                         <div>
                           <label className={`block text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                            Pause après (min)
+                            {t('admin.booking_modal.event.pause_after')}
                           </label>
                           <input
                             type="number"
@@ -3456,7 +3478,7 @@ export function BookingModal({
                   }`}
                 >
                   <Edit2 className="w-3 h-3" />
-                  Modifier client
+                  {t('admin.booking_modal.contact.modify_client')}
                 </button>
                 <button
                   type="button"
@@ -3468,7 +3490,7 @@ export function BookingModal({
                   }`}
                 >
                   <RefreshCw className="w-3 h-3" />
-                  Changer contact
+                  {t('admin.booking_modal.contact.change_contact')}
                 </button>
               </div>
             )}
@@ -3477,7 +3499,7 @@ export function BookingModal({
               <div>
                 <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   <User className="w-4 h-4 inline mr-1" />
-                  Prénom *
+                  {t('admin.booking_modal.contact.first_name_required')}
                 </label>
                 <ContactFieldAutocomplete
                   branchId={bookingBranchId}
@@ -3485,7 +3507,7 @@ export function BookingModal({
                   onChange={(value) => handleFieldChange('firstName', value)}
                   onSelectContact={handleContactSelectedFromField}
                   fieldType="firstName"
-                  placeholder="Prénom"
+                  placeholder={t('admin.booking_modal.contact.first_name_placeholder')}
                   required
                   isDark={isDark}
                   inputType="text"
@@ -3495,7 +3517,7 @@ export function BookingModal({
               </div>
               <div>
                 <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Nom
+                  {t('admin.booking_modal.fields.last_name')}
                 </label>
                 <ContactFieldAutocomplete
                   branchId={bookingBranchId}
@@ -3503,7 +3525,7 @@ export function BookingModal({
                   onChange={(value) => handleFieldChange('lastName', value)}
                   onSelectContact={handleContactSelectedFromField}
                   fieldType="lastName"
-                  placeholder="Nom (optionnel)"
+                  placeholder={t('admin.booking_modal.contact.last_name_optional')}
                   isDark={isDark}
                   inputType="text"
                   disabled={areFieldsFrozen}
@@ -3516,7 +3538,7 @@ export function BookingModal({
               <div>
                 <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   <Phone className="w-4 h-4 inline mr-1" />
-                  Téléphone *
+                  {t('admin.booking_modal.contact.phone_required')}
                 </label>
                 <ContactFieldAutocomplete
                   branchId={bookingBranchId}
@@ -3524,7 +3546,7 @@ export function BookingModal({
                   onChange={(value) => handleFieldChange('phone', value)}
                   onSelectContact={handleContactSelectedFromField}
                   fieldType="phone"
-                  placeholder="05X XXX XXXX"
+                  placeholder={t('admin.booking_modal.contact.phone_placeholder')}
                   required
                   isDark={isDark}
                   inputType="tel"
@@ -3535,7 +3557,7 @@ export function BookingModal({
               <div>
                 <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   <Mail className="w-4 h-4 inline mr-1" />
-                  Email
+                  {t('admin.booking_modal.fields.email')}
                 </label>
                 <ContactFieldAutocomplete
                   branchId={bookingBranchId}
@@ -3543,7 +3565,7 @@ export function BookingModal({
                   onChange={(value) => handleFieldChange('email', value)}
                   onSelectContact={handleContactSelectedFromField}
                   fieldType="email"
-                  placeholder="email@exemple.com"
+                  placeholder={t('admin.booking_modal.contact.email_placeholder')}
                   isDark={isDark}
                   inputType="email"
                   disabled={areFieldsFrozen}
@@ -3557,7 +3579,7 @@ export function BookingModal({
           <div className="mt-4">
             <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               <MessageSquare className="w-4 h-4 inline mr-1" />
-              Notes
+              {t('admin.booking_modal.fields.notes')}
             </label>
             <textarea
               value={notes}
@@ -3584,7 +3606,7 @@ export function BookingModal({
                     ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500'
                     : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
               }`}
-              placeholder="Notes additionnelles..."
+              placeholder={t('admin.booking_modal.fields.notes_additional')}
               style={{ minHeight: '48px', maxHeight: '120px' }}
             />
           </div>
@@ -3612,7 +3634,7 @@ export function BookingModal({
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 <Trash2 className="w-4 h-4" />
-                Supprimer
+                {t('admin.booking_modal.actions.delete')}
               </button>
             )}
           </div>
@@ -3627,7 +3649,7 @@ export function BookingModal({
                   : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
               }`}
             >
-              Annuler
+              {t('admin.booking_modal.actions.cancel')}
             </button>
             <button
               type="submit"
@@ -3639,10 +3661,10 @@ export function BookingModal({
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  {editingBooking ? 'Modification...' : 'Création...'}
+                  {editingBooking ? t('admin.booking_modal.actions.modifying') : t('admin.booking_modal.actions.creating')}
                 </>
               ) : (
-                editingBooking ? 'Modifier' : 'Créer la réservation'
+                editingBooking ? t('admin.booking_modal.actions.modify') : t('admin.booking_modal.actions.create')
               )}
             </button>
           </div>
@@ -3662,12 +3684,12 @@ export function BookingModal({
           <div className={`relative w-full max-w-md mx-4 rounded-2xl shadow-2xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
             <div className="p-6">
               <h3 className={`text-xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                ⚠️ Capacité insuffisante
+                ⚠️ {t('admin.booking_modal.modals.insufficient_capacity')}
               </h3>
               <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Aucune salle disponible pour <strong>{parsedParticipants} participants</strong>.<br /><br />
-                La capacité maximale des salles disponibles est insuffisante.<br /><br />
-                Voulez-vous continuer quand même avec la salle actuelle (si elle existe) ?
+                {t('admin.booking_modal.modals.no_room_for_participants', { count: parsedParticipants })}<br /><br />
+                {t('admin.booking_modal.modals.capacity_insufficient')}<br /><br />
+                {t('admin.booking_modal.modals.continue_anyway')}
               </p>
               <div className="flex items-center justify-end gap-3">
                 <button
@@ -3680,7 +3702,7 @@ export function BookingModal({
                       : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                   } disabled:opacity-50`}
                 >
-                  Annuler
+                  {t('admin.booking_modal.actions.cancel')}
                 </button>
                 <button
                   type="button"
@@ -3691,10 +3713,10 @@ export function BookingModal({
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      En cours...
+                      {t('admin.booking_modal.actions.processing')}
                     </>
                   ) : (
-                    'Continuer quand même'
+                    t('admin.booking_modal.modals.continue_button')
                   )}
                 </button>
               </div>
@@ -3716,11 +3738,11 @@ export function BookingModal({
           <div className={`relative w-full max-w-md mx-4 rounded-2xl shadow-2xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
             <div className="p-6">
               <h3 className={`text-xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                ❌ Aucune salle disponible
+                ❌ {t('admin.booking_modal.modals.no_room_available')}
               </h3>
               <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Aucune salle disponible pour <strong>{parsedParticipants} participants</strong> à cette période.<br /><br />
-                Veuillez réduire le nombre de participants ou choisir une autre période.
+                {t('admin.booking_modal.modals.no_room_at_period', { count: parsedParticipants })}<br /><br />
+                {t('admin.booking_modal.modals.reduce_participants')}
               </p>
               <div className="flex items-center justify-end gap-3">
                 <button
@@ -3733,7 +3755,7 @@ export function BookingModal({
                       : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                   } disabled:opacity-50`}
                 >
-                  Fermer
+                  {t('admin.booking_modal.actions.close')}
                 </button>
               </div>
             </div>
@@ -3754,16 +3776,16 @@ export function BookingModal({
           <div className={`relative w-full max-w-md mx-4 rounded-2xl shadow-2xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
             <div className="p-6">
               <h3 className={`text-xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                ⚠️ Capacité inférieure disponible
+                ⚠️ {t('admin.booking_modal.modals.lower_capacity')}
               </h3>
               <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Vous avez demandé <strong>{parsedParticipants} participants</strong>, mais la plus grande salle disponible a une capacité de <strong>{lowerCapacityRoomInfo.capacity} participants</strong>.<br /><br />
+                {t('admin.booking_modal.modals.requested_vs_available', { requested: parsedParticipants, available: lowerCapacityRoomInfo.capacity })}<br /><br />
                 {parsedParticipants > lowerCapacityRoomInfo.capacity ? (
                   <>
-                    Cette salle dépasse sa capacité maximale de <strong>{parsedParticipants - lowerCapacityRoomInfo.capacity} participants</strong>.<br /><br />
+                    {t('admin.booking_modal.modals.exceeds_by', { count: parsedParticipants - lowerCapacityRoomInfo.capacity })}<br /><br />
                   </>
                 ) : null}
-                Voulez-vous utiliser cette salle quand même ?
+                {t('admin.booking_modal.modals.use_this_room')}
               </p>
               <div className="flex items-center justify-end gap-3">
                 <button
@@ -3776,7 +3798,7 @@ export function BookingModal({
                       : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                   } disabled:opacity-50`}
                 >
-                  Annuler
+                  {t('admin.booking_modal.actions.cancel')}
                 </button>
                 <button
                   type="button"
@@ -3787,10 +3809,10 @@ export function BookingModal({
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      En cours...
+                      {t('admin.booking_modal.actions.processing')}
                     </>
                   ) : (
-                    'Utiliser cette salle'
+                    t('admin.booking_modal.modals.use_room_button')
                   )}
                 </button>
               </div>
@@ -3814,28 +3836,28 @@ export function BookingModal({
               <div className="flex items-center gap-3 mb-4">
                 <AlertTriangle className={`w-6 h-6 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
                 <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  Doublon détecté
+                  {t('admin.booking_modal.modals.duplicate_detected')}
                 </h3>
               </div>
               <p className={`mb-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Un ou plusieurs contacts existent déjà avec :
+                {t('admin.booking_modal.modals.duplicate_exists')}
               </p>
               <div className={`p-4 rounded-lg mb-4 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
                 {pendingContactData.phone && (
                   <div className="mb-2">
-                    <strong className={isDark ? 'text-gray-300' : 'text-gray-700'}>Téléphone :</strong>{' '}
+                    <strong className={isDark ? 'text-gray-300' : 'text-gray-700'}>{t('admin.booking_modal.fields.phone')} :</strong>{' '}
                     <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>{pendingContactData.phone}</span>
                   </div>
                 )}
                 {pendingContactData.email && (
                   <div>
-                    <strong className={isDark ? 'text-gray-300' : 'text-gray-700'}>Email :</strong>{' '}
+                    <strong className={isDark ? 'text-gray-300' : 'text-gray-700'}>{t('admin.booking_modal.fields.email')} :</strong>{' '}
                     <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>{pendingContactData.email}</span>
                   </div>
                 )}
               </div>
               <p className={`mb-6 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                Voulez-vous créer un nouveau contact quand même ? Ce contact sera créé même si des données similaires existent déjà.
+                {t('admin.booking_modal.modals.create_anyway_question')}
               </p>
               <div className="flex items-center justify-end gap-3">
                 <button
@@ -3851,13 +3873,13 @@ export function BookingModal({
                       : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                   } disabled:opacity-50`}
                 >
-                  Annuler
+                  {t('admin.booking_modal.actions.cancel')}
                 </button>
                 <button
                   type="button"
                   onClick={async () => {
                     if (!pendingContactData) return
-                    
+
                     // Créer le contact malgré le doublon
                     const newContact = await createContact({
                       branch_id_main: bookingBranchId, // Utiliser la branche de la réservation
@@ -3868,7 +3890,7 @@ export function BookingModal({
                       notes_client: notes.trim() || null,
                       source: 'admin_agenda',
                     })
-                    
+
                     if (newContact) {
                       setSelectedContact(newContact)
                       setShowDuplicateWarning(false)
@@ -3885,10 +3907,10 @@ export function BookingModal({
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      En cours...
+                      {t('admin.booking_modal.actions.processing')}
                     </>
                   ) : (
-                    'Créer quand même'
+                    t('admin.booking_modal.modals.create_anyway_button')
                   )}
                 </button>
               </div>
@@ -3910,29 +3932,29 @@ export function BookingModal({
           <div className={`relative w-full max-w-lg mx-4 rounded-2xl shadow-2xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
             <div className="p-6">
               <h3 className={`text-xl font-bold mb-4 ${isDark ? 'text-red-400' : 'text-red-600'}`}>
-                ⚠️ Avertissement : Overbooking détecté
+                ⚠️ {t('admin.booking_modal.modals.overbooking_warning')}
               </h3>
               <div className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                 <p className="mb-4">
                   {bookingBranchId && bookingBranchId !== branchId && (
                     <span className="block mb-2">
-                      <strong>Branche de destination :</strong> {branches.find(b => b.id === bookingBranchId)?.name || 'Branche inconnue'}
+                      <strong>{t('admin.booking_modal.modals.destination_branch')} :</strong> {branches.find(b => b.id === bookingBranchId)?.name || t('admin.booking_modal.modals.unknown_branch')}
                     </span>
                   )}
-                  Cette réservation va créer un <strong>overbooking</strong> dans la branche de destination :
+                  {t('admin.booking_modal.modals.will_create_overbooking')}
                 </p>
                 <div className={`p-4 rounded-lg ${isDark ? 'bg-red-900/30 border border-red-700' : 'bg-red-50 border border-red-200'}`}>
                   <div className="space-y-2">
                     <div>
-                      <strong className={isDark ? 'text-red-300' : 'text-red-700'}>Maximum :</strong>
+                      <strong className={isDark ? 'text-red-300' : 'text-red-700'}>{t('admin.booking_modal.modals.maximum')} :</strong>
                       <span className="ml-2">
-                        <strong>{overbookingInfo.maxOverbookedCount} personnes</strong> en surplus
-                        {' '}(<strong>{overbookingInfo.maxOverbookedSlots} slots</strong>)
+                        <strong>{overbookingInfo.maxOverbookedCount} {t('admin.booking_modal.modals.persons_surplus')}</strong>
+                        {' '}(<strong>{overbookingInfo.maxOverbookedSlots} {t('admin.booking_modal.modals.slots')}</strong>)
                       </span>
                     </div>
                     {overbookingInfo.affectedTimeSlots.length > 0 && (
                       <div className="mt-3">
-                        <strong className={isDark ? 'text-red-300' : 'text-red-700'}>Tranches horaires affectées :</strong>
+                        <strong className={isDark ? 'text-red-300' : 'text-red-700'}>{t('admin.booking_modal.modals.affected_slots')} :</strong>
                         <ul className="mt-2 space-y-1 text-sm">
                           {overbookingInfo.affectedTimeSlots.slice(0, 5).map((slot, idx) => (
                             <li key={idx}>
@@ -3940,7 +3962,7 @@ export function BookingModal({
                             </li>
                           ))}
                           {overbookingInfo.affectedTimeSlots.length > 5 && (
-                            <li className="italic">... et {overbookingInfo.affectedTimeSlots.length - 5} autre(s) tranche(s)</li>
+                            <li className="italic">{t('admin.booking_modal.modals.and_more', { count: overbookingInfo.affectedTimeSlots.length - 5 })}</li>
                           )}
                         </ul>
                       </div>
@@ -3948,7 +3970,7 @@ export function BookingModal({
                   </div>
                 </div>
                 <p className="mt-4">
-                  <strong>Autorisation manuelle requise</strong> pour continuer.
+                  <strong>{t('admin.booking_modal.modals.manual_auth_required')}</strong>
                 </p>
               </div>
               <div className="flex items-center justify-end gap-3">
@@ -3962,7 +3984,7 @@ export function BookingModal({
                       : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                   } disabled:opacity-50`}
                 >
-                  Annuler
+                  {t('admin.booking_modal.actions.cancel')}
                 </button>
                 <button
                   type="button"
@@ -3973,10 +3995,10 @@ export function BookingModal({
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      En cours...
+                      {t('admin.booking_modal.actions.processing')}
                     </>
                   ) : (
-                    'Autoriser et continuer'
+                    t('admin.booking_modal.modals.authorize_continue')
                   )}
                 </button>
               </div>
@@ -3998,10 +4020,10 @@ export function BookingModal({
           <div className={`relative w-full max-w-md mx-4 rounded-2xl shadow-2xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
             <div className="p-6">
               <h3 className={`text-xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Confirmer la suppression
+                {t('admin.booking_modal.modals.confirm_delete')}
               </h3>
               <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Êtes-vous sûr de vouloir supprimer définitivement cette réservation ? Cette action est irréversible.
+                {t('admin.booking_modal.modals.delete_irreversible')}
               </p>
               <div className="flex items-center justify-end gap-3">
                 <button
@@ -4014,7 +4036,7 @@ export function BookingModal({
                       : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                   } disabled:opacity-50`}
                 >
-                  Annuler
+                  {t('admin.booking_modal.actions.cancel')}
                 </button>
                 <button
                   type="button"
@@ -4025,12 +4047,12 @@ export function BookingModal({
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Suppression...
+                      {t('admin.booking_modal.actions.deleting')}
                     </>
                   ) : (
                     <>
                       <Trash2 className="w-4 h-4" />
-                      Supprimer
+                      {t('admin.booking_modal.actions.delete')}
                     </>
                   )}
                 </button>
@@ -4056,13 +4078,13 @@ export function BookingModal({
           <div className={`relative w-full max-w-md mx-4 rounded-2xl shadow-2xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
             <div className="p-6">
               <h3 className={`text-xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Limite de vestes atteinte
+                {t('admin.booking_modal.modals.vests_limit')}
               </h3>
               <p className={`mb-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                La limite principale de {pendingSpareVestsData.maxVests} vestes est atteinte.
+                {t('admin.booking_modal.modals.vests_limit_reached', { max: pendingSpareVestsData.maxVests })}
               </p>
               <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Les {pendingSpareVestsData.spareVests} vestes de spare sont-elles disponibles ?
+                {t('admin.booking_modal.modals.spare_vests_available', { spare: pendingSpareVestsData.spareVests })}
               </p>
               <div className="flex items-center justify-end gap-3">
                 <button
@@ -4077,7 +4099,7 @@ export function BookingModal({
                       : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                   }`}
                 >
-                  Non - Annuler
+                  {t('admin.booking_modal.modals.no_cancel')}
                 </button>
                 <button
                   type="button"
@@ -4091,7 +4113,7 @@ export function BookingModal({
                   }}
                   className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white"
                 >
-                  Oui - Autoriser
+                  {t('admin.booking_modal.modals.yes_authorize')}
                 </button>
               </div>
             </div>

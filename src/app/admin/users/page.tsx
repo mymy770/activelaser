@@ -6,6 +6,7 @@ import { Plus, Loader2, AlertCircle, Trash2, Shield } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useUsers } from '@/hooks/useUsers'
 import { useBranches } from '@/hooks/useBranches'
+import { useTranslation } from '@/contexts/LanguageContext'
 import { AdminHeader } from '../components/AdminHeader'
 import { UsersTable } from './components/UsersTable'
 import { CreateUserModal } from './components/CreateUserModal'
@@ -16,6 +17,7 @@ import { createClient } from '@/lib/supabase/client'
 
 export default function UsersPage() {
   const router = useRouter()
+  const { t } = useTranslation()
   const { user, loading: authLoading } = useAuth()
   const { branches, selectedBranch, selectBranch, loading: branchesLoading } = useBranches()
   const { users, loading: usersLoading, error, createUser, updateUser, deleteUser } = useUsers()
@@ -93,10 +95,10 @@ export default function UsersPage() {
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h1 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            Accès refusé
+            {t('admin.users.access_denied')}
           </h1>
           <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>
-            Vous n'avez pas les permissions nécessaires.
+            {t('admin.users.access_denied_message')}
           </p>
         </div>
       </div>
@@ -136,10 +138,10 @@ export default function UsersPage() {
             </div>
             <div>
               <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Gestion des utilisateurs
+                {t('admin.users.title')}
               </h1>
               <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                Gérez les accès et les permissions des utilisateurs
+                {t('admin.users.subtitle')}
               </p>
             </div>
           </div>
@@ -152,7 +154,7 @@ export default function UsersPage() {
             }`}
           >
             <Plus className="w-5 h-5" />
-            Créer un utilisateur
+            {t('admin.users.create')}
           </button>
         </div>
       </div>
@@ -241,7 +243,7 @@ export default function UsersPage() {
                 </div>
                 <div>
                   <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    Supprimer l'utilisateur ?
+                    {t('admin.users.modal.delete_title')}
                   </h2>
                   <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                     {selectedUser.first_name} {selectedUser.last_name}
@@ -256,10 +258,10 @@ export default function UsersPage() {
                   <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <p className={`text-sm font-medium ${isDark ? 'text-yellow-300' : 'text-yellow-800'}`}>
-                      Action irréversible
+                      {t('admin.users.modal.delete_warning')}
                     </p>
                     <p className={`text-sm mt-1 ${isDark ? 'text-yellow-400' : 'text-yellow-700'}`}>
-                      Le compte et tous les accès de cet utilisateur seront définitivement supprimés.
+                      {t('admin.users.modal.delete_message')}
                     </p>
                   </div>
                 </div>
@@ -278,13 +280,13 @@ export default function UsersPage() {
                     : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                 }`}
               >
-                Annuler
+                {t('admin.common.cancel')}
               </button>
               <button
                 onClick={handleConfirmDelete}
                 className="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors"
               >
-                Supprimer définitivement
+                {t('admin.users.modal.delete_confirm')}
               </button>
             </div>
           </div>

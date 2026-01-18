@@ -18,6 +18,7 @@ import {
 import { useOrders } from '@/hooks/useOrders'
 import { useBranches } from '@/hooks/useBranches'
 import { useAuth } from '@/hooks/useAuth'
+import { useTranslation } from '@/contexts/LanguageContext'
 import { AdminHeader } from '../components/AdminHeader'
 import { OrdersTable } from './components/OrdersTable'
 import { OrderDetailModal } from './components/OrderDetailModal'
@@ -40,7 +41,17 @@ type Theme = 'light' | 'dark'
 export default function OrdersPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { t, locale } = useTranslation()
   const { user, loading: authLoading, signOut } = useAuth()
+
+  // Helper pour obtenir la locale de date en fonction de la langue
+  const getDateLocale = () => {
+    switch (locale) {
+      case 'he': return 'he-IL'
+      case 'en': return 'en-US'
+      default: return 'fr-FR'
+    }
+  }
   const branchesHook = useBranches()
   const branches = branchesHook.branches
   const branchesLoading = branchesHook.loading
@@ -145,7 +156,7 @@ export default function OrdersPage() {
 
   // Formater la date
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('fr-FR', {
+    return new Date(date).toLocaleDateString(getDateLocale(), {
       weekday: 'short',
       day: 'numeric',
       month: 'short',
@@ -162,42 +173,42 @@ export default function OrdersPage() {
   const getStatusDisplay = (status: OrderStatus) => {
     switch (status) {
       case 'pending':
-        return { 
-          icon: Clock, 
-          color: 'text-yellow-500', 
-          bg: 'bg-yellow-500/10', 
+        return {
+          icon: Clock,
+          color: 'text-yellow-500',
+          bg: 'bg-yellow-500/10',
           border: 'border-yellow-500/30',
-          label: 'En attente'
+          label: t('admin.orders.status.pending')
         }
       case 'auto_confirmed':
-        return { 
-          icon: CheckCircle, 
-          color: 'text-green-500', 
-          bg: 'bg-green-500/10', 
+        return {
+          icon: CheckCircle,
+          color: 'text-green-500',
+          bg: 'bg-green-500/10',
           border: 'border-green-500/30',
-          label: 'Confirmé auto'
+          label: t('admin.orders.status.auto_confirmed')
         }
       case 'manually_confirmed':
-        return { 
-          icon: CheckCircle, 
-          color: 'text-blue-500', 
-          bg: 'bg-blue-500/10', 
+        return {
+          icon: CheckCircle,
+          color: 'text-blue-500',
+          bg: 'bg-blue-500/10',
           border: 'border-blue-500/30',
-          label: 'Confirmé manuel'
+          label: t('admin.orders.status.manually_confirmed')
         }
       case 'cancelled':
-        return { 
-          icon: XCircle, 
-          color: 'text-red-500', 
-          bg: 'bg-red-500/10', 
+        return {
+          icon: XCircle,
+          color: 'text-red-500',
+          bg: 'bg-red-500/10',
           border: 'border-red-500/30',
-          label: 'Annulé'
+          label: t('admin.orders.status.cancelled')
         }
       default:
-        return { 
-          icon: AlertCircle, 
-          color: 'text-gray-500', 
-          bg: 'bg-gray-500/10', 
+        return {
+          icon: AlertCircle,
+          color: 'text-gray-500',
+          bg: 'bg-gray-500/10',
           border: 'border-gray-500/30',
           label: status
         }
@@ -214,8 +225,8 @@ export default function OrdersPage() {
   const handleCancel = (orderId: string) => {
     setConfirmModal({
       isOpen: true,
-      title: 'Annuler la commande',
-      message: 'Voulez-vous vraiment annuler cette commande ? Cette action est réversible.',
+      title: t('admin.orders.modal.cancel_title'),
+      message: t('admin.orders.modal.cancel_message'),
       type: 'warning',
       onConfirm: async () => {
         await cancelOrder(orderId)
@@ -260,11 +271,11 @@ export default function OrdersPage() {
   const handleReactivate = (orderId: string) => {
     const order = orders.find(o => o.id === orderId)
     if (!order) return
-    
+
     setConfirmModal({
       isOpen: true,
-      title: 'Réactiver la réservation',
-      message: 'Vous allez être redirigé vers l\'agenda pour vérifier les disponibilités et confirmer la réactivation.',
+      title: t('admin.orders.modal.reactivate_title'),
+      message: t('admin.orders.modal.reactivate_message'),
       type: 'success',
       onConfirm: () => {
         // Construire les query params avec les données de la commande
@@ -333,7 +344,7 @@ export default function OrdersPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Rechercher une commande (nom, téléphone, email, référence)..."
+                placeholder={t('admin.orders.search_placeholder')}
                 className={`w-full pl-10 pr-4 py-3 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg text-base placeholder-gray-500 focus:border-blue-500 focus:outline-none`}
               />
             </div>
@@ -344,23 +355,23 @@ export default function OrdersPage() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-white'} border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
             <div className="text-2xl font-bold">{stats.total}</div>
-            <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Total</div>
+            <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('admin.orders.stats.total')}</div>
           </div>
           <div className={`p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30`}>
             <div className="text-2xl font-bold text-yellow-500">{stats.pending}</div>
-            <div className="text-sm text-yellow-500/70">En attente</div>
+            <div className="text-sm text-yellow-500/70">{t('admin.orders.stats.pending')}</div>
           </div>
           <div className={`p-4 rounded-xl bg-green-500/10 border border-green-500/30`}>
             <div className="text-2xl font-bold text-green-500">{stats.auto_confirmed}</div>
-            <div className="text-sm text-green-500/70">Confirmés auto</div>
+            <div className="text-sm text-green-500/70">{t('admin.orders.stats.auto_confirmed')}</div>
           </div>
           <div className={`p-4 rounded-xl bg-blue-500/10 border border-blue-500/30`}>
             <div className="text-2xl font-bold text-blue-500">{stats.manually_confirmed}</div>
-            <div className="text-sm text-blue-500/70">Confirmés manuel</div>
+            <div className="text-sm text-blue-500/70">{t('admin.orders.stats.manually_confirmed')}</div>
           </div>
           <div className={`p-4 rounded-xl bg-red-500/10 border border-red-500/30`}>
             <div className="text-2xl font-bold text-red-500">{stats.cancelled}</div>
-            <div className="text-sm text-red-500/70">Annulés</div>
+            <div className="text-sm text-red-500/70">{t('admin.orders.stats.cancelled')}</div>
           </div>
         </div>
 
@@ -368,7 +379,7 @@ export default function OrdersPage() {
         {stats.total > 0 && (
           <div className={`p-4 rounded-xl mb-6 ${isDark ? 'bg-gray-800' : 'bg-white'} border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
             <div className="flex items-center justify-between">
-              <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Taux de conversion</span>
+              <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>{t('admin.orders.stats.conversion_rate')}</span>
               <span className="text-2xl font-bold text-cyan-500">
                 {Math.round(((stats.auto_confirmed + stats.manually_confirmed) / stats.total) * 100)}%
               </span>
@@ -384,8 +395,8 @@ export default function OrdersPage() {
 
         {/* Filtres rapides par statut */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          <span className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Filtrer :</span>
-          
+          <span className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('admin.orders.filter.label')}</span>
+
           <button
             onClick={() => setQuickStatusFilter('all')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -394,9 +405,9 @@ export default function OrdersPage() {
                 : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            Toutes ({stats.total})
+            {t('admin.orders.filter.all')} ({stats.total})
           </button>
-          
+
           <button
             onClick={() => setQuickStatusFilter('pending')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
@@ -408,7 +419,7 @@ export default function OrdersPage() {
             }`}
           >
             <Clock className="w-4 h-4" />
-            En attente
+            {t('admin.orders.filter.pending')}
             {stats.pending > 0 && (
               <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                 quickStatusFilter === 'pending' ? 'bg-white text-red-600' : 'bg-red-500 text-white'
@@ -417,7 +428,7 @@ export default function OrdersPage() {
               </span>
             )}
           </button>
-          
+
           <button
             onClick={() => setQuickStatusFilter('auto_confirmed')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
@@ -427,9 +438,9 @@ export default function OrdersPage() {
             }`}
           >
             <CheckCircle className="w-4 h-4" />
-            Confirmés auto ({stats.auto_confirmed})
+            {t('admin.orders.filter.auto_confirmed')} ({stats.auto_confirmed})
           </button>
-          
+
           <button
             onClick={() => setQuickStatusFilter('manually_confirmed')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
@@ -439,9 +450,9 @@ export default function OrdersPage() {
             }`}
           >
             <CheckCircle className="w-4 h-4" />
-            Confirmés manuel ({stats.manually_confirmed})
+            {t('admin.orders.filter.manually_confirmed')} ({stats.manually_confirmed})
           </button>
-          
+
           <button
             onClick={() => setQuickStatusFilter('cancelled')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
@@ -451,7 +462,7 @@ export default function OrdersPage() {
             }`}
           >
             <XCircle className="w-4 h-4" />
-            Annulées ({stats.cancelled})
+            {t('admin.orders.filter.cancelled')} ({stats.cancelled})
           </button>
         </div>
 

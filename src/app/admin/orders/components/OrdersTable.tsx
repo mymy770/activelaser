@@ -1,9 +1,9 @@
 'use client'
 
 import React, { useState, useMemo, useRef } from 'react'
-import { 
-  Clock, 
-  CheckCircle, 
+import {
+  Clock,
+  CheckCircle,
   Users,
   ChevronUp,
   ChevronDown,
@@ -15,6 +15,7 @@ import {
   Zap,
   XCircle
 } from 'lucide-react'
+import { useTranslation } from '@/contexts/LanguageContext'
 import type { OrderWithRelations, OrderStatus, GameArea } from '@/lib/supabase/types'
 
 type SortField = 'date' | 'time' | 'client' | 'status' | 'participants' | 'type' | 'created' | 'source'
@@ -114,11 +115,21 @@ function FilterDropdown({
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 200, 500, 1000]
 
 export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClient }: OrdersTableProps) {
+  const { t, locale } = useTranslation()
   const [sortField, setSortField] = useState<SortField>('created')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+
+  // Helper pour obtenir la locale de date en fonction de la langue
+  const getDateLocale = () => {
+    switch (locale) {
+      case 'he': return 'he-IL'
+      case 'en': return 'en-US'
+      default: return 'fr-FR'
+    }
+  }
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(50)
-  
+
   // Filtres
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -199,7 +210,7 @@ export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClien
   }
   
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('fr-FR', {
+    return new Date(date).toLocaleDateString(getDateLocale(), {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
@@ -213,13 +224,13 @@ export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClien
   const getStatusDisplay = (status: OrderStatus) => {
     switch (status) {
       case 'pending':
-        return { icon: Clock, color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30', label: 'En attente' }
+        return { icon: Clock, color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30', label: t('admin.orders.status.pending') }
       case 'auto_confirmed':
-        return { icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30', label: 'Confirmé' }
+        return { icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30', label: t('admin.orders.status.auto_confirmed') }
       case 'manually_confirmed':
-        return { icon: CheckCircle, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30', label: 'Confirmé' }
+        return { icon: CheckCircle, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30', label: t('admin.orders.status.manually_confirmed') }
       case 'cancelled':
-        return { icon: XCircle, color: 'text-red-600', bg: 'bg-gray-100 dark:bg-gray-700', label: 'Annulé' }
+        return { icon: XCircle, color: 'text-red-600', bg: 'bg-gray-100 dark:bg-gray-700', label: t('admin.orders.status.cancelled') }
       default:
         return { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100', label: status }
     }
@@ -233,30 +244,30 @@ export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClien
 
   // Options des filtres
   const typeOptions = [
-    { value: 'all', label: 'Tous' },
-    { value: 'GAME', label: 'Game' },
-    { value: 'EVENT', label: 'Event' },
+    { value: 'all', label: t('admin.common.all') },
+    { value: 'GAME', label: t('admin.orders.type.game') },
+    { value: 'EVENT', label: t('admin.orders.type.event') },
   ]
 
   const statusOptions = [
-    { value: 'all', label: 'Tous' },
-    { value: 'pending', label: 'En attente' },
-    { value: 'auto_confirmed', label: 'Auto confirmé' },
-    { value: 'manually_confirmed', label: 'Confirmé manuel' },
-    { value: 'cancelled', label: 'Annulé' },
+    { value: 'all', label: t('admin.common.all') },
+    { value: 'pending', label: t('admin.orders.status.pending') },
+    { value: 'auto_confirmed', label: t('admin.orders.status.auto_confirmed') },
+    { value: 'manually_confirmed', label: t('admin.orders.status.manually_confirmed') },
+    { value: 'cancelled', label: t('admin.orders.status.cancelled') },
   ]
 
   const gameAreaOptions = [
-    { value: 'all', label: 'Tous' },
+    { value: 'all', label: t('admin.common.all') },
     { value: 'ACTIVE', label: 'Active' },
     { value: 'LASER', label: 'Laser' },
     { value: 'MIX', label: 'Mix' },
   ]
 
   const sourceOptions = [
-    { value: 'all', label: 'Toutes' },
+    { value: 'all', label: t('admin.common.all') },
     { value: 'admin_agenda', label: 'Admin' },
-    { value: 'website', label: 'Site web' },
+    { value: 'website', label: t('admin.orders.source_website') },
   ]
 
   // Vérifier si des filtres sont actifs
@@ -272,7 +283,7 @@ export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClien
   if (orders.length === 0) {
     return (
       <div className={`text-center py-12 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-        Aucune commande trouvée
+        {t('admin.orders.no_orders')}
       </div>
     )
   }
@@ -304,7 +315,7 @@ export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClien
             onClick={() => handleSort('client')}
             className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-400' : 'text-gray-600'} hover:text-blue-500`}
           >
-            Client<SortIcon field="client" />
+            {t('admin.orders.table.customer')}<SortIcon field="client" />
           </button>
         </div>
         <div className="col-span-1">
@@ -312,7 +323,7 @@ export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClien
             onClick={() => handleSort('date')}
             className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-400' : 'text-gray-600'} hover:text-blue-500`}
           >
-            Date<SortIcon field="date" />
+            {t('admin.orders.table.date')}<SortIcon field="date" />
           </button>
         </div>
         <div className="col-span-1">
@@ -320,7 +331,7 @@ export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClien
             onClick={() => handleSort('time')}
             className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-400' : 'text-gray-600'} hover:text-blue-500`}
           >
-            Heure<SortIcon field="time" />
+            {t('admin.orders.table.time')}<SortIcon field="time" />
           </button>
         </div>
         <div className="col-span-1">
@@ -328,7 +339,7 @@ export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClien
             onClick={() => handleSort('created')}
             className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-400' : 'text-gray-600'} hover:text-blue-500`}
           >
-            Créé<SortIcon field="created" />
+            {t('admin.orders.table.created')}<SortIcon field="created" />
           </button>
         </div>
         <div className="col-span-1">
@@ -336,7 +347,7 @@ export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClien
             onClick={() => handleSort('participants')}
             className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-400' : 'text-gray-600'} hover:text-blue-500`}
           >
-            Pers.<SortIcon field="participants" />
+            {t('admin.orders.table.players')}<SortIcon field="participants" />
           </button>
         </div>
         <div className="col-span-1">
@@ -365,7 +376,7 @@ export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClien
         </div>
         <div className="col-span-2 flex items-center justify-between">
           <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Référence
+            {t('admin.orders.table.reference')}
           </span>
           {hasActiveFilters && (
             <button
@@ -382,7 +393,7 @@ export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClien
       {/* Compteur résultats */}
       {hasActiveFilters && (
         <div className={`px-4 py-2 text-xs ${isDark ? 'bg-gray-800/50 text-gray-400' : 'bg-gray-50 text-gray-500'} border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-          {sortedOrders.length} résultat{sortedOrders.length !== 1 ? 's' : ''} sur {orders.length} commande{orders.length !== 1 ? 's' : ''}
+          {sortedOrders.length} {t('admin.orders.results')} {t('admin.common.of')} {orders.length} {t('admin.orders.orders_count')}
         </div>
       )}
 
@@ -390,7 +401,7 @@ export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClien
       <div className="divide-y divide-gray-200 dark:divide-gray-700 min-h-[300px]">
         {paginatedOrders.length === 0 ? (
           <div className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            Aucune commande ne correspond aux filtres
+            {t('admin.orders.no_matching_orders')}
           </div>
         ) : (
           paginatedOrders.map((order) => {
@@ -451,14 +462,14 @@ export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClien
 
                 {/* Heure */}
                 <div className={`col-span-1 text-sm font-mono ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {order.booking?.start_datetime 
-                    ? new Date(order.booking.start_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+                  {order.booking?.start_datetime
+                    ? new Date(order.booking.start_datetime).toLocaleTimeString(getDateLocale(), { hour: '2-digit', minute: '2-digit' })
                     : formatTime(order.requested_time)}
                 </div>
 
                 {/* Date création */}
                 <div className={`col-span-1 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  {new Date(order.created_at).toLocaleDateString('fr-FR', {
+                  {new Date(order.created_at).toLocaleDateString(getDateLocale(), {
                     day: '2-digit',
                     month: '2-digit'
                   })}
@@ -510,13 +521,13 @@ export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClien
       <div className={`flex items-center justify-between px-4 py-3 border-t ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-gray-50'}`}>
         <div className="flex items-center gap-4">
           <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            {sortedOrders.length} commande{sortedOrders.length !== 1 ? 's' : ''}
-            {totalPages > 1 && ` • Page ${currentPage}/${totalPages}`}
+            {sortedOrders.length} {t('admin.orders.orders_count')}
+            {totalPages > 1 && ` • ${t('admin.common.page')} ${currentPage}/${totalPages}`}
           </div>
-          
+
           {/* Sélecteur nombre de lignes */}
           <div className="flex items-center gap-2">
-            <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Afficher</span>
+            <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('admin.common.show')}</span>
             <select
               value={itemsPerPage}
               onChange={(e) => setItemsPerPage(Number(e.target.value))}
@@ -530,7 +541,7 @@ export function OrdersTable({ orders, isDark, onCancel, onViewOrder, onViewClien
                 <option key={size} value={size}>{size}</option>
               ))}
             </select>
-            <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>lignes</span>
+            <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('admin.common.rows')}</span>
           </div>
         </div>
         

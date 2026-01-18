@@ -12,7 +12,8 @@ import { validateEmail, validateIsraeliPhone, formatIsraeliPhone, VALIDATION_MES
 type BookingStep = 1 | 2 | 3 | 4 | 5 | 6 | 7
 
 interface BookingData {
-  branch: string | null
+  branch: string | null // Nom de la branche (pour affichage)
+  branchSlug: string | null // Slug de la branche (pour identification unique dans la BD)
   type: 'game' | 'event' | null
   gameArea: 'ACTIVE' | 'LASER' | 'MIX' | null // Type de jeu (pour Game)
   numberOfGames: number // Nombre de jeux (pour Game)
@@ -37,6 +38,7 @@ export default function ReservationPage() {
   const [step, setStep] = useState<BookingStep>(1)
   const [bookingData, setBookingData] = useState<BookingData>({
     branch: null,
+    branchSlug: null,
     type: null,
     gameArea: null,
     numberOfGames: 2, // Par défaut 2 jeux pour Active, 1 pour Laser
@@ -72,8 +74,8 @@ export default function ReservationPage() {
   const isRTL = locale === 'he'
   const dir = getDirection(locale)
 
-  // Branches from translations
-  const branches = translations.branches?.items || []
+  // Branches from translations (avec slug pour identification unique)
+  const branches: Array<{ name: string; slug?: string; address: string; venue: string; city?: string; phone?: string }> = translations.branches?.items || []
 
   // Generate available dates (next 365 days - unlimited)
   const getAvailableDates = () => {
@@ -186,8 +188,8 @@ export default function ReservationPage() {
     return times
   }
 
-  const handleBranchSelect = (branchName: string) => {
-    setBookingData({ ...bookingData, branch: branchName })
+  const handleBranchSelect = (branchName: string, branchSlug?: string) => {
+    setBookingData({ ...bookingData, branch: branchName, branchSlug: branchSlug || null })
     setTimeout(() => setStep(2), 300)
   }
 
@@ -315,17 +317,30 @@ export default function ReservationPage() {
         return
       }
 
-      // Trouver la branche par son nom ou slug (case insensitive, comparaison exacte ou partielle)
-      const branchNameLower = bookingData.branch.toLowerCase().trim()
-      const selectedBranch = branchesData.branches?.find((b: { name: string; slug: string }) => {
-        const nameMatch = b.name?.toLowerCase().trim() === branchNameLower ||
-                          b.name?.toLowerCase().trim().includes(branchNameLower) ||
-                          branchNameLower.includes(b.name?.toLowerCase().trim() || '')
-        const slugMatch = b.slug?.toLowerCase().trim() === branchNameLower ||
-                          b.slug?.toLowerCase().trim().includes(branchNameLower) ||
-                          branchNameLower.includes(b.slug?.toLowerCase().trim() || '')
-        return nameMatch || slugMatch
-      })
+      // Trouver la branche par son slug (priorité) ou nom
+      // Le slug est stocké dans les traductions et correspond au slug en BD
+      let selectedBranch = null
+
+      // Priorité 1: Utiliser le slug stocké (fiable, indépendant de la langue)
+      if (bookingData.branchSlug) {
+        selectedBranch = branchesData.branches?.find((b: { name: string; slug: string }) =>
+          b.slug?.toLowerCase().trim() === bookingData.branchSlug?.toLowerCase().trim()
+        )
+      }
+
+      // Priorité 2: Fallback sur le nom (pour rétrocompatibilité)
+      if (!selectedBranch && bookingData.branch) {
+        const branchNameLower = bookingData.branch.toLowerCase().trim()
+        selectedBranch = branchesData.branches?.find((b: { name: string; slug: string }) => {
+          const nameMatch = b.name?.toLowerCase().trim() === branchNameLower ||
+                            b.name?.toLowerCase().trim().includes(branchNameLower) ||
+                            branchNameLower.includes(b.name?.toLowerCase().trim() || '')
+          const slugMatch = b.slug?.toLowerCase().trim() === branchNameLower ||
+                            b.slug?.toLowerCase().trim().includes(branchNameLower) ||
+                            branchNameLower.includes(b.slug?.toLowerCase().trim() || '')
+          return nameMatch || slugMatch
+        })
+      }
 
       if (!selectedBranch) {
         alert(`Branche "${bookingData.branch}" non trouvée. Veuillez réessayer.`)
@@ -482,7 +497,7 @@ export default function ReservationPage() {
                 {branches.map((branch, index) => (
                   <motion.button
                     key={index}
-                    onClick={() => handleBranchSelect(branch.name)}
+                    onClick={() => handleBranchSelect(branch.name, branch.slug)}
                     className="bg-dark-200/50 hover:bg-dark-200 border-2 border-primary/30 hover:border-primary/70 rounded-xl p-6 text-left transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,240,255,0.3)]"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}

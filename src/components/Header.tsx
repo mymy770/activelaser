@@ -306,7 +306,7 @@ export default function Header({ translations, locale, onLocaleChange }: HeaderP
                       >
                         <span style={{ fontSize: '18px' }}>{languageFlags[loc]}</span>
                         <span style={{ fontSize: '14px', fontWeight: 400 }}>
-                          {loc === 'en' ? 'English' : 'עברית'}
+                          {loc === 'en' ? 'English' : loc === 'fr' ? 'Francais' : 'עברית'}
                         </span>
                       </button>
                     ))}
@@ -457,7 +457,7 @@ export default function Header({ translations, locale, onLocaleChange }: HeaderP
                     }}
                   >
                     <span style={{ fontSize: '20px' }}>{languageFlags[loc]}</span>
-                    <span>{loc === 'en' ? 'English' : 'עברית'}</span>
+                    <span>{loc === 'en' ? 'English' : loc === 'fr' ? 'Francais' : 'עברית'}</span>
                   </button>
                 ))}
               </div>

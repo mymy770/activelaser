@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { User, Mail, Phone, Building2, Edit2, Trash2, Shield, Users as UsersIcon, ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react'
+import { useTranslation } from '@/contexts/LanguageContext'
 import type { UserWithBranches } from '@/lib/supabase/types'
 import { CustomSelect } from '../../components/CustomSelect'
 
@@ -20,6 +21,7 @@ export function UsersTable({
   onDelete,
   currentUserId,
 }: UsersTableProps) {
+  const { t } = useTranslation()
   const [searchQuery, setSearchQuery] = useState('')
   const [filterRole, setFilterRole] = useState<string>('all')
   const [filterBranch, setFilterBranch] = useState<string>('all')
@@ -96,21 +98,21 @@ export function UsersTable({
         return (
           <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
             <Shield className="w-3 h-3" />
-            Super Admin
+            {t('admin.roles.super_admin')}
           </span>
         )
       case 'branch_admin':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
             <Building2 className="w-3 h-3" />
-            Admin Agence
+            {t('admin.roles.manager')}
           </span>
         )
       case 'agent':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
             <UsersIcon className="w-3 h-3" />
-            Agent
+            {t('admin.roles.employee')}
           </span>
         )
       default:
@@ -127,7 +129,7 @@ export function UsersTable({
           <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
           <input
             type="text"
-            placeholder="Rechercher par nom ou téléphone..."
+            placeholder={t('admin.users.search_placeholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
@@ -146,12 +148,12 @@ export function UsersTable({
               value={filterRole}
               onChange={setFilterRole}
               options={[
-                { value: 'all', label: 'Tous les rôles' },
-                { value: 'super_admin', label: 'Super Admin' },
-                { value: 'branch_admin', label: 'Admin Agence' },
-                { value: 'agent', label: 'Agent' },
+                { value: 'all', label: t('admin.users.filter.all_roles') },
+                { value: 'super_admin', label: t('admin.roles.super_admin') },
+                { value: 'branch_admin', label: t('admin.roles.manager') },
+                { value: 'agent', label: t('admin.roles.employee') },
               ]}
-              placeholder="Filtrer par rôle"
+              placeholder={t('admin.users.filter.by_role')}
               isDark={isDark}
             />
           </div>
@@ -162,10 +164,10 @@ export function UsersTable({
               value={filterBranch}
               onChange={setFilterBranch}
               options={[
-                { value: 'all', label: 'Toutes les branches' },
+                { value: 'all', label: t('admin.users.filter.all_branches') },
                 ...allBranches.map(b => ({ value: b.id, label: b.name }))
               ]}
-              placeholder="Filtrer par branche"
+              placeholder={t('admin.users.filter.by_branch')}
               isDark={isDark}
             />
           </div>
@@ -173,8 +175,8 @@ export function UsersTable({
 
         {/* Compteur */}
         <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-          {filteredUsers.length} utilisateur{filteredUsers.length !== 1 ? 's' : ''}
-          {(searchQuery || filterRole !== 'all' || filterBranch !== 'all') && ` (sur ${users.length} total)`}
+          {filteredUsers.length} {t('admin.users.table.user')}{filteredUsers.length !== 1 ? 's' : ''}
+          {(searchQuery || filterRole !== 'all' || filterBranch !== 'all') && ` (${t('admin.common.of')} ${users.length} ${t('admin.common.total')})`}
         </div>
       </div>
 
@@ -190,12 +192,12 @@ export function UsersTable({
                 }`}
               >
                 <div className="flex items-center">
-                  Utilisateur
+                  {t('admin.users.table.user')}
                   {getSortIcon('name')}
                 </div>
               </th>
               <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                Email
+                {t('admin.users.table.email')}
               </th>
               <th
                 onClick={() => handleSort('phone')}
@@ -204,7 +206,7 @@ export function UsersTable({
                 }`}
               >
                 <div className="flex items-center">
-                  Téléphone
+                  {t('admin.users.table.phone')}
                   {getSortIcon('phone')}
                 </div>
               </th>
@@ -215,15 +217,15 @@ export function UsersTable({
                 }`}
               >
                 <div className="flex items-center">
-                  Rôle
+                  {t('admin.users.table.role')}
                   {getSortIcon('role')}
                 </div>
               </th>
               <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                Branche(s)
+                {t('admin.users.table.branches')}
               </th>
               <th className={`px-4 py-3 text-right text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                Actions
+                {t('admin.common.actions')}
               </th>
             </tr>
           </thead>
@@ -231,7 +233,7 @@ export function UsersTable({
             {filteredUsers.length === 0 ? (
               <tr>
                 <td colSpan={6} className={`px-4 py-8 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Aucun utilisateur trouvé
+                  {t('admin.users.no_users')}
                 </td>
               </tr>
             ) : (
@@ -264,7 +266,7 @@ export function UsersTable({
                         </div>
                         {user.creator && (
                           <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                            Créé par {user.creator.first_name} {user.creator.last_name}
+                            {t('admin.users.created_by')} {user.creator.first_name} {user.creator.last_name}
                           </div>
                         )}
                       </div>
@@ -296,7 +298,7 @@ export function UsersTable({
                   <td className="px-4 py-4">
                     {user.branches.length === 0 ? (
                       <span className={`text-sm italic ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                        Aucune branche
+                        {t('admin.users.no_branch')}
                       </span>
                     ) : (
                       <div className="flex flex-wrap gap-1">
@@ -327,7 +329,7 @@ export function UsersTable({
                             ? 'hover:bg-gray-600 text-gray-400 hover:text-white'
                             : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
                         }`}
-                        title="Modifier"
+                        title={t('admin.common.edit')}
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
@@ -341,7 +343,7 @@ export function UsersTable({
                             ? 'hover:bg-red-900/30 text-gray-400 hover:text-red-400'
                             : 'hover:bg-red-50 text-gray-500 hover:text-red-600'
                         }`}
-                        title={user.id === currentUserId ? 'Vous ne pouvez pas vous supprimer vous-même' : 'Supprimer'}
+                        title={user.id === currentUserId ? t('admin.users.cannot_delete_self') : t('admin.common.delete')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
