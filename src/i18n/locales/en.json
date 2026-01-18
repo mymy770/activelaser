@@ -969,9 +969,56 @@
       "saving": "Error saving",
       "deleting": "Error deleting",
       "network": "A network error occurred",
-      "unauthorized": "You are not authorized to perform this action",
+      "unauthorized": "You must be logged in to perform this action",
+      "noProfile": "User profile not found",
       "not_found": "Item not found",
-      "generic": "An error occurred"
+      "generic": "An error occurred",
+      "branchAccessDenied": "You don't have access to this branch",
+      "orderNotFound": "Order not found",
+      "contactNotFound": "Contact not found",
+      "fetchFailed": "Failed to fetch data",
+      "updateFailed": "Failed to update",
+      "deleteFailed": "Failed to delete",
+      "cancelFailed": "Failed to cancel",
+      "archiveFailed": "Failed to archive",
+      "reactivateFailed": "Failed to reactivate",
+      "createBookingFailed": "Failed to create booking",
+      "directConfirmDisabled": "Direct confirmation disabled. Please use the Reactivate button.",
+      "orderNotCancelled": "This order is not cancelled",
+      "invalidAction": "Invalid action",
+      "internalError": "An internal error occurred",
+      "permission": {
+        "denied": "Permission denied",
+        "view": {
+          "orders": "You don't have permission to view orders",
+          "clients": "You don't have permission to view contacts",
+          "agenda": "You don't have permission to view the agenda",
+          "users": "You don't have permission to view users",
+          "logs": "You don't have permission to view logs",
+          "settings": "You don't have permission to view settings",
+          "permissions": "You don't have permission to view permissions"
+        },
+        "create": {
+          "orders": "You don't have permission to create orders",
+          "clients": "You don't have permission to create contacts",
+          "agenda": "You don't have permission to create bookings",
+          "users": "You don't have permission to create users"
+        },
+        "edit": {
+          "orders": "You don't have permission to edit orders",
+          "clients": "You don't have permission to edit contacts",
+          "agenda": "You don't have permission to edit bookings",
+          "users": "You don't have permission to edit users",
+          "settings": "You don't have permission to edit settings"
+        },
+        "delete": {
+          "orders": "You don't have permission to delete orders",
+          "clients": "You don't have permission to delete contacts",
+          "agenda": "You don't have permission to delete bookings",
+          "users": "You don't have permission to delete users",
+          "logs": "You don't have permission to delete logs"
+        }
+      }
     },
     "validation": {
       "required": "This field is required",

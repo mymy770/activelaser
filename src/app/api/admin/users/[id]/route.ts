@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { validateEmail, validateIsraeliPhone, formatIsraeliPhone } from '@/lib/validation'
+import { logUserAction, getClientIpFromHeaders } from '@/lib/activity-logger'
 import type { UserRole, Profile, ProfileUpdate } from '@/lib/supabase/types'
 
 /**
@@ -85,7 +86,7 @@ export async function PUT(
       .from('profiles')
       .select('*')
       .eq('id', targetUserId)
-      .single()
+      .single<Profile>()
 
     if (targetError || !targetProfile) {
       return NextResponse.json(
@@ -291,7 +292,7 @@ export async function PUT(
       .from('profiles')
       .select('*')
       .eq('id', targetUserId)
-      .single()
+      .single<Profile>()
 
     const { data: branches } = await supabase
       .from('user_branches')
@@ -299,6 +300,32 @@ export async function PUT(
       .eq('user_id', targetUserId)
 
     const userBranches = (branches || []).map((ub: any) => ub.branches).filter(Boolean)
+
+    // Logger la modification de l'utilisateur
+    const ipAddress = getClientIpFromHeaders(request.headers)
+    const changedFields = [
+      ...Object.keys(updates),
+      ...Object.keys(authUpdates),
+      ...(branch_ids !== undefined ? ['branches'] : [])
+    ]
+
+    await logUserAction({
+      userId: user.id,
+      userRole: userRole,
+      userName: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
+      action: 'updated',
+      targetUserId: targetUserId,
+      targetUserName: `${updatedProfile?.first_name || targetProfile?.first_name || ''} ${updatedProfile?.last_name || targetProfile?.last_name || ''}`.trim(),
+      details: {
+        targetUserRole: updatedProfile?.role || targetProfile?.role,
+        changedFields,
+        emailChanged: authUpdates.email !== undefined,
+        passwordChanged: authUpdates.password !== undefined,
+        roleChanged: updates.role !== undefined,
+        branchesChanged: branch_ids !== undefined
+      },
+      ipAddress
+    })
 
     return NextResponse.json(
       {
@@ -434,6 +461,22 @@ export async function DELETE(
       console.error('Error deleting user from Auth:', deleteAuthError)
       // Ne pas retourner d'erreur car le profil est déjà supprimé
     }
+
+    // Logger la suppression de l'utilisateur
+    const ipAddress = getClientIpFromHeaders(request.headers)
+    await logUserAction({
+      userId: user.id,
+      userRole: userRole,
+      userName: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
+      action: 'deleted',
+      targetUserId: targetUserId,
+      targetUserName: `${targetProfile.first_name || ''} ${targetProfile.last_name || ''}`.trim(),
+      details: {
+        targetUserRole: targetProfile.role,
+        deletedUserEmail: 'redacted' // On ne loggue pas l'email supprimé pour RGPD
+      },
+      ipAddress
+    })
 
     return NextResponse.json(
       {

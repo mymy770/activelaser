@@ -6,12 +6,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { verifyApiPermission } from '@/lib/permissions'
+import { logOrderAction, logBookingAction, getClientIpFromHeaders } from '@/lib/activity-logger'
+import type { UserRole } from '@/lib/supabase/types'
 
 /**
  * GET /api/orders/[id]
@@ -22,9 +20,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Vérifier les permissions
+    const { success, user, errorResponse } = await verifyApiPermission('orders', 'view')
+    if (!success || !user) {
+      return errorResponse
+    }
+
     const { id } = await params
-    
-    const { data: order, error } = await supabase
+    const supabase = createServiceRoleClient()
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: order, error } = await (supabase as any)
       .from('orders')
       .select(`
         *,
@@ -34,20 +40,35 @@ export async function GET(
       `)
       .eq('id', id)
       .single()
-    
-    if (error) {
+
+    if (error || !order) {
       return NextResponse.json(
-        { success: false, error: 'Order not found' },
+        { success: false, error: 'Order not found', messageKey: 'errors.orderNotFound' },
         { status: 404 }
       )
     }
-    
+
+    // Vérifier l'accès à la branche
+    if (user.role !== 'super_admin' && order.branch_id) {
+      if (!user.branchIds.includes(order.branch_id)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'BRANCH_ACCESS_DENIED',
+            message: 'You don\'t have access to this branch',
+            messageKey: 'errors.branchAccessDenied'
+          },
+          { status: 403 }
+        )
+      }
+    }
+
     return NextResponse.json({ success: true, order })
-    
+
   } catch (error) {
     console.error('Error fetching order:', error)
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: 'Internal server error', messageKey: 'errors.internalError' },
       { status: 500 }
     )
   }
@@ -62,36 +83,61 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Vérifier les permissions (edit pour modifier)
+    const { success, user, errorResponse } = await verifyApiPermission('orders', 'edit')
+    if (!success || !user) {
+      return errorResponse
+    }
+
     const { id } = await params
     const body = await request.json()
-    const { action, user_id } = body
-    
+    const { action } = body
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createServiceRoleClient() as any
+    const ipAddress = getClientIpFromHeaders(request.headers)
+
     // Récupérer la commande actuelle
     const { data: order, error: fetchError } = await supabase
       .from('orders')
       .select('*')
       .eq('id', id)
       .single()
-    
+
     if (fetchError || !order) {
       return NextResponse.json(
-        { success: false, error: 'Order not found' },
+        { success: false, error: 'Order not found', messageKey: 'errors.orderNotFound' },
         { status: 404 }
       )
     }
-    
+
+    // Vérifier l'accès à la branche
+    if (user.role !== 'super_admin' && order.branch_id) {
+      if (!user.branchIds.includes(order.branch_id)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'BRANCH_ACCESS_DENIED',
+            message: 'You don\'t have access to this branch',
+            messageKey: 'errors.branchAccessDenied'
+          },
+          { status: 403 }
+        )
+      }
+    }
+
     if (action === 'confirm') {
       // Confirmer manuellement une commande pending
       // DÉSACTIVÉ: L'utilisateur doit passer par l'agenda pour validation manuelle
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           error: 'Direct confirmation disabled',
-          message: 'Please use "Reactivate" button to open this order in the agenda for manual confirmation.'
+          message: 'Please use "Reactivate" button to open this order in the agenda for manual confirmation.',
+          messageKey: 'errors.directConfirmDisabled'
         },
         { status: 400 }
       )
-      
+
     } else if (action === 'cancel') {
       // Annuler la commande
       const { error: updateError } = await supabase
@@ -99,10 +145,10 @@ export async function PATCH(
         .update({
           status: 'cancelled',
           processed_at: new Date().toISOString(),
-          processed_by: user_id || null,
+          processed_by: user.id,
         })
         .eq('id', id)
-      
+
       // Si un booking existe, l'annuler aussi
       if (order.booking_id) {
         await supabase
@@ -113,32 +159,58 @@ export async function PATCH(
             cancelled_reason: 'Order cancelled',
           })
           .eq('id', order.booking_id)
+
+        // Logger l'annulation du booking
+        await logBookingAction({
+          userId: user.id,
+          userRole: user.role as UserRole,
+          userName: `${user.profile.first_name} ${user.profile.last_name}`,
+          action: 'cancelled',
+          bookingId: order.booking_id,
+          bookingRef: order.request_reference,
+          branchId: order.branch_id,
+          details: { reason: 'Order cancelled', orderId: id },
+          ipAddress
+        })
       }
-      
+
       if (updateError) {
         return NextResponse.json(
-          { success: false, error: 'Failed to cancel order' },
+          { success: false, error: 'Failed to cancel order', messageKey: 'errors.cancelFailed' },
           { status: 500 }
         )
       }
-      
+
+      // Logger l'annulation de la commande
+      await logOrderAction({
+        userId: user.id,
+        userRole: user.role as UserRole,
+        userName: `${user.profile.first_name} ${user.profile.last_name}`,
+        action: 'cancelled',
+        orderId: id,
+        orderRef: order.request_reference,
+        branchId: order.branch_id,
+        details: { previousStatus: order.status },
+        ipAddress
+      })
+
       return NextResponse.json({
         success: true,
         message: 'Order cancelled successfully'
       })
-      
+
     } else if (action === 'reactivate') {
       // Réactiver une commande annulée (garder la même référence)
       if (order.status !== 'cancelled') {
         return NextResponse.json(
-          { success: false, error: 'Order is not cancelled' },
+          { success: false, error: 'Order is not cancelled', messageKey: 'errors.orderNotCancelled' },
           { status: 400 }
         )
       }
-      
+
       // Utiliser la référence originale de la commande
       const originalReference = order.request_reference
-      
+
       // Vérifier si le booking existe encore et est annulé
       if (order.booking_id) {
         const { data: existingBooking } = await supabase
@@ -146,7 +218,7 @@ export async function PATCH(
           .select('id, status')
           .eq('id', order.booking_id)
           .single()
-        
+
         if (existingBooking && existingBooking.status === 'CANCELLED') {
           // Réactiver le booking existant
           const { error: reactivateError } = await supabase
@@ -157,32 +229,57 @@ export async function PATCH(
               cancelled_reason: null,
             })
             .eq('id', order.booking_id)
-          
+
           if (reactivateError) {
             console.error('Error reactivating booking:', reactivateError)
             return NextResponse.json(
-              { success: false, error: 'Failed to reactivate booking' },
+              { success: false, error: 'Failed to reactivate booking', messageKey: 'errors.reactivateFailed' },
               { status: 500 }
             )
           }
-          
+
           // Mettre à jour la commande
           const { error: updateError } = await supabase
             .from('orders')
             .update({
               status: 'manually_confirmed',
               processed_at: new Date().toISOString(),
-              processed_by: user_id || null,
+              processed_by: user.id,
             })
             .eq('id', id)
-          
+
           if (updateError) {
             return NextResponse.json(
-              { success: false, error: 'Failed to update order' },
+              { success: false, error: 'Failed to update order', messageKey: 'errors.updateFailed' },
               { status: 500 }
             )
           }
-          
+
+          // Logger la réactivation
+          await logOrderAction({
+            userId: user.id,
+            userRole: user.role as UserRole,
+            userName: `${user.profile.first_name} ${user.profile.last_name}`,
+            action: 'confirmed',
+            orderId: id,
+            orderRef: originalReference,
+            branchId: order.branch_id,
+            details: { reactivated: true, previousStatus: 'cancelled' },
+            ipAddress
+          })
+
+          await logBookingAction({
+            userId: user.id,
+            userRole: user.role as UserRole,
+            userName: `${user.profile.first_name} ${user.profile.last_name}`,
+            action: 'updated',
+            bookingId: order.booking_id,
+            bookingRef: originalReference,
+            branchId: order.branch_id,
+            details: { reactivated: true, previousStatus: 'CANCELLED' },
+            ipAddress
+          })
+
           return NextResponse.json({
             success: true,
             message: 'Order reactivated successfully',
@@ -190,7 +287,7 @@ export async function PATCH(
           })
         }
       }
-      
+
       // Si le booking n'existe plus, en créer un nouveau avec la MÊME référence
       // Récupérer les settings
       const { data: settings } = await supabase
@@ -198,16 +295,16 @@ export async function PATCH(
         .select('*')
         .eq('branch_id', order.branch_id)
         .single()
-      
+
       const gameDuration = settings?.game_duration_minutes || 30
       const eventDuration = settings?.event_total_duration_minutes || 120
       const bufferBefore = settings?.event_buffer_before_minutes || 30
-      
+
       const startDateTime = new Date(`${order.requested_date}T${order.requested_time}`)
       let endDateTime: Date
       let gameStartDateTime: Date | null = null
       let gameEndDateTime: Date | null = null
-      
+
       if (order.order_type === 'EVENT') {
         endDateTime = new Date(startDateTime.getTime() + eventDuration * 60000)
         gameStartDateTime = new Date(startDateTime.getTime() + bufferBefore * 60000)
@@ -217,7 +314,7 @@ export async function PATCH(
         gameStartDateTime = startDateTime
         gameEndDateTime = endDateTime
       }
-      
+
       // Créer le booking avec la MÊME référence originale
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
@@ -240,15 +337,15 @@ export async function PATCH(
         })
         .select('id')
         .single()
-      
+
       if (bookingError) {
         console.error('Error creating booking:', bookingError)
         return NextResponse.json(
-          { success: false, error: 'Failed to create booking' },
+          { success: false, error: 'Failed to create booking', messageKey: 'errors.createBookingFailed' },
           { status: 500 }
         )
       }
-      
+
       // Créer la liaison contact
       if (order.contact_id) {
         await supabase
@@ -259,11 +356,11 @@ export async function PATCH(
             is_primary: true,
           })
       }
-      
+
       // Créer les slots
       const slots = []
       let currentTime = new Date(gameStartDateTime || startDateTime)
-      
+
       for (let i = 0; i < order.number_of_games; i++) {
         const slotEnd = new Date(currentTime.getTime() + gameDuration * 60000)
         slots.push({
@@ -276,16 +373,16 @@ export async function PATCH(
         })
         currentTime = slotEnd
       }
-      
+
       if (slots.length > 0) {
         await supabase.from('booking_slots').insert(slots)
       }
-      
+
       // Créer les game_sessions si c'est un GAME
       if (order.order_type === 'GAME' && order.game_area) {
         const sessions = []
         let sessionTime = new Date(gameStartDateTime || startDateTime)
-        
+
         for (let i = 0; i < order.number_of_games; i++) {
           const sessionEnd = new Date(sessionTime.getTime() + gameDuration * 60000)
           sessions.push({
@@ -298,12 +395,12 @@ export async function PATCH(
           })
           sessionTime = sessionEnd
         }
-        
+
         if (sessions.length > 0) {
           await supabase.from('game_sessions').insert(sessions)
         }
       }
-      
+
       // Mettre à jour la commande
       const { error: updateError } = await supabase
         .from('orders')
@@ -311,34 +408,59 @@ export async function PATCH(
           status: 'manually_confirmed',
           booking_id: booking.id,
           processed_at: new Date().toISOString(),
-          processed_by: user_id || null,
+          processed_by: user.id,
         })
         .eq('id', id)
-      
+
       if (updateError) {
         return NextResponse.json(
-          { success: false, error: 'Failed to update order' },
+          { success: false, error: 'Failed to update order', messageKey: 'errors.updateFailed' },
           { status: 500 }
         )
       }
-      
+
+      // Logger les actions
+      await logOrderAction({
+        userId: user.id,
+        userRole: user.role as UserRole,
+        userName: `${user.profile.first_name} ${user.profile.last_name}`,
+        action: 'confirmed',
+        orderId: id,
+        orderRef: originalReference,
+        branchId: order.branch_id,
+        details: { reactivated: true, newBookingId: booking.id },
+        ipAddress
+      })
+
+      await logBookingAction({
+        userId: user.id,
+        userRole: user.role as UserRole,
+        userName: `${user.profile.first_name} ${user.profile.last_name}`,
+        action: 'created',
+        bookingId: booking.id,
+        bookingRef: originalReference,
+        branchId: order.branch_id,
+        details: { fromReactivatedOrder: id, orderType: order.order_type },
+        ipAddress
+      })
+
       return NextResponse.json({
         success: true,
         message: 'Order reactivated successfully',
         booking_reference: originalReference
       })
-      
+
     } else {
       return NextResponse.json(
-        { success: false, error: 'Invalid action' },
+        { success: false, error: 'Invalid action', messageKey: 'errors.invalidAction' },
         { status: 400 }
       )
     }
-    
+
   } catch (error) {
     console.error('Error updating order:', error)
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: 'Internal server error', messageKey: 'errors.internalError' },
       { status: 500 }
     )
   }
@@ -353,29 +475,84 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Vérifier les permissions (delete pour supprimer)
+    const { success, user, errorResponse } = await verifyApiPermission('orders', 'delete')
+    if (!success || !user) {
+      return errorResponse
+    }
+
     const { id } = await params
-    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createServiceRoleClient() as any
+    const ipAddress = getClientIpFromHeaders(request.headers)
+
+    // Récupérer la commande avant suppression pour le log
+    const { data: order } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (!order) {
+      return NextResponse.json(
+        { success: false, error: 'Order not found', messageKey: 'errors.orderNotFound' },
+        { status: 404 }
+      )
+    }
+
+    // Vérifier l'accès à la branche
+    if (user.role !== 'super_admin' && order.branch_id) {
+      if (!user.branchIds.includes(order.branch_id)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'BRANCH_ACCESS_DENIED',
+            message: 'You don\'t have access to this branch',
+            messageKey: 'errors.branchAccessDenied'
+          },
+          { status: 403 }
+        )
+      }
+    }
+
     const { error } = await supabase
       .from('orders')
       .delete()
       .eq('id', id)
-    
+
     if (error) {
       return NextResponse.json(
-        { success: false, error: 'Failed to delete order' },
+        { success: false, error: 'Failed to delete order', messageKey: 'errors.deleteFailed' },
         { status: 500 }
       )
     }
-    
+
+    // Logger la suppression
+    await logOrderAction({
+      userId: user.id,
+      userRole: user.role as UserRole,
+      userName: `${user.profile.first_name} ${user.profile.last_name}`,
+      action: 'deleted',
+      orderId: id,
+      orderRef: order.request_reference,
+      branchId: order.branch_id,
+      details: {
+        customerName: `${order.customer_first_name} ${order.customer_last_name || ''}`.trim(),
+        status: order.status,
+        orderType: order.order_type
+      },
+      ipAddress
+    })
+
     return NextResponse.json({
       success: true,
       message: 'Order deleted successfully'
     })
-    
+
   } catch (error) {
     console.error('Error deleting order:', error)
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: 'Internal server error', messageKey: 'errors.internalError' },
       { status: 500 }
     )
   }

@@ -1023,9 +1023,56 @@
       "saving": "Erreur lors de la sauvegarde",
       "deleting": "Erreur lors de la suppression",
       "network": "Une erreur reseau s'est produite",
-      "unauthorized": "Vous n'etes pas autorise a effectuer cette action",
+      "unauthorized": "Vous devez etre connecte pour effectuer cette action",
+      "noProfile": "Profil utilisateur introuvable",
       "not_found": "Element non trouve",
-      "generic": "Une erreur est survenue"
+      "generic": "Une erreur est survenue",
+      "branchAccessDenied": "Vous n'avez pas acces a cette branche",
+      "orderNotFound": "Commande introuvable",
+      "contactNotFound": "Contact introuvable",
+      "fetchFailed": "Erreur lors de la recuperation des donnees",
+      "updateFailed": "Erreur lors de la mise a jour",
+      "deleteFailed": "Erreur lors de la suppression",
+      "cancelFailed": "Erreur lors de l'annulation",
+      "archiveFailed": "Erreur lors de l'archivage",
+      "reactivateFailed": "Erreur lors de la reactivation",
+      "createBookingFailed": "Erreur lors de la creation de la reservation",
+      "directConfirmDisabled": "Confirmation directe desactivee. Utilisez le bouton Reactiver.",
+      "orderNotCancelled": "Cette commande n'est pas annulee",
+      "invalidAction": "Action invalide",
+      "internalError": "Une erreur interne s'est produite",
+      "permission": {
+        "denied": "Permission refusee",
+        "view": {
+          "orders": "Vous n'avez pas la permission de voir les commandes",
+          "clients": "Vous n'avez pas la permission de voir les contacts",
+          "agenda": "Vous n'avez pas la permission de voir l'agenda",
+          "users": "Vous n'avez pas la permission de voir les utilisateurs",
+          "logs": "Vous n'avez pas la permission de voir les logs",
+          "settings": "Vous n'avez pas la permission de voir les parametres",
+          "permissions": "Vous n'avez pas la permission de voir les permissions"
+        },
+        "create": {
+          "orders": "Vous n'avez pas la permission de creer des commandes",
+          "clients": "Vous n'avez pas la permission de creer des contacts",
+          "agenda": "Vous n'avez pas la permission de creer des reservations",
+          "users": "Vous n'avez pas la permission de creer des utilisateurs"
+        },
+        "edit": {
+          "orders": "Vous n'avez pas la permission de modifier les commandes",
+          "clients": "Vous n'avez pas la permission de modifier les contacts",
+          "agenda": "Vous n'avez pas la permission de modifier les reservations",
+          "users": "Vous n'avez pas la permission de modifier les utilisateurs",
+          "settings": "Vous n'avez pas la permission de modifier les parametres"
+        },
+        "delete": {
+          "orders": "Vous n'avez pas la permission de supprimer les commandes",
+          "clients": "Vous n'avez pas la permission de supprimer les contacts",
+          "agenda": "Vous n'avez pas la permission de supprimer les reservations",
+          "users": "Vous n'avez pas la permission de supprimer les utilisateurs",
+          "logs": "Vous n'avez pas la permission de supprimer les logs"
+        }
+      }
     },
     "validation": {
       "required": "Ce champ est requis",

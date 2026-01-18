@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { validateEmail, validateIsraeliPhone, formatIsraeliPhone } from '@/lib/validation'
+import { logUserAction, getClientIpFromHeaders } from '@/lib/activity-logger'
 import type { UserWithBranches, UserRole } from '@/lib/supabase/types'
 
 /**
@@ -441,6 +442,24 @@ export async function POST(request: NextRequest) {
       branches: userBranches,
       creator: profile || null,
     } as UserWithBranches
+
+    // Logger la création de l'utilisateur
+    const ipAddress = getClientIpFromHeaders(request.headers)
+    await logUserAction({
+      userId: user.id,
+      userRole: userProfile.role as UserRole,
+      userName: `${(profile as any).first_name || ''} ${(profile as any).last_name || ''}`.trim(),
+      action: 'created',
+      targetUserId: newUser.user.id,
+      targetUserName: `${first_name} ${last_name}`.trim(),
+      details: {
+        targetUserRole: role,
+        email: email.trim(),
+        phone: formattedPhone,
+        branchIds: branch_ids
+      },
+      ipAddress
+    })
 
     return NextResponse.json(
       {

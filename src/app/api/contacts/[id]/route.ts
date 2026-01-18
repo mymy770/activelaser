@@ -1,6 +1,15 @@
+/**
+ * API Route pour gérer un contact individuel
+ * GET: Récupérer un contact
+ * PUT: Mettre à jour un contact
+ * DELETE: Archiver un contact (soft delete)
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import type { Contact, ContactStatus, ContactUpdate } from '@/lib/supabase/types'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { verifyApiPermission } from '@/lib/permissions'
+import { logContactAction, getClientIpFromHeaders } from '@/lib/activity-logger'
+import type { Contact, ContactStatus, UserRole } from '@/lib/supabase/types'
 
 /**
  * GET /api/contacts/[id]
@@ -11,8 +20,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient()
+    // Vérifier les permissions
+    const { success, user, errorResponse } = await verifyApiPermission('clients', 'view')
+    if (!success || !user) {
+      return errorResponse
+    }
+
     const { id } = await params
+    const supabase = createServiceRoleClient()
 
     const { data: contact, error } = await supabase
       .from('contacts')
@@ -23,13 +38,13 @@ export async function GET(
     if (error) {
       if (error.code === 'PGRST116') {
         return NextResponse.json(
-          { success: false, error: 'Contact not found' },
+          { success: false, error: 'Contact not found', messageKey: 'errors.contactNotFound' },
           { status: 404 }
         )
       }
       console.error('Error fetching contact:', error)
       return NextResponse.json(
-        { success: false, error: 'Failed to fetch contact' },
+        { success: false, error: 'Failed to fetch contact', messageKey: 'errors.fetchFailed' },
         { status: 500 }
       )
     }
@@ -38,7 +53,7 @@ export async function GET(
   } catch (error) {
     console.error('Error fetching contact:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch contact' },
+      { success: false, error: 'Failed to fetch contact', messageKey: 'errors.fetchFailed' },
       { status: 500 }
     )
   }
@@ -53,11 +68,33 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient()
+    // Vérifier les permissions
+    const { success, user, errorResponse } = await verifyApiPermission('clients', 'edit')
+    if (!success || !user) {
+      return errorResponse
+    }
+
     const { id } = await params
     const body = await request.json()
+    const supabase = createServiceRoleClient()
+    const ipAddress = getClientIpFromHeaders(request.headers)
 
-    const updateData: Record<string, unknown> = {}
+    // Récupérer le contact actuel pour le log (avant modification)
+    const { data: oldContact } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('id', id)
+      .single<Contact>()
+
+    if (!oldContact) {
+      return NextResponse.json(
+        { success: false, error: 'Contact not found', messageKey: 'errors.contactNotFound' },
+        { status: 404 }
+      )
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateData: any = {}
 
     if (body.first_name !== undefined) updateData.first_name = body.first_name?.trim()
     if (body.last_name !== undefined) updateData.last_name = body.last_name?.trim() || null
@@ -81,36 +118,66 @@ export async function PUT(
       }
     }
 
-    // updated_at sera mis à jour automatiquement par le trigger
     updateData.updated_at = new Date().toISOString()
 
-    const { data: contact, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: contact, error } = await (supabase as any)
       .from('contacts')
-      // @ts-expect-error - Supabase SSR typing limitation with update
-      .update(updateData as ContactUpdate)
+      .update(updateData)
       .eq('id', id)
       .select()
-      .single<Contact>()
+      .single() as { data: Contact | null; error: any }
 
-    if (error) {
-      if (error.code === 'PGRST116') {
+    if (error || !contact) {
+      if (error?.code === 'PGRST116') {
         return NextResponse.json(
-          { success: false, error: 'Contact not found' },
+          { success: false, error: 'Contact not found', messageKey: 'errors.contactNotFound' },
           { status: 404 }
         )
       }
       console.error('Error updating contact:', error)
       return NextResponse.json(
-        { success: false, error: error.message || 'Failed to update contact' },
+        { success: false, error: error?.message || 'Failed to update contact', messageKey: 'errors.updateFailed' },
         { status: 500 }
       )
     }
+
+    // Déterminer l'action (archivage ou simple update)
+    const actionType = body.status === 'archived' ? 'archived' : 'updated'
+
+    // Logger la modification
+    await logContactAction({
+      userId: user.id,
+      userRole: user.role as UserRole,
+      userName: `${user.profile.first_name} ${user.profile.last_name}`,
+      action: actionType,
+      contactId: id,
+      contactName: `${contact.first_name} ${contact.last_name || ''}`.trim(),
+      details: {
+        changes: Object.keys(updateData).filter(k => k !== 'updated_at'),
+        oldValues: {
+          first_name: oldContact.first_name,
+          last_name: oldContact.last_name,
+          phone: oldContact.phone,
+          email: oldContact.email,
+          status: oldContact.status
+        },
+        newValues: {
+          first_name: contact.first_name,
+          last_name: contact.last_name,
+          phone: contact.phone,
+          email: contact.email,
+          status: contact.status
+        }
+      },
+      ipAddress
+    })
 
     return NextResponse.json({ success: true, contact })
   } catch (error) {
     console.error('Error updating contact:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to update contact' },
+      { success: false, error: 'Failed to update contact', messageKey: 'errors.updateFailed' },
       { status: 500 }
     )
   }
@@ -125,39 +192,70 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient()
+    // Vérifier les permissions
+    const { success, user, errorResponse } = await verifyApiPermission('clients', 'delete')
+    if (!success || !user) {
+      return errorResponse
+    }
+
     const { id } = await params
+    const supabase = createServiceRoleClient()
+    const ipAddress = getClientIpFromHeaders(request.headers)
+
+    // Récupérer le contact avant archivage pour le log
+    const { data: contact } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('id', id)
+      .single<Contact>()
+
+    if (!contact) {
+      return NextResponse.json(
+        { success: false, error: 'Contact not found', messageKey: 'errors.contactNotFound' },
+        { status: 404 }
+      )
+    }
 
     // Soft delete = archivage (pas de hard delete via UI en v1)
-    const { error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any)
       .from('contacts')
-      // @ts-expect-error - Supabase SSR typing limitation with update
       .update({
         status: 'archived',
         archived_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      } as ContactUpdate)
+      })
       .eq('id', id)
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        return NextResponse.json(
-          { success: false, error: 'Contact not found' },
-          { status: 404 }
-        )
-      }
       console.error('Error archiving contact:', error)
       return NextResponse.json(
-        { success: false, error: error.message || 'Failed to archive contact' },
+        { success: false, error: error.message || 'Failed to archive contact', messageKey: 'errors.archiveFailed' },
         { status: 500 }
       )
     }
+
+    // Logger l'archivage
+    await logContactAction({
+      userId: user.id,
+      userRole: user.role as UserRole,
+      userName: `${user.profile.first_name} ${user.profile.last_name}`,
+      action: 'archived',
+      contactId: id,
+      contactName: `${contact.first_name} ${contact.last_name || ''}`.trim(),
+      details: {
+        phone: contact.phone,
+        email: contact.email,
+        previousStatus: contact.status
+      },
+      ipAddress
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error archiving contact:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to archive contact' },
+      { success: false, error: 'Failed to archive contact', messageKey: 'errors.archiveFailed' },
       { status: 500 }
     )
   }

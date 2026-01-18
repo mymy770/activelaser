@@ -1,12 +1,255 @@
 /**
  * Utilitaires de gestion des permissions utilisateurs
- * 
+ *
  * Ce module centralise toute la logique de permissions pour garantir
  * la cohérence dans toute l'application.
  */
 
 import { createClient } from '@/lib/supabase/server'
-import type { UserRole, Branch } from '@/lib/supabase/types'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import type { UserRole, ResourceType, Branch, Profile } from '@/lib/supabase/types'
+import { NextResponse } from 'next/server'
+
+// Types pour les vérifications de permissions
+export type PermissionAction = 'view' | 'create' | 'edit' | 'delete'
+
+export interface PermissionCheckResult {
+  allowed: boolean
+  user: {
+    id: string
+    role: UserRole
+    profile: Profile
+  } | null
+  error?: {
+    status: number
+    code: string
+    message: string
+    messageKey: string // Clé de traduction pour le frontend
+  }
+}
+
+export interface AuthenticatedUser {
+  id: string
+  email: string
+  role: UserRole
+  profile: Profile
+  branchIds: string[]
+}
+
+/**
+ * Vérifie l'authentification et récupère l'utilisateur avec son profil
+ */
+export async function getAuthenticatedUser(): Promise<{
+  user: AuthenticatedUser | null
+  error?: { status: number; code: string; message: string; messageKey: string }
+}> {
+  const supabase = await createClient()
+
+  // Vérifier l'authentification
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return {
+      user: null,
+      error: {
+        status: 401,
+        code: 'UNAUTHORIZED',
+        message: 'You must be logged in to perform this action',
+        messageKey: 'errors.unauthorized'
+      }
+    }
+  }
+
+  // Récupérer le profil avec le service role pour éviter les problèmes RLS
+  const serviceClient = createServiceRoleClient()
+  const { data: profile, error: profileError } = await serviceClient
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single<Profile>()
+
+  if (profileError || !profile) {
+    return {
+      user: null,
+      error: {
+        status: 403,
+        code: 'NO_PROFILE',
+        message: 'User profile not found',
+        messageKey: 'errors.noProfile'
+      }
+    }
+  }
+
+  // Récupérer les branches de l'utilisateur
+  const { data: userBranches } = await serviceClient
+    .from('user_branches')
+    .select('branch_id')
+    .eq('user_id', user.id)
+    .returns<Array<{ branch_id: string }>>()
+
+  const branchIds = userBranches?.map(ub => ub.branch_id) || []
+
+  return {
+    user: {
+      id: user.id,
+      email: user.email || '',
+      role: profile.role as UserRole,
+      profile,
+      branchIds
+    }
+  }
+}
+
+/**
+ * Vérifie si un utilisateur a une permission spécifique sur une ressource
+ */
+// Type pour les permissions de rôle
+interface RolePermissionRow {
+  id: string
+  role: string
+  resource: string
+  can_view: boolean
+  can_create: boolean
+  can_edit: boolean
+  can_delete: boolean
+}
+
+export async function checkPermission(
+  userRole: UserRole,
+  resource: ResourceType,
+  action: PermissionAction
+): Promise<boolean> {
+  // Super admin a toutes les permissions
+  if (userRole === 'super_admin') {
+    return true
+  }
+
+  const serviceClient = createServiceRoleClient()
+
+  const { data: permission } = await serviceClient
+    .from('role_permissions')
+    .select('*')
+    .eq('role', userRole)
+    .eq('resource', resource)
+    .single<RolePermissionRow>()
+
+  if (!permission) {
+    return false
+  }
+
+  switch (action) {
+    case 'view':
+      return permission.can_view
+    case 'create':
+      return permission.can_create
+    case 'edit':
+      return permission.can_edit
+    case 'delete':
+      return permission.can_delete
+    default:
+      return false
+  }
+}
+
+/**
+ * Vérifie si un utilisateur a accès à une branche spécifique
+ */
+export async function checkBranchAccess(
+  userId: string,
+  userRole: UserRole,
+  branchId: string
+): Promise<boolean> {
+  // Super admin a accès à toutes les branches
+  if (userRole === 'super_admin') {
+    return true
+  }
+
+  const serviceClient = createServiceRoleClient()
+
+  const { data: userBranch } = await serviceClient
+    .from('user_branches')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('branch_id', branchId)
+    .single()
+
+  return !!userBranch
+}
+
+/**
+ * Fonction complète de vérification pour les API routes
+ * Vérifie: authentification + permission + accès branche (optionnel)
+ */
+export async function verifyApiPermission(
+  resource: ResourceType,
+  action: PermissionAction,
+  branchId?: string
+): Promise<{
+  success: boolean
+  user?: AuthenticatedUser
+  errorResponse?: NextResponse
+}> {
+  // 1. Vérifier l'authentification
+  const { user, error: authError } = await getAuthenticatedUser()
+
+  if (authError || !user) {
+    return {
+      success: false,
+      errorResponse: NextResponse.json(
+        {
+          success: false,
+          error: authError?.code || 'UNAUTHORIZED',
+          message: authError?.message || 'Authentication required',
+          messageKey: authError?.messageKey || 'errors.unauthorized'
+        },
+        { status: authError?.status || 401 }
+      )
+    }
+  }
+
+  // 2. Vérifier la permission sur la ressource
+  const hasPermission = await checkPermission(user.role, resource, action)
+
+  if (!hasPermission) {
+    return {
+      success: false,
+      errorResponse: NextResponse.json(
+        {
+          success: false,
+          error: 'PERMISSION_DENIED',
+          message: `You don't have permission to ${action} ${resource}`,
+          messageKey: `errors.permission.${action}.${resource}`
+        },
+        { status: 403 }
+      )
+    }
+  }
+
+  // 3. Vérifier l'accès à la branche si spécifiée
+  if (branchId) {
+    const hasBranchAccess = await checkBranchAccess(user.id, user.role, branchId)
+
+    if (!hasBranchAccess) {
+      return {
+        success: false,
+        errorResponse: NextResponse.json(
+          {
+            success: false,
+            error: 'BRANCH_ACCESS_DENIED',
+            message: 'You don\'t have access to this branch',
+            messageKey: 'errors.branchAccessDenied'
+          },
+          { status: 403 }
+        )
+      }
+    }
+  }
+
+  return {
+    success: true,
+    user
+  }
+}
 
 /**
  * Récupère les branches autorisées pour un utilisateur
