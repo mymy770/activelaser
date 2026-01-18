@@ -1092,6 +1092,11 @@
       "info_title": "Granular Permission Control",
       "info_description": "Super Admin permissions are locked and cannot be modified. Branch Admin and Agent permissions can be customized. Changes take effect immediately.",
       "super_admin_locked": "Super Admin permissions cannot be modified",
+      "locked": "Locked",
+      "all_permissions_locked": "All permissions locked",
+      "role_description_super_admin": "Full access to all features. Permissions cannot be modified.",
+      "role_description_branch_admin": "Branch administration. Permissions can be customized.",
+      "role_description_agent": "Agent with limited access. Permissions can be customized.",
       "table": {
         "resource": "Resource",
         "role": "Role",

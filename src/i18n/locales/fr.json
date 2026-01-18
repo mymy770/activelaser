@@ -1146,6 +1146,11 @@
       "info_title": "Controle granulaire des permissions",
       "info_description": "Les permissions Super Admin sont verrouillees et ne peuvent pas etre modifiees. Les permissions Admin Agence et Agent peuvent etre personnalisees. Les modifications prennent effet immediatement.",
       "super_admin_locked": "Les permissions Super Admin ne peuvent pas etre modifiees",
+      "locked": "Verrouille",
+      "all_permissions_locked": "Toutes les permissions verrouillees",
+      "role_description_super_admin": "Acces complet a toutes les fonctionnalites. Les permissions ne peuvent pas etre modifiees.",
+      "role_description_branch_admin": "Administration de l'agence. Les permissions peuvent etre personnalisees.",
+      "role_description_agent": "Agent avec acces limite. Les permissions peuvent etre personnalisees.",
       "table": {
         "resource": "Ressource",
         "role": "Role",

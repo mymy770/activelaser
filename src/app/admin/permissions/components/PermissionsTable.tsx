@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Check, X, Loader2, Save } from 'lucide-react'
+import { Check, X, Loader2, Save, Shield, Users, UserCog } from 'lucide-react'
 import { useTranslation } from '@/contexts/LanguageContext'
 import type { RolePermission, UserRole, ResourceType, PermissionSet } from '@/lib/supabase/types'
 
@@ -20,9 +20,33 @@ const ROLE_ORDER: UserRole[] = ['super_admin', 'branch_admin', 'agent']
 // Permission columns
 const PERMISSION_COLUMNS: (keyof PermissionSet)[] = ['can_view', 'can_create', 'can_edit', 'can_delete']
 
+// Role icons and colors
+const ROLE_CONFIG: Record<UserRole, { icon: typeof Shield; bgColor: string; textColor: string; borderColor: string }> = {
+  super_admin: {
+    icon: Shield,
+    bgColor: 'bg-red-500/20',
+    textColor: 'text-red-400',
+    borderColor: 'border-red-500/50'
+  },
+  branch_admin: {
+    icon: UserCog,
+    bgColor: 'bg-purple-500/20',
+    textColor: 'text-purple-400',
+    borderColor: 'border-purple-500/50'
+  },
+  agent: {
+    icon: Users,
+    bgColor: 'bg-blue-500/20',
+    textColor: 'text-blue-400',
+    borderColor: 'border-blue-500/50'
+  }
+}
+
 export function PermissionsTable({ permissions, isDark, onSavePermissions }: PermissionsTableProps) {
   const { t } = useTranslation()
   const [saving, setSaving] = useState(false)
+  const [selectedRole, setSelectedRole] = useState<UserRole>('branch_admin')
+
   // Local state for pending changes
   const [localPermissions, setLocalPermissions] = useState<Map<string, RolePermission>>(new Map())
   const [pendingChanges, setPendingChanges] = useState<Map<string, Partial<PermissionSet>>>(new Map())
@@ -39,6 +63,11 @@ export function PermissionsTable({ permissions, isDark, onSavePermissions }: Per
   const getPermission = useCallback((role: UserRole, resource: ResourceType): RolePermission | undefined => {
     return Array.from(localPermissions.values()).find(p => p.role === role && p.resource === resource)
   }, [localPermissions])
+
+  // Get all permissions for the selected role
+  const getPermissionsForRole = useCallback((role: UserRole): RolePermission[] => {
+    return RESOURCE_ORDER.map(resource => getPermission(role, resource)).filter((p): p is RolePermission => p !== undefined)
+  }, [getPermission])
 
   // Handle toggle (local only, no API call)
   const handleToggle = (perm: RolePermission, column: keyof PermissionSet) => {
@@ -94,9 +123,77 @@ export function PermissionsTable({ permissions, isDark, onSavePermissions }: Per
   }
 
   const hasChanges = pendingChanges.size > 0
+  const isSuperAdmin = selectedRole === 'super_admin'
+  const roleConfig = ROLE_CONFIG[selectedRole]
+  const RoleIcon = roleConfig.icon
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Role Selector Tabs */}
+      <div className="flex flex-wrap gap-3">
+        {ROLE_ORDER.map(role => {
+          const config = ROLE_CONFIG[role]
+          const Icon = config.icon
+          const isSelected = selectedRole === role
+          const isLocked = role === 'super_admin'
+
+          return (
+            <button
+              key={role}
+              onClick={() => setSelectedRole(role)}
+              className={`
+                flex items-center gap-3 px-5 py-3 rounded-xl border-2 transition-all
+                ${isSelected
+                  ? isDark
+                    ? `${config.bgColor} ${config.borderColor} ${config.textColor}`
+                    : `bg-opacity-10 ${config.borderColor} ${config.textColor.replace('400', '600')}`
+                  : isDark
+                    ? 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-750 hover:border-gray-600'
+                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+                }
+              `}
+            >
+              <Icon className="w-5 h-5" />
+              <div className="text-left">
+                <div className={`font-medium ${isSelected ? '' : isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {t(`admin.roles.${role}`)}
+                </div>
+                {isLocked && (
+                  <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {t('admin.permissions.locked')}
+                  </div>
+                )}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Selected Role Header */}
+      <div className={`flex items-center gap-4 p-4 rounded-xl ${
+        isDark ? roleConfig.bgColor : 'bg-opacity-10'
+      } border ${roleConfig.borderColor}`}>
+        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${roleConfig.bgColor}`}>
+          <RoleIcon className={`w-6 h-6 ${roleConfig.textColor}`} />
+        </div>
+        <div>
+          <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            {t(`admin.roles.${selectedRole}`)}
+          </h2>
+          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            {t(`admin.permissions.role_description_${selectedRole}`)}
+          </p>
+        </div>
+        {isSuperAdmin && (
+          <div className={`ml-auto px-3 py-1 rounded-full text-xs font-medium ${
+            isDark ? 'bg-red-500/30 text-red-300' : 'bg-red-100 text-red-700'
+          }`}>
+            {t('admin.permissions.all_permissions_locked')}
+          </div>
+        )}
+      </div>
+
+      {/* Permissions Grid */}
       <div className={`rounded-xl border overflow-hidden ${
         isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
       }`}>
@@ -104,18 +201,13 @@ export function PermissionsTable({ permissions, isDark, onSavePermissions }: Per
           <table className="w-full">
             <thead>
               <tr className={isDark ? 'bg-gray-700/50' : 'bg-gray-50'}>
-                <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                <th className={`px-6 py-4 text-left text-sm font-medium uppercase tracking-wider ${
                   isDark ? 'text-gray-400' : 'text-gray-500'
                 }`}>
                   {t('admin.permissions.table.resource')}
                 </th>
-                <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                  isDark ? 'text-gray-400' : 'text-gray-500'
-                }`}>
-                  {t('admin.permissions.table.role')}
-                </th>
                 {PERMISSION_COLUMNS.map(col => (
-                  <th key={col} className={`px-4 py-3 text-center text-xs font-medium uppercase tracking-wider ${
+                  <th key={col} className={`px-4 py-4 text-center text-sm font-medium uppercase tracking-wider ${
                     isDark ? 'text-gray-400' : 'text-gray-500'
                   }`}>
                     {t(`admin.permissions.table.${col}`)}
@@ -124,89 +216,66 @@ export function PermissionsTable({ permissions, isDark, onSavePermissions }: Per
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-gray-700' : 'divide-gray-200'}`}>
-              {RESOURCE_ORDER.flatMap((resource, resourceIndex) =>
-                ROLE_ORDER.map((role, roleIndex) => {
-                  const perm = getPermission(role, resource)
-                  const isFirstOfGroup = roleIndex === 0
-                  const isLastOfGroup = roleIndex === ROLE_ORDER.length - 1
-                  const isSuperAdmin = role === 'super_admin'
+              {RESOURCE_ORDER.map(resource => {
+                const perm = getPermission(selectedRole, resource)
 
-                  return (
-                    <tr
-                      key={`${resource}-${role}`}
-                      className={`
-                        ${isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'}
-                        ${isLastOfGroup && resourceIndex < RESOURCE_ORDER.length - 1
-                          ? isDark ? 'border-b-2 border-gray-600' : 'border-b-2 border-gray-300'
-                          : ''
-                        }
-                      `}
-                    >
-                      {isFirstOfGroup ? (
-                        <td
-                          rowSpan={ROLE_ORDER.length}
-                          className={`px-4 py-3 font-medium align-top ${
-                            isDark ? 'text-white bg-gray-750' : 'text-gray-900 bg-gray-50'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${getResourceColor(resource)}`} />
-                            {t(`admin.permissions.resources.${resource}`)}
-                          </div>
-                        </td>
-                      ) : null}
-                      <td className={`px-4 py-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          getRoleBadgeClass(role, isDark)
-                        }`}>
-                          {t(`admin.roles.${role}`)}
+                return (
+                  <tr
+                    key={resource}
+                    className={isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'}
+                  >
+                    <td className={`px-6 py-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <div className="flex items-center gap-3">
+                        <span className={`w-3 h-3 rounded-full ${getResourceColor(resource)}`} />
+                        <span className="font-medium">
+                          {t(`admin.permissions.resources.${resource}`)}
                         </span>
-                      </td>
-                      {PERMISSION_COLUMNS.map(col => {
-                        if (!perm) {
-                          return (
-                            <td key={`${resource}-${role}-${col}`} className={`px-4 py-3 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                              -
-                            </td>
-                          )
-                        }
-
-                        const isEnabled = perm[col]
-                        const hasChange = pendingChanges.get(perm.id)?.[col] !== undefined
-
+                      </div>
+                    </td>
+                    {PERMISSION_COLUMNS.map(col => {
+                      if (!perm) {
                         return (
-                          <td key={`${resource}-${role}-${col}`} className="px-4 py-3 text-center">
-                            <button
-                              onClick={() => handleToggle(perm, col)}
-                              disabled={isSuperAdmin}
-                              className={`
-                                w-8 h-8 rounded-lg flex items-center justify-center mx-auto transition-all
-                                ${isSuperAdmin ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:scale-110'}
-                                ${hasChange ? 'ring-2 ring-blue-500 ring-offset-2 ' + (isDark ? 'ring-offset-gray-800' : 'ring-offset-white') : ''}
-                                ${isEnabled
-                                  ? isDark
-                                    ? 'bg-green-500/20 text-green-400'
-                                    : 'bg-green-100 text-green-600'
-                                  : isDark
-                                    ? 'bg-gray-700 text-gray-500'
-                                    : 'bg-gray-100 text-gray-400'
-                                }
-                              `}
-                              title={isSuperAdmin ? t('admin.permissions.super_admin_locked') : ''}
-                            >
-                              {isEnabled ? (
-                                <Check className="w-4 h-4" />
-                              ) : (
-                                <X className="w-4 h-4" />
-                              )}
-                            </button>
+                          <td key={col} className={`px-4 py-4 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                            -
                           </td>
                         )
-                      })}
-                    </tr>
-                  )
-                })
-              )}
+                      }
+
+                      const isEnabled = perm[col]
+                      const hasChange = pendingChanges.get(perm.id)?.[col] !== undefined
+
+                      return (
+                        <td key={col} className="px-4 py-4 text-center">
+                          <button
+                            onClick={() => handleToggle(perm, col)}
+                            disabled={isSuperAdmin}
+                            className={`
+                              w-10 h-10 rounded-lg flex items-center justify-center mx-auto transition-all
+                              ${isSuperAdmin ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:scale-110'}
+                              ${hasChange ? 'ring-2 ring-blue-500 ring-offset-2 ' + (isDark ? 'ring-offset-gray-800' : 'ring-offset-white') : ''}
+                              ${isEnabled
+                                ? isDark
+                                  ? 'bg-green-500/20 text-green-400'
+                                  : 'bg-green-100 text-green-600'
+                                : isDark
+                                  ? 'bg-gray-700 text-gray-500'
+                                  : 'bg-gray-100 text-gray-400'
+                              }
+                            `}
+                            title={isSuperAdmin ? t('admin.permissions.super_admin_locked') : ''}
+                          >
+                            {isEnabled ? (
+                              <Check className="w-5 h-5" />
+                            ) : (
+                              <X className="w-5 h-5" />
+                            )}
+                          </button>
+                        </td>
+                      )
+                    })}
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -216,10 +285,10 @@ export function PermissionsTable({ permissions, isDark, onSavePermissions }: Per
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          disabled={!hasChanges || saving}
+          disabled={!hasChanges || saving || isSuperAdmin}
           className={`
             flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all
-            ${hasChanges
+            ${hasChanges && !isSuperAdmin
               ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
               : isDark
                 ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
@@ -256,21 +325,4 @@ function getResourceColor(resource: ResourceType): string {
     permissions: 'bg-red-500'
   }
   return colors[resource] || 'bg-gray-500'
-}
-
-// Helper function for role badge classes
-function getRoleBadgeClass(role: UserRole, isDark: boolean): string {
-  if (role === 'super_admin') {
-    return isDark
-      ? 'bg-red-500/20 text-red-400'
-      : 'bg-red-100 text-red-800'
-  }
-  if (role === 'branch_admin') {
-    return isDark
-      ? 'bg-purple-500/20 text-purple-400'
-      : 'bg-purple-100 text-purple-800'
-  }
-  return isDark
-    ? 'bg-blue-500/20 text-blue-400'
-    : 'bg-blue-100 text-blue-800'
 }
