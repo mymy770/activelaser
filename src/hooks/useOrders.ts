@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRealtimeRefresh } from './useRealtimeSubscription'
 import type { Order, OrderStatus, OrderWithRelations } from '@/lib/supabase/types'
 
 interface OrdersStats {
@@ -73,6 +74,10 @@ export function useOrders(branchId: string | null) {
     fetchOrders()
   }, [fetchOrders])
 
+  // Realtime: écouter les changements sur orders
+  // Mise à jour instantanée quand une commande est créée/modifiée
+  useRealtimeRefresh('orders', branchId, fetchOrders)
+
   // Annuler une commande
   const cancelOrder = useCallback(async (orderId: string): Promise<boolean> => {
     setError(null)
@@ -136,28 +141,27 @@ export function useOrders(branchId: string | null) {
 export function usePendingOrdersCount(branchId: string | null) {
   const [count, setCount] = useState(0)
 
-  useEffect(() => {
+  const fetchCount = useCallback(async () => {
     if (!branchId) {
       setCount(0)
       return
     }
-
-    const fetchCount = async () => {
-      try {
-        const response = await fetch(`/api/orders?branch_id=${branchId}&status=pending`)
-        const data = await response.json()
-        setCount(data.pending_count || data.orders?.length || 0)
-      } catch (err) {
-        console.error('Error fetching pending count:', err)
-      }
+    try {
+      const response = await fetch(`/api/orders?branch_id=${branchId}&status=pending`)
+      const data = await response.json()
+      setCount(data.pending_count || data.orders?.length || 0)
+    } catch (err) {
+      console.error('Error fetching pending count:', err)
     }
-
-    fetchCount()
-    
-    // Rafraîchir toutes les 30 secondes
-    const interval = setInterval(fetchCount, 30000)
-    return () => clearInterval(interval)
   }, [branchId])
+
+  useEffect(() => {
+    fetchCount()
+  }, [fetchCount])
+
+  // Realtime: mise à jour instantanée du badge
+  // Remplace le polling de 30 secondes
+  useRealtimeRefresh('orders', branchId, fetchCount)
 
   return count
 }
