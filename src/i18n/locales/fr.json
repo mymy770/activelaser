@@ -2,6 +2,8 @@
   "nav": {
     "games": "JEUX",
     "concept": "CONCEPT",
+    "pricing": "TARIFS",
+    "branches": "SUCCURSALES",
     "contact": "CONTACT"
   },
   "hero": {
@@ -10,6 +12,23 @@
     "description": "Des arenes interactives totalement immersives, ou eclairages neon, son et defis physiques se combinent pour creer des experiences uniques.",
     "cta_games": "Decouvrir nos jeux",
     "cta_concept": "Decouvrir le concept"
+  },
+  "concept": {
+    "title": "A PROPOS DU JEU",
+    "intro": "Active Games est un complexe de jeux interactifs innovant base sur le travail d'equipe, le mouvement et la reflexion strategique.",
+    "features": {
+      "players": "Jusqu'a 6 joueurs",
+      "duration": "60 minutes d'action",
+      "bracelet": "Bracelet intelligent",
+      "rooms": "8 salles differentes",
+      "modes": "Competitif ou Equipe",
+      "strategy": "Votre strategie gagne"
+    },
+    "description": [
+      "L'experience est concue pour des groupes de 6 joueurs maximum et dure 60 minutes d'action non-stop.",
+      "A votre arrivee, chaque joueur recoit un bracelet intelligent et s'inscrit avec son nom.",
+      "Le complexe comprend 8 salles differentes, chacune avec son propre univers, concept et defis uniques."
+    ]
   },
   "games": {
     "title": "NOS JEUX",
@@ -70,6 +89,50 @@
         "popup_description": "Controlez le mouvement des blocs lumineux via une console interactive.",
         "features": ["Console interactive", "Integration dalles LED"]
       }
+    }
+  },
+  "pricing": {
+    "title": "TARIFS",
+    "subtitle": "Choisissez l'option qui vous convient",
+    "single": {
+      "title": "Jeux Illimites",
+      "price": "100",
+      "currency": "NIS",
+      "duration": "Une heure par participant",
+      "features": [
+        "Acces aux 8 salles",
+        "Jeux illimites",
+        "Bracelet intelligent : 10 NIS la premiere fois (reutilisable)"
+      ]
+    },
+    "packages": {
+      "title": "Forfaits Evenements",
+      "items": [
+        {
+          "name": "Forfait 15+",
+          "minParticipants": "A partir de 15 participants",
+          "price": "130",
+          "currency": "NIS / personne",
+          "features": [
+            "Jeux illimites pendant une heure",
+            "Salle privee pour 2 heures",
+            "Systeme son et eclairage",
+            "Bracelet intelligent inclus"
+          ]
+        },
+        {
+          "name": "Forfait 30+",
+          "minParticipants": "A partir de 30 participants",
+          "price": "120",
+          "currency": "NIS / personne",
+          "features": [
+            "Jeux illimites pendant une heure",
+            "Salle privee pour 2 heures",
+            "Systeme son et eclairage",
+            "Bracelet intelligent inclus"
+          ]
+        }
+      ]
     }
   },
   "whyChooseUs": {
